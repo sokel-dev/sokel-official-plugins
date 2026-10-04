@@ -34,7 +34,7 @@ docker run -d --restart unless-stopped \
 | [`github`](github) | GitHub | GitHub 项目维护自动化（github.com / GitHub Enterprise Server）：Issue 与 PR 全流程、仓库读写与建分支、Actions 触发与失败日志、发版、Projects V2 看板流转，外加机器人回执面（回写提交状态/检查运行/表情）——自动分类、stale 清理、PR 评审、ChatOps 都能拼出来。事件支持 Webhook（零延迟）与轮询两条路。**需自行部署插件进程**：安装后在本页接入组里复制接入命令。 |
 | [`gitlab`](gitlab) | GitLab | 把 GitLab 接进工作流：读写仓库文件、建/评/合 MR、开 Issue、查流水线与失败日志、触发构建。 |
 | [`gmail`](gmail) | Gmail | 读写你的 Gmail：列邮件 / 读邮件 / 发邮件，并可作为事件源——收到新邮件时触发工作流。 |
-| [`hackernews`](hackernews) | hackernews |  |
+| [`hackernews`](hackernews) | Hacker News | 读榜单、帖子、评论，按关键词搜索；有人评论你的帖子、或回复你的评论时触发工作流。 |
 | [`kbstore-es`](kbstore-es) | 知识库存储（Elasticsearch） | 知识库的存储与检索后端：写入分块、向量检索、BM25、混合检索（RRF 融合）。 |
 | [`kbstore-pgvector`](kbstore-pgvector) | 知识库存储（pgvector） | 知识库存储引擎插件（Postgres + pgvector），与 kbstore-es 实现同一份存储契约。 |
 | [`kubernetes`](kubernetes) | Kubernetes | 在画布上操作 K8s 集群：查 pod、看容器日志、滚动重启、扩缩副本、看事件与节点健康。 |
@@ -48,7 +48,7 @@ docker run -d --restart unless-stopped \
 | [`threads`](threads) | Threads | 发帖、发帖串。免费、无按次计费；受众规模是这批海外渠道里最大的之一。 |
 | [`tushare`](tushare) | Tushare Pro | 券商研报增量 + 221 个 TuShare 目录接口。只负责取数——不落库、不去重、不加工。 |
 | [`umeng`](umeng) | 友盟推送 | App 推送的友盟通道：按设备 token 单播/列播，或全量广播。与「阿里云」插件的 |
-| [`wechat-claw`](wechat-claw) | 个人微信 | 把个人微信接进工作流：收消息触发、发文本/图片/文件。 |
+| [`wechat-claw`](wechat-claw) | 微信 ClawBot | 接入微信官方 ClawBot（iLink Bot 接口）：你在微信里给 ClawBot 发消息即触发工作流，工作流可回复文本、图片、文件。只有扫码绑定的本人能与它对话。 |
 | [`wechat-mp`](wechat-mp) | 微信公众号 | 把文章写进草稿箱、发布、拿到永久链接。国内唯一一条「API 正经、金融内容可做、覆盖面够」的主渠道。 |
 | [`x`](x) | X (Twitter) | 发推、发推串、传图传视频、点赞转推、搜索与时间线、私信、列表，以及被提及 / 关键词命中时触发工作流。 |
 | [`xueqiu`](xueqiu) | 雪球（非官方） | 发帖（可带图）+ 检查凭证。 |

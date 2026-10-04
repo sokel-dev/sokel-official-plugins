@@ -40,7 +40,7 @@ README and `docs/` explain what it needs.
 | [`github`](github) | GitHub | GitHub project maintenance automation (github.com / GitHub Enterprise Server): the full issue and PR workflow, repo read/write and branch creation, Actions triggering and failure logs, releases, Projects V2 board transitions, plus a bot-reply surface (writing back commit statuses/check runs/reactions) — auto-triage, stale cleanup, PR review, and ChatOps can all be built from these. Events support both webhook (zero latency) and polling. **Requires self-hosting the plugin process**: after installing, copy the connection command from this page's access group. |
 | [`gitlab`](gitlab) | GitLab | Brings GitLab into workflows: read and write repository files, create/comment on/merge MRs, open issues, check pipelines and failure logs, and trigger builds. |
 | [`gmail`](gmail) | Gmail | Read and write your Gmail: list emails / read emails / send emails, and it can also act as an event source — triggering a workflow when a new email arrives. |
-| [`hackernews`](hackernews) | hackernews |  |
+| [`hackernews`](hackernews) | Hacker News | Read lists, stories and comments, and search by keyword; trigger a workflow when someone comments on your story or replies to your comment. |
 | [`kbstore-es`](kbstore-es) | Knowledge base store (Elasticsearch) | Storage and retrieval backend for knowledge bases: write chunks, vector search, BM25 and hybrid search (RRF fusion). |
 | [`kbstore-pgvector`](kbstore-pgvector) | Knowledge base store (pgvector) | Knowledge base storage engine on Postgres + pgvector; implements the same storage contract as kbstore-es. |
 | [`kubernetes`](kubernetes) | Kubernetes | Operate a Kubernetes cluster from the canvas: inspect pods, view container logs, do rolling restarts, scale replicas, and check events and node health. |
@@ -54,7 +54,7 @@ README and `docs/` explain what it needs.
 | [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. |
 | [`tushare`](tushare) | Tushare Pro | Brokerage research report updates (incremental) + 221 Tushare catalog endpoints. Only responsible for fetching data — no persistence, no deduplication, no processing. |
 | [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's |
-| [`wechat-claw`](wechat-claw) | Personal WeChat | Connects a personal WeChat account into workflows: trigger on incoming messages, send text/image/file. |
+| [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. |
 | [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. |
 | [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. |
 | [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. |

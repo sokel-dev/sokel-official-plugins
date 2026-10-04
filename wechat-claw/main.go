@@ -11,8 +11,9 @@
 //   - Sending depends on the running client's context token (rebuilt from inbound messages into
 //     the store) → the WeChat group recommends a single-replica deployment.
 //
-// Compliance warning: the iLink bot API is an unofficial channel and carries a ban risk — a
-// dedicated account is recommended.
+// What iLink is: WeChat's official bot channel for personal AI assistants (ClawBot). Scanning binds
+// a ClawBot contact to the scanner's own WeChat; only that person can message it (no other users,
+// no groups), and WeChat relays the conversation through ilinkai.weixin.qq.com.
 //
 // Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx SOKEL_NATS_TOKEN=xxx ./wechat-claw
 package main

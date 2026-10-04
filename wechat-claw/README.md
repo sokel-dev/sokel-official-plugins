@@ -1,4 +1,4 @@
-# wechat-claw — WeChat iLink Bot plugin (send and receive in one)
+# wechat-claw — WeChat ClawBot plugin over the iLink Bot API (send and receive in one)
 
 Built on [wechat-clawbot-client-go](https://github.com/importcjj/wechat-clawbot-client-go).
 One credential = one WeChat account; multiple accounts in a single instance are naturally covered
@@ -42,7 +42,11 @@ the event source automatically comes online with that account (visible in the in
 - Session expired → that account lights up "pending login" in the instance table; scanning again
   is enough (no process restart needed).
 
-## Compliance warning
+## What iLink is
 
-The iLink bot API is an unofficial channel and carries a ban risk — a dedicated account is
-recommended; don't use your primary account.
+iLink is WeChat's official bot channel for personal AI assistants ("ClawBot"). Scanning the QR code
+binds a ClawBot contact to the scanner's own WeChat account, and WeChat relays that conversation
+through `ilinkai.weixin.qq.com`. Only the person who bound it can message it: other users can't add
+it and it can't join groups, so this plugin is a personal assistant channel, not a customer-service
+one. Replies need the context token of a recent inbound message (see above). WeChat reserves the
+right to rate-limit, filter content and end the service.
