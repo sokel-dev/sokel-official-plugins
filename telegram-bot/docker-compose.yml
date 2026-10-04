@@ -1,13 +1,13 @@
 # telegram-bot 部署（外网服务器上 docker compose up -d）。出站接入，不暴露端口。
 #
 # 构建并推镜像（repo 根执行）：
-#   docker build -t ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-telegram-bot:latest -f plugin-builtin/telegram-bot/Dockerfile .
-#   docker push ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-telegram-bot:latest
+#   docker build -t ghcr.io/sokel-dev/sokel-plugin-telegram-bot:latest -f plugin-builtin/telegram-bot/Dockerfile .
+#   docker push ghcr.io/sokel-dev/sokel-plugin-telegram-bot:latest
 #
 # bot_token 不在此填：它是平台侧「凭证」，在插件凭证管理里配（注册时插件自报 bot_token 字段）。
 services:
   telegram-bot:
-    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-telegram-bot:latest
+    image: ghcr.io/sokel-dev/sokel-plugin-telegram-bot:latest
     restart: unless-stopped
     hostname: tg-bot          # 固定 hostname → 实例/主机列可读（否则默认容器 ID 乱码）
     environment:

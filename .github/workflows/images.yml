@@ -1,4 +1,5 @@
-# Plugin images on ghcr: ghcr.io/<owner>/<repo>/sokel-plugin-<name>, for linux/amd64 and linux/arm64.
+# Plugin images on ghcr: ghcr.io/<owner>/sokel-plugin-<name>, for linux/amd64 and linux/arm64 (public packages,
+# linked to this repository through the image source label).
 #
 #   push to main   -> :latest and :sha-<commit>
 #   tag vX.Y.Z     -> also :X.Y.Z
@@ -43,7 +44,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}/sokel-plugin-${{ matrix.plugin }}
+          images: ghcr.io/${{ github.repository_owner }}/sokel-plugin-${{ matrix.plugin }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-

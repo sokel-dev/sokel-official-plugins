@@ -12,7 +12,7 @@
 docker run -d --name notion --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://<平台地址> \
   -e SOKEL_TOKEN=skp_xxx \            # 插件页 → 接入组 → 「接入命令」里复制
-  ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-notion:latest
+  ghcr.io/sokel-dev/sokel-plugin-notion:latest
 ```
 
 起来后日志里会有一行 `已接入平台：插件「Notion」就绪`，插件页的接入组随即显示副本在线。

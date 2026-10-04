@@ -14,7 +14,7 @@ Sokel 项目维护的集成插件：消息、社交、开发工具、云服务�
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-<名字>:latest
+  ghcr.io/sokel-dev/sokel-plugin-<名字>:latest
 ```
 
 凭证（API Key、机器人 token）不在这里配，而是放在平台的凭证管理里。每个插件的 README 和 `docs/` 写了它需要什么。

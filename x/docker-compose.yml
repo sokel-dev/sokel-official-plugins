@@ -1,8 +1,8 @@
 # x 部署（docker compose up -d）。出站接入，不暴露端口。
 #
 # 构建并推镜像（repo 根执行）：
-#   docker build -t ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-x:latest -f plugin-builtin/x/Dockerfile .
-#   docker push ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-x:latest
+#   docker build -t ghcr.io/sokel-dev/sokel-plugin-x:latest -f plugin-builtin/x/Dockerfile .
+#   docker push ghcr.io/sokel-dev/sokel-plugin-x:latest
 #
 # X 令牌不在此填：在平台凭证页点「授权」走 OAuth。
 # X 在境外，连不上就在**凭证**里填出站代理（按凭证配，不影响别的出站）。
@@ -11,7 +11,7 @@
 # 多副本会各自推进同一个游标，导致重复推送与游标来回跳。
 services:
   x:
-    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-x:latest
+    image: ghcr.io/sokel-dev/sokel-plugin-x:latest
     restart: unless-stopped
     hostname: x          # 固定 hostname → 实例/主机列可读（否则默认容器 ID 乱码）
     environment:

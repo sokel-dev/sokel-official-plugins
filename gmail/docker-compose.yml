@@ -1,8 +1,8 @@
 # gmail 部署（外网服务器上 docker compose up -d）。出站接入，不暴露端口。
 #
 # 构建并推镜像（repo 根执行）：
-#   docker build -t ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-gmail:latest -f plugin-builtin/gmail/Dockerfile .
-#   docker push ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-gmail:latest
+#   docker build -t ghcr.io/sokel-dev/sokel-plugin-gmail:latest -f plugin-builtin/gmail/Dockerfile .
+#   docker push ghcr.io/sokel-dev/sokel-plugin-gmail:latest
 #
 # Google 授权不在此填：在平台凭证页点「授权」（凭证类型 auth_google_gmail）。
 #
@@ -10,7 +10,7 @@
 # 多副本会各自推进同一个游标，导致重复推送与游标来回跳。
 services:
   gmail:
-    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-gmail:latest
+    image: ghcr.io/sokel-dev/sokel-plugin-gmail:latest
     restart: unless-stopped
     hostname: gmail           # 固定 hostname → 实例/主机列可读（否则默认容器 ID 乱码）
     environment:

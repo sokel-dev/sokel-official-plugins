@@ -19,7 +19,7 @@ replica anywhere that can reach both the service and your platform:
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-<name>:latest
+  ghcr.io/sokel-dev/sokel-plugin-<name>:latest
 ```
 
 Credentials (API keys, bot tokens) are not set here: they live in the platform's credential store. Each plugin's

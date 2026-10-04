@@ -3,7 +3,7 @@
 # 前置：DSM 任务计划加 root 开机任务提高 inotify 上限（见 README「Synology 必做」）。
 services:
   synology:
-    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-synology:latest
+    image: ghcr.io/sokel-dev/sokel-plugin-synology:latest
     container_name: synology
     restart: unless-stopped
     environment:
