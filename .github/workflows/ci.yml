@@ -1,0 +1,43 @@
+# Every plugin: formatted, vetted, built, tested, and its generated code current (sokel-gen check).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.l.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: l
+        run: echo "plugins=$(for d in */; do d=${d%/}; [ -f "$d/go.mod" ] && echo "$d"; done | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+
+  plugin:
+    needs: list
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.list.outputs.plugins) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.plugin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26', cache-dependency-path: '${{ matrix.plugin }}/go.sum' }
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "::error::not formatted:"; echo "$out"; exit 1; fi
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: generated code is current
+        run: GOFLAGS=-mod=mod go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .

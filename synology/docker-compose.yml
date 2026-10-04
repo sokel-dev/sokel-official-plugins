@@ -1,0 +1,19 @@
+# synology 在 Synology Container Manager 的部署样例。
+# 用法：Container Manager → 项目 → 新增 → 粘贴本文件（或 ssh 上 docker compose up -d）。
+# 前置：DSM 任务计划加 root 开机任务提高 inotify 上限（见 README「Synology 必做」）。
+services:
+  synology:
+    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-synology:latest
+    container_name: synology
+    restart: unless-stopped
+    environment:
+      # 平台 NATS broker（与其它出站插件一致）
+      SOKEL_ENDPOINT: https://<平台地址>
+      # 插件管理里 synology 插件接入组的 token
+      SOKEL_TOKEN: skp_xxxxxxxxxxxxxxxx
+      # 显式实例名（不给会按容器内 cwd 生成，重建容器易出幽灵双实例）
+      SOKEL_INSTANCE_ID: nas-syno-1
+    volumes:
+      # 把要监听的 NAS 卷目录挂进容器；凭证里的 path 填容器内路径（/watch 下子目录）。
+      # rw：move_file/delete_file 操作需要写权限；只想监听+读取可改 :ro（并别用这两个操作）。
+      - /volume1/research:/watch:rw

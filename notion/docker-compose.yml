@@ -1,0 +1,24 @@
+# notion 部署（docker compose up -d）。出站接入，不暴露端口。
+#
+# 构建并推镜像（repo 根执行）：
+#   docker build -t ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-notion:latest -f plugin-builtin/notion/Dockerfile .
+#   docker push ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-notion:latest
+#
+# Notion 令牌不在此填：凭证里填内部集成密钥，或在平台凭证页点「授权」。
+# Notion 在境外，连不上就在**凭证**里填出站代理（按凭证配，不影响别的出站）。
+#
+# ⚠️ **建议单副本**：事件源是增量轮询（游标存在凭证里），
+# 多副本会各自推进同一个游标，导致重复推送与游标来回跳。
+services:
+  notion:
+    image: ghcr.io/sokel-dev/sokel-official-plugins/sokel-plugin-notion:latest
+    restart: unless-stopped
+    hostname: notion          # 固定 hostname → 实例/主机列可读（否则默认容器 ID 乱码）
+    environment:
+      SOKEL_REGION: hk
+      SOKEL_ENDPOINT: ${SOKEL_ENDPOINT:?平台的 HTTP 地址（如 https://sokel.example.com）——插件先从平台换本组的 broker 凭据}
+      SOKEL_TOKEN: ${SOKEL_TOKEN:?需在插件页 notion 的某 nats 接入组「接入命令」里取 skp_ token}
+      # SOKEL_NATS_CA: /certs/ca.pem   # 自签 TLS broker 时挂 CA
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
