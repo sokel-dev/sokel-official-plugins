@@ -35,7 +35,7 @@ docker run -d --restart unless-stopped \
 | [`gitlab`](gitlab) | GitLab | 把 GitLab 接进工作流：读写仓库文件、建/评/合 MR、开 Issue、查流水线与失败日志、触发构建。 |
 | [`gmail`](gmail) | Gmail | 读写你的 Gmail：列邮件 / 读邮件 / 发邮件，并可作为事件源——收到新邮件时触发工作流。 |
 | [`kbstore-es`](kbstore-es) | 知识库存储（Elasticsearch） | 知识库的存储与检索后端：写入分块、向量检索、BM25、混合检索（RRF 融合）。 |
-| [`kbstore-pgvector`](kbstore-pgvector) | kbstore-pgvector | 知识库存储引擎插件（Postgres + pgvector），与 kbstore-es 实现同一份存储契约。 |
+| [`kbstore-pgvector`](kbstore-pgvector) | 知识库存储（pgvector） | 知识库存储引擎插件（Postgres + pgvector），与 kbstore-es 实现同一份存储契约。 |
 | [`kubernetes`](kubernetes) | Kubernetes | 在画布上操作 K8s 集群：查 pod、看容器日志、滚动重启、扩缩副本、看事件与节点健康。 |
 | [`linkedin`](linkedin) | LinkedIn | 以授权账号的个人身份发动态。自助接入、无需合作伙伴审批，适合投研观点触达专业受众。 |
 | [`mastodon`](mastodon) | Mastodon | 发嘟文、发嘟文串、删嘟文。免费、无审批、无按次计费，且因为是联邦网络， |
