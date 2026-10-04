@@ -1,6 +1,6 @@
 package main
 
-// usageDoc：插件详情页里显示的使用说明（随握手上报）。
+// usageDoc is the usage doc shown on the plugin detail page (reported with the handshake).
 const usageDoc = `# kbstore-pgvector（知识库存储：Postgres + pgvector）
 
 与 **kbstore-es** 实现同一份存储契约（8 个内部操作），可整库替换。

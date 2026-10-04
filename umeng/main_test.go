@@ -38,7 +38,8 @@ func bothApps() map[string]string {
 	}
 }
 
-// 签名：MD5("POST"+完整URL+body+secret)，与独立实现比对；URL 不含 ?sign 自身。
+// Signature: MD5("POST"+full URL+body+secret), checked against an independent
+// implementation; the URL does not include ?sign itself.
 func TestSign(t *testing.T) {
 	got := sign("https://msgapi.umeng.com/api/send", `{"a":1}`, "sec")
 	// python: md5("POST" + url + body + "sec")
@@ -47,7 +48,8 @@ func TestSign(t *testing.T) {
 	}
 }
 
-// 发送：cast type 自动定；签名可用密钥重算验证；Android payload 形状。
+// Send: cast type is auto-determined; signature is verified by recomputing it with the
+// key; checks the Android payload shape.
 func TestPushWireShape(t *testing.T) {
 	var gotSign, gotBody string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +84,7 @@ func TestPushWireShape(t *testing.T) {
 		t.Errorf("Android payload 形状: %v", pl)
 	}
 
-	// iOS：payload 是 aps 结构，且用 iOS 那对钥匙签名
+	// iOS: payload is an aps structure, and signed with the iOS key pair
 	_, err = opPush(newFake(bothApps()), &PushIn{Platform: "ios", DeviceTokens: "tok", Title: "t", Body: "b", Production: true})
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +102,7 @@ func TestPushWireShape(t *testing.T) {
 	}
 }
 
-// 超 500 个 token 本地拦；缺平台钥匙指路。
+// Over 500 tokens is blocked locally; a missing platform key produces a pointer.
 func TestPushValidation(t *testing.T) {
 	many := make([]string, 501)
 	for i := range many {
@@ -117,7 +119,8 @@ func TestPushValidation(t *testing.T) {
 	}
 }
 
-// health_check：「任务不存在」= 钥匙对（通过）；1003 = 钥匙错（失败）。
+// health_check: "task not found" = valid credentials (pass); 1003 = wrong credentials
+// (fail).
 func TestHealthCheckSemantics(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"ret":"FAIL","data":{"error_code":"2000","error_msg":"task not found"}}`)
@@ -142,8 +145,9 @@ func TestHealthCheckSemantics(t *testing.T) {
 		t.Errorf("1003 要判失败并指路: %+v", out)
 	}
 
-	// **2000 是大杂烩码**：假 appKey 也回 2000（msg「该应用已被禁用」，实测）——
-	// 拿码判会把假钥匙放行，必须按 msg 判。
+	// **2000 is a catch-all code**: a fake appKey also returns 2000 (msg "该应用已被禁用",
+	// observed in practice) — judging by code alone would let a fake key through, so it
+	// must be judged by msg.
 	srv3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"ret":"FAIL","data":{"error_code":"2000","error_msg":"该应用已被禁用"}}`)
 	}))

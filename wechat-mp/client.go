@@ -1,16 +1,20 @@
 package main
 
-// 出站与 access_token。
+// Outbound calls and access_token.
 //
-// **access_token 是全局唯一的**：同一个 appid 再换一次，上一个立刻作废。所以
-//   - 进程内按 appid 缓存（有效期 7200 秒，提前 5 分钟换）；
-//   - 多副本部署会互相把对方的 token 换掉（表现是随机 40001）——单副本跑，
-//     或者由一个中控服务发 token。说明书里写死了这一条。
+// **access_token is globally unique**: refreshing it again for the same appid immediately
+// invalidates the previous one. So:
+//   - It's cached in-process by appid (valid for 7200 seconds, refreshed 5 minutes early);
+//   - Running multiple replicas means they keep invalidating each other's token (symptom: random
+//     40001s) — run a single replica, or have one central service issue the token. This is spelled
+//     out explicitly in the usage doc.
 //
-// 错误处理有两个特殊之处：
-//   - 微信把业务错误装在 **HTTP 200** 里（errcode != 0）。只看状态码的话，
-//     「IP 不在白名单」会被当成成功，然后在下一步以莫名其妙的方式失败。
-//   - 40001/42001 是「token 失效」：清缓存重试一次，不该让调用方看见。
+// Error handling has two special cases:
+//   - WeChat packs business errors inside an **HTTP 200** (errcode != 0). Checking only the status
+//     code would treat "IP not in the allowlist" as success, and it would then fail in some
+//     mysterious way at the next step.
+//   - 40001/42001 mean "token invalid": clear the cache and retry once, without letting the caller
+//     see it.
 
 import (
 	"bytes"
@@ -28,7 +32,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// apiBase：微信 API 根地址。**是 var 不是 const**——测试要把它指到假上游上。
+// apiBase is the WeChat API root address. **It's a var, not a const** — tests need to point it at
+// a fake upstream.
 var apiBase = "https://api.weixin.qq.com"
 
 var (
@@ -98,13 +103,14 @@ func accessToken(ctx plugin.Ctx, force bool) (string, error) {
 		ttl = 7200
 	}
 	tokMu.Lock()
-	// 提前 5 分钟过期：卡着点用会撞上「刚好在这一瞬失效」。
+	// Expires 5 minutes early: using it right up to the edge risks hitting "it just invalidated this
+	// instant".
 	tokCache[appID] = cachedToken{token: out.AccessToken, exp: time.Now().Add(time.Duration(ttl-300) * time.Second)}
 	tokMu.Unlock()
 	return out.AccessToken, nil
 }
 
-// —— 错误 ——
+// —— Errors ——
 
 type apiError struct {
 	Code int
@@ -137,9 +143,10 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("微信返回错误码 %d", e.Code)
 }
 
-// —— 请求 ——
+// —— Requests ——
 
-// raw：发一次请求。**微信把业务错误装在 HTTP 200 里**，所以每次都要看 errcode。
+// raw fires a single request. **WeChat packs business errors inside an HTTP 200**, so errcode has
+// to be checked every time.
 func raw(ctx plugin.Ctx, method, path string, body io.Reader, ctype string, out any) error {
 	c := credOf(ctx)
 	req, err := http.NewRequestWithContext(ctx, method, apiBase+path, body)
@@ -175,10 +182,11 @@ func raw(ctx plugin.Ctx, method, path string, body io.Reader, ctype string, out 
 	return nil
 }
 
-// callJSON：带 token 的 JSON 调用，token 失效自动换一次。
+// callJSON makes a token-authenticated JSON call, auto-refreshing the token once if it's invalid.
 //
-// **body 要用 UnescapeUnicode 之后的 JSON**：Go 默认把中文转义成 \uXXXX，
-// 微信的部分接口（尤其草稿正文）对此并不一致，直接发原文最稳。
+// **The body must use unicode-unescaped JSON**: Go escapes Chinese characters to \uXXXX by default,
+// and some WeChat endpoints (especially draft content) don't handle this consistently — sending
+// the raw text is the safest option.
 func callJSON(ctx plugin.Ctx, path string, body any, out any) error {
 	return withToken(ctx, func(tok string) error {
 		buf, err := jsonBody(body)
@@ -200,7 +208,7 @@ func callGet(ctx plugin.Ctx, path string, out any) error {
 	})
 }
 
-// callUpload：multipart 上传（素材/图片）。
+// callUpload does a multipart upload (material/images).
 func callUpload(ctx plugin.Ctx, path, name, mime string, data []byte, out any) error {
 	return withToken(ctx, func(tok string) error {
 		var buf bytes.Buffer
@@ -227,8 +235,9 @@ func callUpload(ctx plugin.Ctx, path, name, mime string, data []byte, out any) e
 	})
 }
 
-// withToken：取 token 跑一次；40001/42001（token 失效）清缓存重试一次。
-// 多副本互相顶掉 token 时就是这个错误码，重试一次能自愈。
+// withToken fetches a token and runs once; on 40001/42001 (token invalid), it clears the cache and
+// retries once. This is exactly the error code multiple replicas produce when they invalidate each
+// other's token, and one retry self-heals it.
 func withToken(ctx plugin.Ctx, fn func(tok string) error) error {
 	tok, err := accessToken(ctx, false)
 	if err != nil {
@@ -257,7 +266,8 @@ func asAPIError(err error, target **apiError) bool {
 	return ok
 }
 
-// jsonBody：不转义中文的 JSON（微信对 \uXXXX 的处理各接口不一致，发原文最稳）。
+// jsonBody produces JSON that doesn't escape Chinese characters (WeChat endpoints handle \uXXXX
+// inconsistently; sending the raw text is the safest option).
 func jsonBody(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

@@ -1,27 +1,35 @@
 package schema
 
-// 事件契约：把集群里的**异常**推成工作流触发。
+// Event contracts: turn cluster anomalies into workflow triggers.
 //
-// 与 events 操作（「事件列表」）是两回事：那个是**你去问**集群要事件，这个是集群出事了
-// **推给平台**。名字撞了但方向相反——操作能做「定时巡检」，只有事件源能做「一被驱逐就通知」。
+// Different from the events operation ("event list"): that one is you asking the cluster for
+// events, this one is the cluster pushing to the platform when something goes wrong. The names
+// are similar but the direction is opposite -- the operation can do "scheduled inspection",
+// only the event source can do "notify the moment something gets evicted".
 //
-// 选哪几种事件：按「出了要有人管」筛，不按「k8s 有哪些事件」铺。
-// Normal 那一大堆（Scheduled/Pulled/Created/Started）没有一条需要惊动人，
-// 全推上去只会让触发器变成噪音源，然后被整个关掉——那比没有更糟。
+// Which event kinds were chosen: filtered by "this needs someone to act on it", not laid out by
+// "whatever events k8s happens to have". The whole pile of Normal events
+// (Scheduled/Pulled/Created/Started) has nothing that needs to wake anyone up; pushing all of
+// them would just turn the trigger into a noise source that gets turned off entirely -- worse
+// than not having it.
 //
-// **只有轮询这一条来路**（约 1 分钟延迟），没有 webhook：k8s 不会主动往外发 HTTP。
-// 真正零延迟要走 API 的 watch 长连接，那要处理断线重连与 resourceVersion 过期（410 Gone
-// 要重新 list 再 watch），是另一个量级的工作，先不做（README「没做的」里记了）。
+// Polling is the only path here (about 1 minute of latency), no webhook: k8s never initiates
+// outbound HTTP. True zero latency would require the API's watch long-lived connection, which
+// means handling reconnects after disconnection and resourceVersion expiry (on 410 Gone you
+// must re-list then re-watch) -- a different order of work, not done yet (recorded under "not
+// done" in the README).
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// 所有事件都带 namespace，平台会平铺到触发输入顶层，各分支共用一个变量。
+// Every event carries namespace, which the platform flattens to the top level of the trigger
+// input; all branches share one variable.
 //
-// 叫 EventsCommon 而不是 Events：schema.go 里 Events 已经是「事件列表」**操作**的类型名了。
-// 撞名的话生成器会把两者当同一个东西——而它俩恰好一个是拉、一个是推。
+// Named EventsCommon rather than Events: Events in schema.go is already the type name for the
+// events-list operation. A name collision would make the generator treat the two as the same
+// thing -- and they happen to be, respectively, a pull and a push.
 type EventsCommon struct{}
 
 func (EventsCommon) CommonFields() []string { return []string{"namespace"} }
@@ -34,7 +42,7 @@ func objectField() contract.FieldSpec {
 	return field.String("object").Label("对象").Desc("如 Pod/web-abc123")
 }
 
-// PodEvicted Pod 被驱逐。
+// PodEvicted fires when a Pod is evicted.
 type PodEvicted struct{}
 
 func (PodEvicted) EventMeta() contract.EventMeta {
@@ -54,7 +62,7 @@ func (PodEvicted) Fields() []contract.FieldSpec {
 	}
 }
 
-// ScheduleFailed 排不上（资源不够）。
+// ScheduleFailed fires when a Pod can't be scheduled (insufficient resources).
 type ScheduleFailed struct{}
 
 func (ScheduleFailed) EventMeta() contract.EventMeta {
@@ -73,11 +81,12 @@ func (ScheduleFailed) Fields() []contract.FieldSpec {
 	}
 }
 
-// PodCrashed 容器异常退出。
+// PodCrashed fires when a container exits abnormally.
 //
-// **它不从 Event 来，从 Pod 状态来。** OOMKilled 多半不发 Event——容器被杀掉后立刻被
-// 拉起，只在 lastState.terminated 里留下痕迹。盯 Event 的话这一类会整个漏掉，
-// 而它恰恰是最常见的一种「异常退出」。
+// It doesn't come from Event, it comes from Pod status. OOMKilled mostly doesn't emit an Event
+// -- the container is restarted immediately after being killed, leaving a trace only in
+// lastState.terminated. Watching Events would miss this category entirely, and it happens to be
+// the most common kind of "abnormal exit"
 type PodCrashed struct{}
 
 func (PodCrashed) EventMeta() contract.EventMeta {
@@ -99,7 +108,7 @@ func (PodCrashed) Fields() []contract.FieldSpec {
 	}
 }
 
-// NodeNotReady 节点不健康。
+// NodeNotReady fires when a node is unhealthy.
 type NodeNotReady struct{}
 
 func (NodeNotReady) EventMeta() contract.EventMeta {

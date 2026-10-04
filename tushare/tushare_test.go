@@ -14,7 +14,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// fakeCtx 假的调用上下文：只提供凭证。本插件不碰文件，真调用了说明写错了。
+// fakeCtx is a fake call context: it only provides a credential. This plugin never touches files,
+// so a real call into these means something was written wrong.
 type fakeCtx struct {
 	context.Context
 	cred map[string]string
@@ -34,10 +35,11 @@ func ctxTo(url string) plugin.Ctx {
 		cred: map[string]string{"token": "test-token", "base_url": url}}
 }
 
-// capture 记下真实发出的请求体——TuShare 只有一个端点，所有信息都在 body 里。
+// capture records the request bodies actually sent — TuShare has only one endpoint, so every piece
+// of information lives in the body.
 type capture struct{ reqs []tsRequest }
 
-// fakeTuShare 起一个假 TuShare。resp 是 data 部分的 JSON。
+// fakeTuShare spins up a fake TuShare. resp is the JSON for the data field.
 func fakeTuShare(t *testing.T, cap *capture, resp string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,12 +89,13 @@ func TestSyncBrokerStockReports(t *testing.T) {
 	if first.TSCode != "000001.SZ" || first.Abstract != "摘要一" {
 		t.Errorf("字段映射错了: %+v", first)
 	}
-	// ind_name 是 null（个股研报没有行业），不该炸，落成空串即可。
+	// ind_name is null (a stock report has no industry); this shouldn't blow up, landing as an
+	// empty string is fine.
 	if first.IndName != "" {
 		t.Errorf("null 应当落成空串，得到 %q", first.IndName)
 	}
 
-	// 真实发出的请求：api_name / trade_date / report_type / fields 一个都不能少。
+	// The request actually sent: api_name / trade_date / report_type / fields must all be present.
 	req := cap.reqs[0]
 	if req.APIName != "research_report" {
 		t.Errorf("api_name = %q", req.APIName)
@@ -120,11 +123,12 @@ func TestSyncBrokerIndustryReportsUsesIndustryType(t *testing.T) {
 	}
 }
 
-// 去重键必须只由内容决定：回补重跑同一天要得到同一个键，否则回补一次就多一份。
+// The dedup key must be decided by content alone: re-running the same day during a backfill must
+// get the same key, otherwise every backfill adds a duplicate.
 func TestReportDedupKeyIsStable(t *testing.T) {
 	r := schema.BrokerReport{TradeDate: "20251009", TSCode: "000001.SZ", Institution: "中信证券", Title: "息差企稳"}
 	first := reportDedupKey(r)
-	r.Abstract = "摘要改了" // 摘要变化不该改变身份
+	r.Abstract = "摘要改了" // changing the abstract shouldn't change the identity
 	if second := reportDedupKey(r); first != second {
 		t.Errorf("同一篇研报算出两个键: %s vs %s", first, second)
 	}
@@ -138,7 +142,7 @@ func TestReportDedupKeyIsStable(t *testing.T) {
 	}
 }
 
-// 追平之后停在当天反复拉：当天的研报还在陆续入库。
+// Once caught up, it stops and keeps re-pulling today: today's reports are still trickling in.
 func TestSyncStopsAtToday(t *testing.T) {
 	var cap capture
 	srv := fakeTuShare(t, &cap, `{"fields":["trade_date"],"items":[]}`)
@@ -169,8 +173,10 @@ func TestResolveDateCursor(t *testing.T) {
 	}
 }
 
-// 回补不许把游标拽回去：曾经是「拉取日 = 游标 − 回补」而 next = 拉取日 + 1，
-// 于是回补填 1 原地打转（且 has_more 恒真，画布上的循环停不下来）、填 3 每轮净退 2 天。
+// The lookback must never drag the cursor backward: it used to be "fetch day = cursor - lookback"
+// with next = fetch day + 1, which meant lookback=1 spun in place (and has_more stayed permanently
+// true, so the loop on the canvas could never stop), and lookback=3 net retreated 2 days every
+// round.
 func TestLookbackDoesNotRewindCursor(t *testing.T) {
 	var cap capture
 	srv := fakeTuShare(t, &cap, `{"fields":["trade_date"],"items":[]}`)
@@ -189,7 +195,8 @@ func TestLookbackDoesNotRewindCursor(t *testing.T) {
 	}
 }
 
-// 追平之后才回补：下一个游标退回「昨天 − 回补天数」，等下一次定时触发重扫一轮。
+// The lookback only kicks in once caught up: the next cursor rewinds to "yesterday - lookback
+// days" and waits for the next scheduled trigger to rescan.
 func TestLookbackKicksInAfterCatchUp(t *testing.T) {
 	var cap capture
 	srv := fakeTuShare(t, &cap, `{"fields":["trade_date"],"items":[]}`)
@@ -209,8 +216,9 @@ func TestLookbackKicksInAfterCatchUp(t *testing.T) {
 	}
 }
 
-// 业务错误装在 HTTP 200 里（code != 0）。只看状态码会把「没权限」当成空数据，
-// 于是游标照常前进，那一段数据就静默丢了。
+// A business error is packed inside an HTTP 200 (code != 0). Looking at the status code alone would
+// treat "no permission" as empty data, so the cursor would advance as usual and that stretch of
+// data would be silently lost.
 func TestBusinessErrorSurfaces(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -232,7 +240,8 @@ func TestDecodeRowsHandlesShortRowsAndNulls(t *testing.T) {
 		A string  `json:"a"`
 		B float64 `json:"b"`
 	}
-	// 行比列少一格（上游偶尔如此）不该整批失败，缺的那格留零值。
+	// A row with one fewer cell than the columns (the upstream occasionally does this) shouldn't
+	// fail the whole batch; the missing cell is left at the zero value.
 	got, err := decodeRows[rec](&tsData{Fields: []string{"a", "b"}, Items: [][]any{{"x", nil}, {"y"}}})
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +290,8 @@ func TestCatalogMatcher(t *testing.T) {
 	}
 }
 
-// 生成的目录接口：入参装配 + fields 全列 + 列式还原，走一遍假上游。
+// A generated catalog endpoint: input assembly + full fields column list + columnar restoration,
+// run once against a fake upstream.
 func TestQueryCatalogAssemblesRequest(t *testing.T) {
 	var cap capture
 	srv := fakeTuShare(t, &cap, `{"fields":["ts_code","close"],"items":[["000001.SZ",12.34]]}`)

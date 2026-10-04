@@ -1,21 +1,25 @@
-// Package schema 声明 discord 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the discord plugin.
 //
-// 与 bluesky / mastodon 同一套 publish 契约，但 Discord 的定位不同：
-// **它是社群分发，不是公开发现渠道**。发进去的内容只有频道成员看得到，
-// 所以它在这批发布器里承担的是「团队/客户群的推送出口」——研报出来了推一条到投研群，
-// 而不是拿它做 GEO 意义上的公开曝光。
+// Same publish contract as bluesky / mastodon, but Discord serves a different purpose:
+// **it's for community distribution, not a public discovery channel**. What's posted is visible
+// only to channel members, so within this batch of publishers it serves as a "push outlet for
+// team/client channels" — pushing a note to the research team's channel once a report is out,
+// rather than public exposure in the GEO sense.
 //
-// 三条判断：
+// Three design decisions:
 //
-//  1. **默认走 Webhook，不做 Bot**。Webhook 是一个 URL，建它只要频道管理员点几下；
-//     Bot 要建应用、配 intents、邀请进服务器、管权限。发消息这件事上，
-//     Webhook 能做的和 Bot 一样多，而门槛差一个数量级。
+//  1. **Default to webhook, not a bot**. A webhook is just a URL; a channel admin can create one
+//     with a few clicks. A bot requires creating an application, configuring intents, inviting it
+//     into the server, and managing permissions. For sending messages, a webhook can do everything
+//     a bot can, at an order of magnitude lower setup cost.
 //
-//  2. **嵌入卡片（embed）是主形态**。财经推送是「标题 + 摘要 + 链接 + 几个字段」，
-//     裸文本在群里刷屏且不可读。所以把 embed 做成一等入参，而不是让人自己拼 JSON。
+//  2. **The embed card is the primary form**. Financial pushes are "title + summary + link + a few
+//     fields" — plain text would flood the channel and be unreadable. So the embed is made a
+//     first-class input instead of leaving people to hand-assemble JSON.
 //
-//  3. **回执要给消息 id**。Discord 的 Webhook 默认不回消息体（204），
-//     加 ?wait=true 才回。插件恒定带上——不给 id 的话，下游想改/删这条消息都做不到。
+//  3. **The receipt must include the message id**. Discord's webhook doesn't return a message body
+//     by default (204); adding ?wait=true makes it do so. The plugin always sends it — without the
+//     id, downstream can't edit or delete this message.
 package schema
 
 import (
@@ -23,7 +27,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// MessageSend 发一条消息。
+// MessageSend sends a message.
 type MessageSend struct{}
 
 func (MessageSend) Meta() contract.Meta {
@@ -57,7 +61,7 @@ func (MessageSend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MessageDelete 删一条消息。
+// MessageDelete deletes a message.
 type MessageDelete struct{}
 
 func (MessageDelete) Meta() contract.Meta {
@@ -76,7 +80,7 @@ func (MessageDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform's conventional operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -94,7 +98,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

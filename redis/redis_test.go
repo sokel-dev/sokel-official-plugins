@@ -1,10 +1,12 @@
 package main
 
-// miniredis 起一个进程内 Redis 打穿全部操作路径——真实例联调走 operation:test。
+// miniredis spins up an in-process Redis to exercise every operation path — integration testing against
+// a real instance goes through operation:test.
 //
-// 值得盯的不是「命令有没有发出去」，而是几个**会悄悄骗人**的地方：
-// 未命中不报错、取几条 → 下标的换算、TTL 的 -1/-2 哨兵、nx 没抢到、
-// 以及凭证解析（地址补端口 / 库号 / TLS 取值）。
+// What's worth watching isn't "did the command get sent", but a handful of places that **can quietly
+// mislead**: a miss not being an error, the "how many to take" → index conversion, TTL's -1/-2
+// sentinels, an nx that didn't win, and credential parsing (address gets a default port / db number /
+// TLS value).
 
 import (
 	"context"
@@ -29,7 +31,8 @@ func (f *fakeCtx) UploadReader(string, string, io.Reader) (*plugin.File, error) 
 }
 func (f *fakeCtx) Fetch(*plugin.File) ([]byte, error) { return nil, nil }
 
-// newCtx 起一个 miniredis 并给出指向它的 ctx。每个用例一套，互不干扰。
+// newCtx spins up a miniredis and returns a ctx pointing to it. Each test case gets its own, so they
+// don't interfere with each other.
 func newCtx(t *testing.T) *fakeCtx {
 	t.Helper()
 	mr := miniredis.RunT(t)
@@ -39,8 +42,9 @@ func newCtx(t *testing.T) *fakeCtx {
 	return &fakeCtx{Context: context.Background(), cred: map[string]string{"addr": mr.Addr()}}
 }
 
-// 取值未命中**不是错误**：画布上那是一条正常分支（缓存没有就去算）。
-// 报错的话整条流程会被判失败，这是最容易写错也最难查的一处。
+// A get miss is **not an error**: on the canvas it's a normal branch (recompute when the cache misses).
+// Reporting it as an error would fail the whole run, and this is the easiest place to get wrong and the
+// hardest to debug.
 func TestGetMissIsNotError(t *testing.T) {
 	ctx := newCtx(t)
 	out, err := opGet(ctx, &GetIn{Key: "nope"})
@@ -59,7 +63,8 @@ func TestGetMissIsNotError(t *testing.T) {
 	}
 }
 
-// nx 是幂等闸：第一次抢到 ok=true，第二次没抢到 ok=false 且**不是错误**。
+// nx is an idempotency gate: winning the first time gives ok=true, not winning the second time gives
+// ok=false, and that **is not an error**.
 func TestSetNXIsGateNotError(t *testing.T) {
 	ctx := newCtx(t)
 	first, err := opSet(ctx, &SetIn{Key: "lock", Value: "1", Mode: "nx"})
@@ -79,7 +84,8 @@ func TestSetNXIsGateNotError(t *testing.T) {
 	}
 }
 
-// TTL 的 -1/-2 是 Redis 的哨兵值，必须原样透出并翻成好判的 state。
+// TTL's -1/-2 are Redis sentinel values, and must be passed through as-is and translated into an
+// easy-to-check state.
 func TestTTLSentinels(t *testing.T) {
 	ctx := newCtx(t)
 	if _, err := opSet(ctx, &SetIn{Key: "forever", Value: "v"}); err != nil {
@@ -101,7 +107,8 @@ func TestTTLSentinels(t *testing.T) {
 	}
 }
 
-// 设过期给非正数时 Redis 会**当场删键**——插件必须挡在前面，否则「续期」写成 0 就是删数据。
+// Giving expire a non-positive number makes Redis **delete the key immediately** — the plugin must block
+// this upfront, otherwise a "renewal" written as 0 ends up deleting data.
 func TestExpireRejectsNonPositive(t *testing.T) {
 	ctx := newCtx(t)
 	if _, err := opSet(ctx, &SetIn{Key: "k", Value: "v"}); err != nil {
@@ -115,8 +122,9 @@ func TestExpireRejectsNonPositive(t *testing.T) {
 	}
 }
 
-// 「取几条」是刻意不用 Redis 原生的「结束下标」：留空的数字字段到手就是 0，
-// 而 stop=0 在 Redis 里意思是「只要第一条」——空与 0 分不开就会悄悄只回一条。
+// "How many to take" deliberately avoids Redis's native "end index": an empty numeric field arrives as
+// 0, and stop=0 in Redis means "just the first one" — if empty can't be told apart from 0, it would
+// quietly return only one item.
 func TestListRangeCountSemantics(t *testing.T) {
 	ctx := newCtx(t)
 	if _, err := opListPush(ctx, &ListPushIn{Key: "q", Values: []string{"a", "b", "c", "d", "e"}}); err != nil {
@@ -136,7 +144,8 @@ func TestListRangeCountSemantics(t *testing.T) {
 	}
 }
 
-// 队列空回 0 条而不是报错；先进先出的方向别搞反（右入左出）。
+// An empty queue returns 0 items rather than an error; don't get the FIFO direction backwards (push
+// right, pop left).
 func TestListPopEmptyAndFIFO(t *testing.T) {
 	ctx := newCtx(t)
 	empty, err := opListPop(ctx, &ListPopIn{Key: "q"})
@@ -155,7 +164,8 @@ func TestListPopEmptyAndFIFO(t *testing.T) {
 	}
 }
 
-// 去重靠 added：第二次加同一个成员必须回 0，否则「这条见过没有」就永远是没见过。
+// Deduplication relies on added: adding the same member a second time must return 0, otherwise "has this
+// been seen before" would always say no.
 func TestSetAddDedupSignal(t *testing.T) {
 	ctx := newCtx(t)
 	first, err := opSetAdd(ctx, &SetAddIn{Key: "seen", Members: []string{"a", "b"}})
@@ -168,7 +178,7 @@ func TestSetAddDedupSignal(t *testing.T) {
 	}
 }
 
-// 排行榜取 Top N：分数从高到低 + 取几名，两个开关一起才对。
+// Leaderboard Top N: descending score + how many to take only work correctly together.
 func TestZsetTopN(t *testing.T) {
 	ctx := newCtx(t)
 	for _, it := range []struct {
@@ -188,7 +198,8 @@ func TestZsetTopN(t *testing.T) {
 	}
 }
 
-// 哈希字段的值一律按字符串写入：数字别打成 1e+06，布尔别丢。
+// Hash field values are always written as strings: a number shouldn't come out as 1e+06, a bool
+// shouldn't get lost.
 func TestHashValuesStringified(t *testing.T) {
 	ctx := newCtx(t)
 	if _, err := opHashSet(ctx, &HashSetIn{Key: "h", Fields: map[string]any{
@@ -211,7 +222,8 @@ func TestHashValuesStringified(t *testing.T) {
 	}
 }
 
-// 扫键靠 cursor 增量翻页，done 看游标回没回 0——**本轮为空不代表扫完**。
+// Scanning keys pages incrementally via cursor, and done is decided by whether the cursor comes back to
+// 0 — **an empty round doesn't mean the scan is finished**.
 func TestScanCursor(t *testing.T) {
 	ctx := newCtx(t)
 	for i := 0; i < 30; i++ {
@@ -242,7 +254,7 @@ func TestScanCursor(t *testing.T) {
 	}
 }
 
-// Stream 写入 + 消息 id 形态；max_len 给了才裁剪。
+// Stream write + message id shape; trimming only happens when max_len is given.
 func TestStreamAdd(t *testing.T) {
 	ctx := newCtx(t)
 	out, err := opStreamAdd(ctx, &StreamAddIn{Stream: "s", Fields: map[string]any{"type": "order"}})
@@ -264,7 +276,8 @@ func indexOf(s, sub string) int {
 	return -1
 }
 
-// 通用命令的返回要 JSON 友好：[]byte 变字符串，嵌套数组递归。
+// The generic command's return value must be JSON-friendly: []byte becomes a string, nested arrays are
+// recursed into.
 func TestCallNormalizesReply(t *testing.T) {
 	ctx := newCtx(t)
 	if _, err := opCall(ctx, &CallIn{Command: "SET", Args: []string{"k", "v"}}); err != nil {
@@ -277,14 +290,15 @@ func TestCallNormalizesReply(t *testing.T) {
 	if s, ok := out.Result.(string); !ok || s != "v" {
 		t.Fatalf("该回字符串 v，got %#v", out.Result)
 	}
-	// 未命中的 GET 回空结果而不是错误（和 opGet 同一条约定）
+	// A missed GET returns an empty result rather than an error (the same convention as opGet)
 	miss, err := opCall(ctx, &CallIn{Command: "GET", Args: []string{"ghost"}})
 	if err != nil || miss.Result != nil {
 		t.Fatalf("未命中该回空: %#v err=%v", miss.Result, err)
 	}
 }
 
-// 体检：连不上回 ok=false + 说明，**不是** error（平台按 ok 展示，抛错会变成红叉没解释）。
+// Health check: being unable to connect returns ok=false + a message, **not** an error (the platform
+// displays by ok; throwing an error would become an unexplained red X).
 func TestHealthCheckReportsInsteadOfErroring(t *testing.T) {
 	ctx := newCtx(t)
 	ok, err := opHealthCheck(ctx, &HealthCheckIn{})
@@ -304,8 +318,9 @@ func TestHealthCheckReportsInsteadOfErroring(t *testing.T) {
 	}
 }
 
-// INFO 解析。夹具是**真实例（Redis 8.4）的原文**——miniredis 的 INFO 是残缺的，
-// 拿它当夹具这条分支永远绿，而线上体检要的就是这几行。
+// INFO parsing. The fixture is **actual output from a real instance (Redis 8.4)** — miniredis's INFO is
+// incomplete, and using it as the fixture would leave this branch permanently green while production
+// health checks need exactly these lines.
 func TestInfoFieldParsesRealOutput(t *testing.T) {
 	const real = "# Server\r\n" +
 		"redis_version:8.4.0\r\n" +
@@ -319,7 +334,8 @@ func TestInfoFieldParsesRealOutput(t *testing.T) {
 		{"redis_version", "8.4.0"},
 		{"redis_mode", "standalone"},
 		{"used_memory_human", "376.09M"},
-		{"used_memory", "394362368"}, // 前缀相同的两行别串（used_memory vs used_memory_human）
+		// don't let two lines with a shared prefix get crossed (used_memory vs used_memory_human)
+		{"used_memory", "394362368"},
 		{"没有这行", ""},
 	} {
 		if got := infoField(real, c.key); got != c.want {
@@ -328,7 +344,8 @@ func TestInfoFieldParsesRealOutput(t *testing.T) {
 	}
 }
 
-// 凭证解析：地址补端口、库号、TLS 三种取值、非法值要报清楚。
+// Credential parsing: address gets a default port, db number, the three TLS values, and invalid values
+// must be reported clearly.
 func TestOptionsOf(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -367,8 +384,9 @@ func TestOptionsOf(t *testing.T) {
 	}
 }
 
-// 同一份凭证复用同一个 client（每条命令重连的话，密集写入时握手比命令还贵）；
-// 不同凭证不能串（指纹要把地址/库/密码都算进去）。
+// The same credential reuses the same client (reconnecting on every command would make the handshake
+// cost more than the command itself under heavy write load); different credentials must never collide
+// (the fingerprint has to factor in address/db/password).
 func TestClientPooling(t *testing.T) {
 	poolMu.Lock()
 	pool = map[string]*redisClient{}

@@ -1,10 +1,12 @@
-// github —— Sokel 第一方插件：GitHub 项目维护自动化（github.com / GitHub Enterprise Server 通吃）。
+// github — a Sokel first-party plugin: GitHub project maintenance automation (works with both
+// github.com and GitHub Enterprise Server).
 //
-// 43 个操作覆盖 仓库/Issue/PR/Actions/发布/看板 六个域，外加机器人回执面
-// （提交状态、检查运行、表情）与 call 保底。事件有 webhook 与轮询两条来路。
-// 设计判断见 schema/schema.go 顶注与 README.md。
+// 43 operations cover six domains — repo/Issue/PR/Actions/releases/boards — plus a bot feedback
+// surface (commit status, check runs, reactions) and a call fallback. Events have two sources:
+// webhook and polling. See the top-of-file notes in schema/schema.go and README.md for design
+// decisions.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./github
+// Run with: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./github
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -30,7 +32,7 @@ func main() {
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
 
-	// —— 仓库 ——
+	// —— repo ——
 	OnReposList(p, opReposList)
 	OnRepoGet(p, opRepoGet)
 	OnFileGet(p, opFileGet)
@@ -58,7 +60,7 @@ func main() {
 	OnPrReview(p, opPrReview)
 	OnPrRequestReviewers(p, opPrRequestReviewers)
 
-	// —— 机器人回执面 ——
+	// —— bot feedback surface ——
 	OnCommitStatusCreate(p, opCommitStatusCreate)
 	OnCheckRunCreate(p, opCheckRunCreate)
 	OnReactionAdd(p, opReactionAdd)
@@ -69,7 +71,7 @@ func main() {
 	OnRunJobs(p, opRunJobs)
 	OnJobLog(p, opJobLog)
 
-	// —— 发布与仓库家务 ——
+	// —— releases and repo housekeeping ——
 	OnReleasesList(p, opReleasesList)
 	OnReleaseCreate(p, opReleaseCreate)
 	OnLabelsList(p, opLabelsList)
@@ -78,20 +80,21 @@ func main() {
 	OnCollaboratorsList(p, opCollaboratorsList)
 	OnBranchProtectionGet(p, opBranchProtectionGet)
 
-	// —— 看板（GraphQL）——
+	// —— boards (GraphQL) ——
 	OnProjectsList(p, opProjectsList)
 	OnProjectItemsList(p, opProjectItemsList)
 	OnProjectItemAdd(p, opProjectItemAdd)
 	OnProjectItemFieldSet(p, opProjectItemFieldSet)
 
-	// —— 搜索 / 保底 / 健康检查 ——
+	// —— search / fallback / health check ——
 	OnSearch(p, opSearch)
 	OnCall(p, opCall)
 	OnHealthCheck(p, opHealthCheck)
 
-	// 事件两条来路，文档写明二选一：
-	//   webhook —— 零延迟，要在 GitHub 仓库上配一条 webhook
-	//   轮询源  —— 不用配 webhook，约 1 分钟延迟（凭证填了 watch_repos 才启动）
+	// Events have two sources; the docs say pick one:
+	//   webhook — zero latency, requires configuring a webhook on the GitHub repo
+	//   poll source — no webhook needed, about 1 minute of latency (only starts once watch_repos
+	//                 is set on the credential)
 	DeclareEvents(p)
 	sokel.RegisterSource(p, sokel.Source{ID: "poll", Label: "GitHub 事件轮询"}, runEvents)
 	sokel.RegisterWebhook(p, handleWebhook)

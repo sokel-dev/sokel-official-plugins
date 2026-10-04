@@ -1,19 +1,22 @@
 package schema
 
-// Snippet：一条字幕。start/duration 是秒（带小数），与 YouTube 原始 timedtext 一致。
+// Snippet is one transcript line. start/duration are in seconds (with fractional part), matching
+// YouTube's original timedtext.
 //
-// 刻意**不合并成一段纯文本就完事**：下游要做「跳到第几分几秒」「按时间窗切片喂给 LLM」
-// 时，没有时间轴就只能重新去要一次。全文另有 text 出参，两者并存。
+// Deliberately **not just merged into a single plain-text blob**: when downstream needs to "jump to a
+// given minute:second" or "slice by a time window to feed an LLM", having no timeline would mean fetching
+// it all over again. The full text is available separately as the text output, so both coexist.
 type Snippet struct {
 	Text     string  `sokel:"text" label:"文本"`
 	Start    float64 `sokel:"start" label:"开始（秒）"`
 	Duration float64 `sokel:"duration" label:"时长（秒）"`
 }
 
-// TrackInfo：一条**可用**的字幕轨（还没取内容）。
+// TrackInfo describes one **available** transcript track (content not yet fetched).
 //
-// 「列出可用字幕」的意义在于：同一个视频常常只有作者上传的某一种语言 + 一堆机器翻译，
-// 而机翻质量差很多。先列一遍，就能在画布上按 is_generated 分流。
+// The point of "listing available transcripts": the same video often only has one language the author
+// actually uploaded plus a pile of machine translations, and machine translation quality is noticeably
+// worse. Listing them first lets the canvas branch on is_generated.
 type TrackInfo struct {
 	Language             string   `sokel:"language" label:"语言名" desc:"YouTube 给的显示名，如「English (auto-generated)」"`
 	LanguageCode         string   `sokel:"language_code" label:"语言代码" desc:"如 en / zh-Hans / ja"`

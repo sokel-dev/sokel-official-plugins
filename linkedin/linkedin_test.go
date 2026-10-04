@@ -1,10 +1,14 @@
 package main
 
-// 假 LinkedIn。钉四件事：
-//   - **两个必带的头**（LinkedIn-Version + X-Restli-Protocol-Version），少一个就是 426 或形状对不上；
-//   - author 必须是账号自己的 URN，且**按 token 缓存**（每次发帖都去问一次是纯浪费）；
-//   - 发帖成功时 id 在 **x-restli-id 响应头**里，正文可能是空的；
-//   - 401 要翻译成「多半是 60 天到期了」——这是这家最常见的失败，而原文只说 unauthorized。
+// A fake LinkedIn. Pins down four things:
+//   - **Two mandatory headers** (LinkedIn-Version + X-Restli-Protocol-Version); missing either one
+//     means a 426 or a mismatched shape;
+//   - author must be the account's own URN, and it's **cached by token** (asking again on every
+//     post would be pure waste);
+//   - On a successful post, the id is in the **x-restli-id response header**, and the body can be
+//     empty;
+//   - A 401 must be translated to "most likely expired after 60 days" — this is this platform's
+//     most common failure, and the raw message just says unauthorized.
 
 import (
 	"context"
@@ -68,7 +72,7 @@ func ctxTo(t *testing.T, cap *capture, routes map[string]func(http.ResponseWrite
 		case strings.HasSuffix(r.URL.Path, "/v2/userinfo"):
 			io.WriteString(w, `{"sub":"abc123","name":"张三"}`)
 		case r.URL.Path == "/rest/posts" && r.Method == http.MethodPost:
-			// 发帖成功：id 在响应头里，body 是空的——LinkedIn 的老规矩
+			// Successful post: id is in the response header, body is empty — an old LinkedIn convention
 			w.Header().Set("x-restli-id", "urn:li:share:7100")
 			w.WriteHeader(http.StatusCreated)
 		case strings.HasPrefix(r.URL.Path, "/rest/posts/") && r.Method == http.MethodDelete:
@@ -91,7 +95,8 @@ func ctxTo(t *testing.T, cap *capture, routes map[string]func(http.ResponseWrite
 		cred: map[string]string{"access_token": "tok"}}
 }
 
-// 两个头都要带：少任何一个，LinkedIn 回 426 或形状对不上，而错误不会告诉你缺的是头。
+// Both headers must be sent: missing either one, LinkedIn returns a 426 or a mismatched shape, and
+// the error won't tell you a header is missing.
 func TestRequiredHeaders(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -109,7 +114,7 @@ func TestRequiredHeaders(t *testing.T) {
 	}
 }
 
-// author 必须是账号自己的 URN；发帖 id 从响应头里取。
+// author must be the account's own URN; the post id is taken from the response header.
 func TestPostShapeAndIDFromHeader(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -136,7 +141,7 @@ func TestPostShapeAndIDFromHeader(t *testing.T) {
 	}
 }
 
-// 账号 URN 不会变：按 token 缓存，别每次发帖都去问一次。
+// The account URN never changes: cached by token, not asked again on every post.
 func TestAuthorURNIsCached(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -157,7 +162,7 @@ func TestAuthorURNIsCached(t *testing.T) {
 	}
 }
 
-// 图片是三步：initializeUpload → PUT 二进制 → URN 进帖子。
+// Images are a three-step process: initializeUpload → PUT the binary → the URN goes into the post.
 func TestImageUploadThreeSteps(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -191,7 +196,7 @@ func TestImageUploadThreeSteps(t *testing.T) {
 	}
 }
 
-// 多张图要走 multiImage，不是 media。
+// Multiple images go through multiImage, not media.
 func TestMultipleImagesUseMultiImage(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -212,7 +217,8 @@ func TestMultipleImagesUseMultiImage(t *testing.T) {
 	}
 }
 
-// 401 是这家最常见的失败（令牌 60 天到期），原文只说 unauthorized，要翻译。
+// A 401 is this platform's most common failure (a token expired after 60 days); the raw message
+// just says unauthorized, and it needs to be translated.
 func TestExpiredTokenIsExplained(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -234,7 +240,7 @@ func TestExpiredTokenIsExplained(t *testing.T) {
 	}
 }
 
-// 超长与空内容要在发出去之前拦下。
+// Overly long and empty content must be caught before anything gets sent.
 func TestInputGuards(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -252,7 +258,7 @@ func TestInputGuards(t *testing.T) {
 	}
 }
 
-// 用户可能粘的是动态链接而不是 URN。
+// A user might paste in a post link instead of a URN.
 func TestPostURNFromLink(t *testing.T) {
 	cases := map[string]string{
 		"urn:li:share:7100": "urn:li:share:7100",

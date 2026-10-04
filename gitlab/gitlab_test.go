@@ -1,6 +1,6 @@
 package main
 
-// httptest 假 GitLab 打穿关键路径。真自建实例联调走 operation:test。
+// httptest fakes GitLab to exercise the critical paths. Real self-hosted-instance integration testing goes through operation:test.
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func (f *fakeCtx) UploadReader(string, string, io.Reader) (*plugin.File, error) 
 }
 func (f *fakeCtx) Fetch(*plugin.File) ([]byte, error) { return nil, nil }
 
-// fakeSourceCtx 事件源 mock：记录 Trigger 调用。
+// fakeSourceCtx is an event-source mock: it records Trigger calls.
 type fakeSourceCtx struct {
 	*fakeCtx
 	onTrigger func(event, id string)
@@ -57,7 +57,7 @@ func credFor(srv *httptest.Server) map[string]string {
 	return map[string]string{"base_url": srv.URL, "token": "glpat-test"}
 }
 
-// 项目路径要整体 URL 编码进路径段；PRIVATE-TOKEN 头要带上。
+// The project path must be fully URL-encoded into the path segment; the PRIVATE-TOKEN header must be present.
 func TestProjectPathEncoding(t *testing.T) {
 	var gotPath, gotToken string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +77,7 @@ func TestProjectPathEncoding(t *testing.T) {
 	}
 }
 
-// 读文件：base64 解码；文件路径整体编码（含斜杠）。
+// Reading a file: base64-decode it; the file path is fully encoded (including slashes).
 func TestFileGetDecodesBase64(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.EscapedPath(), "config%2Fapp.yaml") {
@@ -97,7 +97,7 @@ func TestFileGetDecodesBase64(t *testing.T) {
 	}
 }
 
-// 写文件：不存在 → action=create；存在 → update。走 commits 接口。
+// Writing a file: action=create if it doesn't exist, update if it does. Goes through the commits endpoint.
 func TestFileWriteCreateVsUpdate(t *testing.T) {
 	exists := false
 	var gotAction string
@@ -140,7 +140,7 @@ func TestFileWriteCreateVsUpdate(t *testing.T) {
 	}
 }
 
-// 触发流水线：变量转 [{key,value}] 数组形态。
+// Triggering a pipeline: variables are converted to the [{key,value}] array shape.
 func TestPipelineTriggerVariables(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +163,7 @@ func TestPipelineTriggerVariables(t *testing.T) {
 	}
 }
 
-// job 日志尾部截断。
+// Job log tail truncation.
 func TestJobLogTail(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, "l1\nl2\nl3\nl4\nl5")
@@ -178,7 +178,8 @@ func TestJobLogTail(t *testing.T) {
 	}
 }
 
-// 404 的报错必须提「没权限也回 404」——GitLab 防探测的行为，不知道的人会以为路径错。
+// A 404 error must mention "404 can also mean no permission" -- this is GitLab's anti-probing
+// behavior, and someone unaware of it would think the path was wrong.
 func TestNotFoundMentionsPermission(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
@@ -191,7 +192,7 @@ func TestNotFoundMentionsPermission(t *testing.T) {
 	}
 }
 
-// call 的入参卫生：带 /api/v4 前缀要拦（会拼出 /api/v4/api/v4）。
+// Input hygiene for call: a /api/v4 prefix must be rejected (it would produce /api/v4/api/v4).
 func TestCallPathHygiene(t *testing.T) {
 	ctx := newFake(map[string]string{"base_url": "http://x", "token": "t"})
 	if _, err := opCall(ctx, &CallIn{Path: "/api/v4/projects"}); err == nil || !strings.Contains(err.Error(), "前缀") {
@@ -202,7 +203,7 @@ func TestCallPathHygiene(t *testing.T) {
 	}
 }
 
-// 缺 token 指路。
+// Missing token points the way.
 func TestMissingToken(t *testing.T) {
 	_, err := opProjectsList(newFake(map[string]string{"base_url": "http://x"}), &ProjectsListIn{})
 	if err == nil || !strings.Contains(err.Error(), "Access Tokens") {
@@ -210,8 +211,8 @@ func TestMissingToken(t *testing.T) {
 	}
 }
 
-// 事件映射：Events API 的 action/target → 平台事件；**「合并」是 accepted 不是 merged**
-// （GitLab 的命名，按直觉找 merged 会一个事件都收不到）。
+// Event mapping: Events API action/target -> platform event; GitLab's "merge" shows up as
+// accepted, not merged (that's GitLab's own naming -- looking for merged by intuition would get zero events).
 func TestTriggerEventMapping(t *testing.T) {
 	var fired []string
 	src := &fakeSourceCtx{fakeCtx: newFake(nil), onTrigger: func(event, id string) {
@@ -227,7 +228,7 @@ func TestTriggerEventMapping(t *testing.T) {
 		{ID: 2, ActionName: "opened", TargetType: "MergeRequest", TargetIID: 7},
 		{ID: 3, ActionName: "accepted", TargetType: "MergeRequest", TargetIID: 7},
 		{ID: 4, ActionName: "opened", TargetType: "Issue", TargetIID: 9},
-		{ID: 5, ActionName: "commented on", TargetType: "Note"}, // 不认识的类型跳过
+		{ID: 5, ActionName: "commented on", TargetType: "Note"}, // unrecognized type is skipped
 	}
 	for _, ev := range evs {
 		triggerEvent(src, Cred{}, "g/p", ev)
@@ -243,14 +244,14 @@ func TestTriggerEventMapping(t *testing.T) {
 	}
 }
 
-// webhook 解析：三类 GitLab hook → 现有事件；验签比对 X-Gitlab-Token；
-// 认不出的事件类型回 200（别让 GitLab 反复重试）。
+// Webhook parsing: three kinds of GitLab hook map to existing events; signature verification
+// compares X-Gitlab-Token; unrecognized event types return 200 (so GitLab doesn't keep retrying).
 func TestWebhookParsing(t *testing.T) {
 	var fired []string
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{"webhook_secret": "s3cr3t"}),
 		onTrigger: func(event, id string) { fired = append(fired, event+"/"+id) }}
 
-	// 验签失败
+	// signature verification fails
 	resp := handleWebhook(ctx, &sokel.WebhookRequest{
 		Headers: map[string]string{"X-Gitlab-Token": "wrong"}, Body: []byte(`{}`)})
 	if resp.Status != 401 {
@@ -288,7 +289,7 @@ func TestWebhookParsing(t *testing.T) {
 		t.Fatalf("pipeline: fired=%v", fired)
 	}
 
-	// 认不出的类型：200 + 不触发
+	// unrecognized type: 200 + no trigger
 	resp = handleWebhook(ctx, &sokel.WebhookRequest{
 		Headers: map[string]string{"X-Gitlab-Token": "s3cr3t", "X-Gitlab-Event": "Wiki Page Hook"},
 		Body:    []byte(`{}`)})
@@ -297,11 +298,12 @@ func TestWebhookParsing(t *testing.T) {
 	}
 }
 
-// Issue 事件必须带正文与标签。
+// Issue events must carry the body and labels.
 //
-// 起因很具体：「拿 Issue 内容去派活」——正文才是那份内容，标题往往只是一句话。
-// 标签同样要紧，它是「谁能触发」的闸（只处理打了某标签的 Issue），
-// 没有它就只能「谁建的都跑」。
+// The reason is concrete: "use the Issue content to dispatch work" -- the body is that
+// content, while the title is often just a one-liner. Labels matter just as much; they're the
+// gate for "who can trigger this" (only process Issues with a given label) -- without them,
+// the only option is "whoever created it, it runs".
 func TestIssueWebhookCarriesBodyAndLabels(t *testing.T) {
 	var got *IssueOpenedEvent
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{}),
@@ -331,7 +333,8 @@ func TestIssueWebhookCarriesBodyAndLabels(t *testing.T) {
 	}
 }
 
-// 标签在 payload 里有两处、形状还不同（对象数组 / 字符串数组），且可能都没有。
+// Labels appear in two places in the payload, in different shapes (array of objects / array
+// of strings), and may be absent from both.
 func TestHookLabelsShapes(t *testing.T) {
 	objs := map[string]any{"labels": []any{map[string]any{"title": "bug"}}}
 	if got := hookLabels(objs, map[string]any{}); len(got) != 1 || got[0] != "bug" {
@@ -347,8 +350,9 @@ func TestHookLabelsShapes(t *testing.T) {
 	}
 }
 
-// 「先建 Issue，再打标签」——人最自然的用法，而加标签在 GitLab 那边是 update 不是 open，
-// issue_opened 再也不会响。这条事件就是补这个缺口的。
+// "Create the Issue first, then label it" is the most natural human usage, but adding a label
+// is an update on GitLab's side, not an open, so issue_opened will never fire for it again.
+// This event fills that gap.
 func TestIssueLabeledWebhook(t *testing.T) {
 	var got *IssueLabeledEvent
 	var fired []string
@@ -365,7 +369,7 @@ func TestIssueLabeledWebhook(t *testing.T) {
 		return &r
 	}
 
-	// 新增一个标签
+	// add a new label
 	hook(`{"object_attributes":{"iid":7,"action":"update","title":"登录超时",
 	  "description":"正文","url":"https://git/x/y/-/issues/7","updated_at":"2026-08-24T10:00:00Z"},
 	  "changes":{"labels":{"previous":[{"title":"bug"}],"current":[{"title":"bug"},{"title":"claude"}]}},
@@ -384,7 +388,7 @@ func TestIssueLabeledWebhook(t *testing.T) {
 		t.Errorf("正文/编号/操作人都该在: %+v", got)
 	}
 
-	// 摘标签同样是一次 update——不该当成派活信号
+	// Removing a label is also an update -- it shouldn't be treated as a dispatch signal
 	got, fired = nil, nil
 	hook(`{"object_attributes":{"iid":7,"action":"update","updated_at":"t2"},
 	  "changes":{"labels":{"previous":[{"title":"bug"},{"title":"claude"}],"current":[{"title":"bug"}]}},
@@ -393,7 +397,7 @@ func TestIssueLabeledWebhook(t *testing.T) {
 		t.Errorf("摘标签不该触发，却报了 %+v", got.AddedLabels)
 	}
 
-	// 改标题之类的 update（changes 里没有 labels）也不该触发
+	// An update like changing the title (no labels in changes) shouldn't trigger either
 	hook(`{"object_attributes":{"iid":7,"action":"update","updated_at":"t3"},
 	  "changes":{"title":{"previous":"a","current":"b"}},
 	  "project":{"path_with_namespace":"x/y"}}`)
@@ -402,13 +406,14 @@ func TestIssueLabeledWebhook(t *testing.T) {
 	}
 }
 
-// addedLabels 的取值：只回真新增，且顺序稳定（event_id 拼进去了，抖动会破坏去重）。
+// addedLabels' return value: only genuine additions, with a stable order (event_id is built
+// from it, so jitter would break dedup).
 func TestAddedLabelsStable(t *testing.T) {
 	body := map[string]any{"changes": map[string]any{"labels": map[string]any{
 		"previous": []any{map[string]any{"title": "a"}},
 		"current":  []any{map[string]any{"title": "a"}, map[string]any{"title": "z"}, map[string]any{"title": "m"}},
 	}}}
-	for i := 0; i < 8; i++ { // map 遍历顺序每次不同，排序必须把它压住
+	for i := 0; i < 8; i++ { // map iteration order differs each time; sorting must pin it down
 		got := addedLabels(body)
 		if len(got) != 2 || got[0] != "m" || got[1] != "z" {
 			t.Fatalf("第 %d 次结果不稳定: %+v", i, got)
@@ -419,9 +424,10 @@ func TestAddedLabelsStable(t *testing.T) {
 	}
 }
 
-// 评论触发。这是「派活」最自然的形态,但它**天然会成环**——
-// 机器人回复 Issue 也是一条评论,不设防就是无限循环。所以 author 与 comment 必须给全,
-// 让工作流滤得掉自己。
+// Comment-triggered dispatch. This is the most natural shape for "dispatching work", but it
+// naturally forms a loop -- a bot replying to an Issue is also a comment, and without a guard
+// that's an infinite loop. So author and comment must always be fully populated, so the
+// workflow can filter itself out.
 func TestIssueCommentedWebhook(t *testing.T) {
 	var got *IssueCommentedEvent
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{}),
@@ -445,7 +451,7 @@ func TestIssueCommentedWebhook(t *testing.T) {
 		t.Fatalf("评论内容/编号/评论人都该在: %+v", got)
 	}
 
-	// MR 上的评论走同一个 Hook——不该去派 Issue 的活
+	// A comment on an MR goes through the same Hook -- it shouldn't dispatch Issue work
 	got = nil
 	hook(`{"object_attributes":{"id":992,"noteable_type":"MergeRequest","note":"看着不错"},
 	  "merge_request":{"iid":3},"user":{"username":"bob"},"project":{"path_with_namespace":"x/y"}}`)
@@ -454,8 +460,9 @@ func TestIssueCommentedWebhook(t *testing.T) {
 	}
 }
 
-// 改 Issue：**只发真填了的字段**。GitLab 收到 title:"" 会把标题清空,
-// 而这个操作的语义是「留空 = 不改」——发空值等于悄悄抹掉用户的内容。
+// Editing an Issue: only send fields that were actually filled in. GitLab would clear the
+// title if it got title:"", and this operation's semantics are "blank means no change" --
+// sending an empty value would silently wipe out the user's content.
 func TestIssueUpdateOnlySendsFilledFields(t *testing.T) {
 	var gotBody map[string]any
 	var gotPath, gotMethod string
@@ -470,7 +477,7 @@ func TestIssueUpdateOnlySendsFilledFields(t *testing.T) {
 	out, err := opIssueUpdate(ctx, &IssueUpdateIn{
 		Project: "g/p", Iid: 5, StateEvent: "close",
 		AddLabels: []string{"cc-done"}, RemoveLabels: []string{"claude"},
-		Title: "", Description: "  ", // 留空/空白都不该发
+		Title: "", Description: "  ", // blank/whitespace should not be sent
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -486,7 +493,7 @@ func TestIssueUpdateOnlySendsFilledFields(t *testing.T) {
 	if gotBody["state_event"] != "close" {
 		t.Errorf("state_event 该发: %+v", gotBody)
 	}
-	// 标签是逗号串,不是数组——GitLab 收数组会 400
+	// Labels are a comma-joined string, not an array -- GitLab would 400 on an array
 	if gotBody["add_labels"] != "cc-done" || gotBody["remove_labels"] != "claude" {
 		t.Errorf("标签该拼成逗号串: %+v", gotBody)
 	}
@@ -494,13 +501,13 @@ func TestIssueUpdateOnlySendsFilledFields(t *testing.T) {
 		t.Errorf("出参该解出状态与标签: %+v", out)
 	}
 
-	// 一个都不填 = 没有要改的,直接拒绝而不是发一次空请求
+	// Nothing filled in = nothing to change; reject outright rather than send an empty request
 	if _, err := opIssueUpdate(ctx, &IssueUpdateIn{Project: "g/p", Iid: 5}); err == nil {
 		t.Error("一个字段都没给该报错")
 	}
 }
 
-// 改评论：Issue 与 MR 的路径段不同,选错就是 404。
+// Editing a comment: Issue and MR use different path segments; the wrong one is a 404.
 func TestNoteUpdateTargets(t *testing.T) {
 	var path string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -525,10 +532,12 @@ func TestNoteUpdateTargets(t *testing.T) {
 	}
 }
 
-// 列表的分页位。
+// Pagination surfacing for lists.
 //
-// 只回「本页条数」是**静默截断**:正好 50 条时,调用方无从知道是刚好这么多还是被截了
-// (这正是分页审计里记着的那类毛病)。答案一直在 GitLab 的响应头里,只是没人读。
+// Only returning "items on this page" is a silent truncation: with exactly 50 items, the
+// caller has no way to tell whether that's really all of them or the list got cut off (this is
+// exactly the kind of issue recorded in the pagination audit). The answer has always been in
+// GitLab's response headers; nobody was reading it.
 func TestListSurfacesPagination(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Total", "137")
@@ -548,11 +557,12 @@ func TestListSurfacesPagination(t *testing.T) {
 	}
 }
 
-// 超大结果集上 GitLab 会**省略 X-Total**（算总数太贵），但 X-Next-Page 仍在。
-// 所以判「翻完没有」必须看 has_more，看 total 会以为一条都没有。
+// On very large result sets GitLab omits X-Total (computing the total is too expensive), but
+// X-Next-Page is still present. So deciding "is there more to page through" must look at
+// has_more; looking at total would make it look like there's nothing at all.
 func TestPaginationWithoutTotalHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Next-Page", "3") // 只有下一页，没有总数
+		w.Header().Set("X-Next-Page", "3") // only a next page, no total
 		_, _ = io.WriteString(w, `[{"iid":9}]`)
 	}))
 	defer srv.Close()
@@ -560,7 +570,7 @@ func TestPaginationWithoutTotalHeader(t *testing.T) {
 	if out.Total != 0 || !out.HasMore {
 		t.Errorf("没有 X-Total 时该 total=0 但 has_more=true: %+v", out)
 	}
-	// 最后一页：两个头都没有
+	// last page: neither header present
 	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `[]`)
 	}))
@@ -571,12 +581,14 @@ func TestPaginationWithoutTotalHeader(t *testing.T) {
 	}
 }
 
-// 评论事件的三道过滤。夹具的字段名与形状是**对着真实 GitLab 的 /events 抓下来的**——
-// 这三个坑没有一个能靠读代码想出来:
+// The three comment-event filters. The fixture's field names and shapes were captured against
+// real GitLab /events output -- none of these three gotchas could be figured out just by
+// reading code:
 //
-//	target_iid 是评论自己的 id(实测 1970),Issue 编号在 note.noteable_iid(实测 4)
-//	Issue 与 MR 的评论走同一种事件
-//	改标签/指派也会生成 note(system=true)
+//	target_iid is the comment's own id (observed: 1970); the Issue number is in
+//	note.noteable_iid (observed: 4)
+//	Issue and MR comments go through the same event
+//	relabeling/reassigning also generates a note (system=true)
 func TestNoteEventFilters(t *testing.T) {
 	var got []*IssueCommentedEvent
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{}),
@@ -593,7 +605,7 @@ func TestNoteEventFilters(t *testing.T) {
 		triggerEvent(ctx, Cred{}, "g/p", e)
 	}
 
-	// 真人在 Issue #4 下评论：target_iid 是 1970(评论 id),编号必须取 noteable_iid=4
+	// A real person comments on Issue #4: target_iid is 1970 (the comment id); the number must come from noteable_iid=4
 	ev(`{"id":1,"action_name":"commented on","target_type":"Note","target_iid":1970,
 	  "author":{"username":"alice"},
 	  "note":{"id":1970,"body":"/cc 修一下","noteable_iid":4,"noteable_type":"Issue","system":false}}`)
@@ -604,7 +616,7 @@ func TestNoteEventFilters(t *testing.T) {
 		t.Errorf("正文/作者不对: %+v", got[0])
 	}
 
-	// 系统 note(改标签)——不该触发,否则动一下标签就去派活烧钱
+	// System note (relabeling) -- shouldn't trigger, otherwise touching a label burns money by dispatching work
 	got = nil
 	ev(`{"id":2,"action_name":"commented on","target_type":"Note",
 	  "note":{"body":"added ~claude label","noteable_iid":4,"noteable_type":"Issue","system":true}}`)
@@ -612,7 +624,7 @@ func TestNoteEventFilters(t *testing.T) {
 		t.Errorf("系统 note 不该触发: %+v", got)
 	}
 
-	// MR 上的评论——不该当成 Issue 评论
+	// A comment on an MR -- shouldn't be treated as an Issue comment
 	got = nil
 	ev(`{"id":3,"action_name":"commented on","target_type":"Note",
 	  "note":{"body":"看着不错","noteable_iid":7,"noteable_type":"MergeRequest","system":false}}`)
@@ -621,8 +633,9 @@ func TestNoteEventFilters(t *testing.T) {
 	}
 }
 
-// MR 改动:大 diff 要**按文件截断**,不能整体截断——一个几万行的迁移把上下文占满,
-// 其余文件的改动不该跟着一起没,那会让 review 漏掉真正要看的地方。
+// MR changes: a large diff must be truncated per file, not as a whole -- a migration with
+// tens of thousands of lines would fill up the context, and the other files' changes shouldn't
+// disappear along with it, which would make review miss the parts that actually matter.
 func TestMrChangesTruncatesPerFile(t *testing.T) {
 	big := strings.Repeat("x", 500)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -652,7 +665,7 @@ func TestMrChangesTruncatesPerFile(t *testing.T) {
 	}
 }
 
-// MR 评论与 Issue 评论走同一种 Note 事件,靠 noteable_type 分流到两个不同的事件。
+// MR comments and Issue comments go through the same Note event, routed to two different events by noteable_type.
 func TestNoteEventRoutesToIssueOrMr(t *testing.T) {
 	var issues, mrs int
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{}),
@@ -680,8 +693,9 @@ func TestNoteEventRoutesToIssueOrMr(t *testing.T) {
 	}
 }
 
-// 搜索:各 scope 的命中形状差得很远(代码给 path/startline/data,Issue 给 iid/title),
-// 归一成一个结构——画布上不该为「搜的是代码还是 Issue」准备两套下钻路径。
+// Search: hit shapes differ a lot by scope (code gives path/startline/data, Issue gives
+// iid/title), normalized into one struct -- the canvas shouldn't need two separate drill-down
+// paths depending on whether you searched code or an Issue.
 func TestSearchNormalizesScopes(t *testing.T) {
 	var gotPath, gotScope string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -722,8 +736,8 @@ func TestSearchNormalizesScopes(t *testing.T) {
 	}
 }
 
-// 行级评论:三个定位 sha 由插件自己去 MR 上取——
-// 让调用方在画布上填 base/start/head 三个 sha 是不可能用对的。
+// Inline comments: the three locating shas are fetched by the plugin itself from the MR --
+// expecting the caller to fill in three base/start/head shas on the canvas would never work correctly.
 func TestMrDiscussionFetchesDiffRefs(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -755,16 +769,17 @@ func TestMrDiscussionFetchesDiffRefs(t *testing.T) {
 		t.Errorf("出参不对: %+v", out)
 	}
 
-	// 两个行号都不给 = 定位不了，直接拒绝而不是发一次必然失败的请求
+	// Neither line number given = can't locate it; reject outright rather than send a request that's bound to fail
 	if _, err := opMrDiscussion(newFake(credFor(srv)), &MrDiscussionIn{
 		Project: "g/p", Iid: 3, Path: "a.go", Body: "x"}); err == nil {
 		t.Error("没给任何行号该报错")
 	}
 }
 
-// raw 的形状在两条路上**本来就不一样**(轮询是 Events API 的事件对象,webhook 是 Hook 请求体),
-// 归一不了——但必须让下游分得清,否则同一个 {{raw.xxx}} 换一种部署就取到空。
-// 所以 source 必填,而且两条路都不能漏。
+// raw's shape is inherently different between the two paths (polling gives an Events API
+// event object, webhook gives a Hook request body) -- it can't be normalized, but downstream
+// must still be able to tell them apart, otherwise the same {{raw.xxx}} would get nothing once
+// the deployment switches paths. So source is required, on both paths without exception.
 func TestEventsCarrySource(t *testing.T) {
 	var srcs []string
 	ctx := &fakeSourceCtx{fakeCtx: newFake(map[string]string{}),
@@ -777,7 +792,7 @@ func TestEventsCarrySource(t *testing.T) {
 			}
 		}}
 
-	// webhook 路
+	// webhook path
 	handleWebhook(ctx, &sokel.WebhookRequest{
 		Headers: map[string]string{"X-Gitlab-Event": "Push Hook"},
 		Body: []byte(`{"after":"a1","ref":"refs/heads/main","total_commits_count":1,
@@ -786,7 +801,7 @@ func TestEventsCarrySource(t *testing.T) {
 		Headers: map[string]string{"X-Gitlab-Event": "Issue Hook"},
 		Body: []byte(`{"object_attributes":{"iid":1,"action":"open","title":"t"},
 		  "project":{"path_with_namespace":"g/p"}}`)})
-	// 轮询路
+	// polling path
 	var e glEvent
 	if err := json.Unmarshal([]byte(`{"id":9,"action_name":"pushed to","target_type":"",
 	  "push_data":{"commit_count":1,"ref":"main","commit_to":"a2","commit_title":"c"},

@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// max_results 的兜底与封顶：不封顶的话，一次列 500 封再逐封拉详情
-// 就是把当天配额烧光（messages.get 按封计费）。
+// Default and cap for max_results: without a cap, listing 500 messages and then fetching each
+// one's detail would burn through the whole day's quota (messages.get is billed per message).
 func TestListQueryCapsMaxResults(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{"", "20"},   // 不给 → 兜底 20
-		{"0", "20"},  // 0 视作没给
-		{"-5", "20"}, // 负数同理
+		{"", "20"},   // not given -> default 20
+		{"0", "20"},  // 0 is treated as not given
+		{"-5", "20"}, // same for negative numbers
 		{"50", "50"},
-		{"9999", "100"}, // 封顶
+		{"9999", "100"}, // capped
 	}
 	for _, c := range cases {
 		n := 0
@@ -26,8 +26,9 @@ func TestListQueryCapsMaxResults(t *testing.T) {
 	}
 }
 
-// 标签是逗号分隔的多值参数，且要容忍空格与空项
-// （"INBOX, ,UNREAD" 里那个空项若原样发出去，Gmail 直接 400）。
+// Labels are a comma-separated multi-value parameter, and must tolerate whitespace and empty
+// entries (the empty entry in "INBOX, ,UNREAD" would get Gmail to respond with a flat 400 if
+// sent as-is).
 func TestListQueryLabels(t *testing.T) {
 	q := listQuery("is:unread", "INBOX, ,UNREAD,", 10)
 	labels := q["labelIds"]
@@ -37,15 +38,17 @@ func TestListQueryLabels(t *testing.T) {
 	if q.Get("q") != "is:unread" {
 		t.Errorf("搜索条件没带上: %q", q.Get("q"))
 	}
-	// 空条件不该出现在查询串里（Gmail 对空 q 的行为与不传不同）
+	// An empty condition shouldn't appear in the query string (Gmail treats an empty q
+	// differently than not passing it at all)
 	if got := listQuery("", "", 10); got.Has("q") {
 		t.Errorf("空搜索条件不该发出去: %v", got)
 	}
 }
 
-// 401 在这条链路上几乎只有一个含义，错误文案要直接说出来——
-// 否则用户看到「Gmail 返回 401」会去查作用域或网络，而实际是授权过期
-// （External + 测试中，refresh_token 7 天就过期，这是常态）。
+// On this path, 401 almost always means one specific thing, and the error text should say it
+// directly — otherwise seeing "Gmail returned 401" sends users off checking scopes or the
+// network, when the real cause is that authorization expired (common with External + Testing
+// mode, where refresh_token expires after 7 days).
 func TestAPIErrorMessagesAreActionable(t *testing.T) {
 	cases := map[int]string{
 		http.StatusUnauthorized:    "重新授权",
@@ -58,14 +61,14 @@ func TestAPIErrorMessagesAreActionable(t *testing.T) {
 			t.Errorf("HTTP %d 的提示要能指导下一步，got %q（应含 %q）", code, got, want)
 		}
 	}
-	// 未预料的状态码也要带上原文，别吞掉
+	// An unexpected status code should also carry the raw body, not swallow it
 	if got := (&apiError{Status: 500, Body: "boom"}).Error(); !strings.Contains(got, "boom") {
 		t.Errorf("未知错误要保留原文: %q", got)
 	}
 }
 
-// 没有 token 时**不发请求**，直接给一句能指导操作的话。
-// 发出去只会拿回 401，反而看起来像是授权坏了。
+// With no token, **don't send the request** — give an actionable message right away. Sending it
+// would only get a 401 back, which would look like authorization is broken instead.
 func TestGmailGetWithoutTokenFailsFast(t *testing.T) {
 	err := gmailGet(t.Context(), "", "/messages", nil, nil)
 	if err == nil {
@@ -76,7 +79,7 @@ func TestGmailGetWithoutTokenFailsFast(t *testing.T) {
 	}
 }
 
-// fmtSscan：小助手，避免为了测试引 strconv 到用例里绕。
+// fmtSscan is a small helper that avoids pulling strconv into the test cases just for this.
 func fmtSscan(s string, n *int) (int, error) {
 	if s == "" {
 		return 0, nil

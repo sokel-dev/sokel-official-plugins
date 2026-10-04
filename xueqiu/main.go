@@ -1,9 +1,11 @@
-// xueqiu —— 雪球发帖插件（网页私有接口，非官方 API）。
+// xueqiu — a Xueqiu posting plugin (the website's private endpoints, not an official API).
 //
-// 雪球没有官方发布接口，这里走的是它网页端自己在调的那几个——**纯 HTTP，不跑浏览器**。
-// 代价见 README：无文档、会变、有风控，所以形态定死为「低频 + 失败即报警 + 只发自有真实内容」。
+// Xueqiu has no official publish API, so this calls the handful of endpoints its own web
+// frontend uses — **plain HTTP, no browser involved**. The tradeoffs are in the README:
+// undocumented, subject to change, and risk-controlled, so the shape is fixed as "low
+// frequency + alert on failure + only post genuine, self-authored content".
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./xueqiu
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./xueqiu
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

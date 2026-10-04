@@ -1,13 +1,14 @@
 package main
 
-// 对着**真** TuShare 跑一遍。
+// Runs once against the **real** TuShare.
 //
-// 假上游只能验我们自己写的装配逻辑；能不能真取到数取决于 token 的积分权限，
-// 而「没权限」与「接口改了」在假上游里长得一模一样。故要有一条真的。
+// A fake upstream can only verify the assembly logic we wrote ourselves; whether data can actually
+// be fetched depends on the token's point-based permission tier, and "no permission" and "the
+// endpoint changed" look identical against a fake upstream. Hence we need a real one.
 //
 //	TUSHARE_TOKEN=xxx go test -run Live ./...
 //
-// 没设 token 就跳过，CI 与他人机器上不会因此变红。
+// Skipped when the token isn't set, so this doesn't turn CI or anyone else's machine red.
 
 import (
 	"context"
@@ -26,7 +27,8 @@ func liveCtx(t *testing.T) plugin.Ctx {
 	return fakeCtx{Context: context.Background(), cred: map[string]string{"token": token}}
 }
 
-// 交易日历最轻（不吃积分），拿它验鉴权与列式还原这两件事。
+// Trading calendar is the lightest (doesn't cost points), so it's used to verify both auth and
+// columnar restoration.
 func TestLiveTradeCal(t *testing.T) {
 	type rec struct {
 		CalDate string `json:"cal_date"`
@@ -50,7 +52,8 @@ func TestLiveTradeCal(t *testing.T) {
 	t.Logf("交易日历 %d 条，首条 %s 开市=%d", len(recs), recs[0].CalDate, recs[0].IsOpen)
 }
 
-// 研报增量流：这条是插件的主业，验的是「游标 → 请求 → 记录 → 去重键」整条链路。
+// Research report incremental stream: this is the plugin's core job, verifying the whole
+// cursor -> request -> record -> dedup-key chain.
 func TestLiveSyncBrokerStockReports(t *testing.T) {
 	ctx := liveCtx(t)
 	out, err := syncBrokerStockReports(ctx, &SyncBrokerStockReportsIn{Cursor: "20251009"})

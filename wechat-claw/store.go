@@ -1,9 +1,12 @@
-// platformStore：clawbot Store 接口的平台适配（P3，docs/plugin-multibot-qr-auth.md §2/§4）。
-// 平台是唯一凭证存储方：
-//   - LoadCredentials：读凭证行 fields.session（注册下发，SourceCtx.Credential）；
-//   - SaveCredentials：经 sokel.credential.update 回写（SourceCtx.UpdateCredential）——运行中 token 刷新不丢；
-//   - SyncBuf / ContextToken：进程内存（丢失代价小：sync 游标重置=从当下重新收；context token 随下一条
-//     入站消息自然重建，仅影响重启后「先发消息」的能力）。
+// platformStore is the platform adapter for clawbot's Store interface (P3,
+// docs/plugin-multibot-qr-auth.md §2/§4). The platform is the sole credential store:
+//   - LoadCredentials: reads the credential row's fields.session (issued at registration,
+//     SourceCtx.Credential);
+//   - SaveCredentials: writes back via sokel.credential.update (SourceCtx.UpdateCredential) — a
+//     token refresh while running isn't lost;
+//   - SyncBuf / ContextToken: process memory (cheap to lose: the sync cursor just resets to
+//     resume from now; the context token naturally rebuilds from the next inbound message, only
+//     affecting the "send a message first" ability right after a restart).
 package main
 
 import (
@@ -15,7 +18,8 @@ import (
 	"github.com/importcjj/wechat-clawbot-client-go/store"
 )
 
-// sessionJSON：凭证行 fields.session 的载荷 = store.Credentials 的 JSON（不透明保存，格式随库演进）。
+// sessionJSON: the credential row's fields.session payload = the JSON of store.Credentials
+// (saved opaquely; its shape evolves with the upstream library).
 func sessionToJSON(c store.Credentials) string {
 	b, _ := json.Marshal(c)
 	return string(b)
@@ -33,11 +37,12 @@ type platformStore struct {
 	mu      sync.Mutex
 	creds   store.Credentials
 	hasCred bool
-	// 回写钩子：源实例 = SourceCtx.UpdateCredential；登录流（auth_start 的内存会话）= 捕获到 authSession。
+	// Write-back hook: for a source instance = SourceCtx.UpdateCredential; for the login flow
+	// (auth_start's in-memory session) = captured into authSession.
 	save func(sessionJSON string) error
 
 	syncBuf string
-	tokens  map[string]string // to → context token（内存；随入站消息重建）
+	tokens  map[string]string // to → context token (in memory; rebuilt from inbound messages)
 }
 
 func newPlatformStore(sessionJSON string, save func(string) error) *platformStore {
@@ -62,7 +67,7 @@ func (p *platformStore) LoadCredentials(_ context.Context, _ string) (store.Cred
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.hasCred {
-		return store.Credentials{}, fmt.Errorf("credentials not found") // 与库内 MemoryStore 同语义（无 sentinel error）
+		return store.Credentials{}, fmt.Errorf("credentials not found") // same semantics as the library's own MemoryStore (no sentinel error)
 	}
 	return p.creds, nil
 }

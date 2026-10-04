@@ -10,21 +10,24 @@ import (
 	"github.com/sokel-dev/sokel-official-plugins/youtube-transcript/schema"
 )
 
-// 这个文件里全是**纯函数**：给什么算什么，不碰网络。
-// 这么切是因为本插件真正容易错的地方（id 长什么样、XML 怎么解、按什么顺序选轨）
-// 恰恰都能脱网测；而剩下那半（HTTP + 风控）测不了，只能靠错误映射说清楚。
+// Everything in this file is a **pure function**: it computes from its inputs alone, never touches the
+// network. It's split this way because the parts of this plugin that are actually easy to get wrong
+// (what an id looks like, how to parse the XML, in what order to pick a track) are exactly the parts
+// that can be tested offline; the other half (HTTP + anti-bot handling) can't be tested and has to rely
+// on clear error mapping instead.
 
-// videoIDRe：11 位的 YouTube 视频 id 字母表。
+// videoIDRe is the character set for an 11-character YouTube video id.
 var videoIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
-// urlIDRe：从各种形态的链接里抠 id。
+// urlIDRe extracts the id from the many shapes a YouTube link can take.
 //
-// YouTube 的链接形态多得离谱，而用户是**从地址栏直接粘**的——只认 watch?v= 的话，
-// 手机分享出来的 youtu.be、Shorts、直播回放全都会得到一句「视频 id 不合法」，
-// 而用户看着自己粘的明明是个好链接。
+// YouTube link formats are absurdly varied, and users **paste straight from the address bar** — if we
+// only recognized watch?v=, the youtu.be links shared from phones, Shorts links, and live-replay links
+// would all get a "video id is invalid" error, while the user is staring at a link they're sure is
+// perfectly valid.
 var urlIDRe = regexp.MustCompile(`(?:youtu\.be/|/shorts/|/embed/|/live/|/v/|[?&]v=)([A-Za-z0-9_-]{11})`)
 
-// ExtractVideoID 把用户填的东西归一成 11 位 id。
+// ExtractVideoID normalizes whatever the user typed into an 11-character id.
 func ExtractVideoID(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -39,25 +42,30 @@ func ExtractVideoID(s string) (string, error) {
 	return "", fmt.Errorf("认不出这是哪个视频：%q。支持 watch?v=… / youtu.be/… / shorts/… / embed/… / live/…，或直接填 11 位 id", s)
 }
 
-// 内联格式标签白名单（与参考项目一致）。preserve_formatting 时保留这些，其余照删。
+// formattingTags is the allowlist of inline formatting tags (matches the reference project). When
+// preserve_formatting is on, these are kept and everything else is stripped.
 var formattingTags = []string{"strong", "em", "b", "i", "mark", "small", "del", "ins", "sub", "sup"}
 
 var (
 	stripAllTags = regexp.MustCompile(`<[^>]*>`)
-	// 保留白名单时：删掉「不在白名单里」的标签。Go 的 regexp 不支持前瞻，
-	// 所以做不成参考项目那条正则——改为逐个匹配后按标签名判断（等价且更好读）。
+	// When preserving the allowlist: strip tags that are "not in the allowlist". Go's regexp doesn't
+	// support lookahead, so the reference project's single regex approach isn't possible here — instead
+	// each match is checked against the tag name individually (equivalent, and more readable).
 	anyTag = regexp.MustCompile(`</?([A-Za-z0-9]+)[^>]*>`)
 )
 
-// cleanText：解 HTML 实体 + 按需去标签。raw 是 encoding/xml 已解过一层的 chardata。
+// cleanText unescapes HTML entities and strips tags as needed. raw is chardata that encoding/xml has
+// already unescaped one level.
 //
-// **顺序是先解实体、再去标签**，这一点是被测试逼出来的（我第一版写反了）：
-// timedtext 里的内联标签是**双重转义**的——`<b>` 在文件里写作 `&amp;lt;b&amp;gt;`，
-// XML 层解掉一层变成 `&lt;b&gt;`，HTML 层再解一层才露出 `<b>`。
-// 先去标签的话，那时它还是 `&lt;b&gt;`，正则一个都匹配不上，
-// 结果是 preserve_formatting 两档产出完全一样（而且都带着一堆 <b>）。
+// **The order is: unescape entities first, then strip tags.** This was forced out by a test (my first
+// version had it backwards): inline tags in timedtext are **double-escaped** — `<b>` is written in the
+// file as `&amp;lt;b&amp;gt;`, the XML layer unescapes one level into `&lt;b&gt;`, and only the HTML
+// layer's unescape reveals `<b>`. Stripping tags first would hit it while it's still `&lt;b&gt;`, and the
+// regex wouldn't match any of it, so the two preserve_formatting settings would produce identical output
+// (both still full of literal <b> text).
 //
-// 同理，语音里的 `&` 在文件里是 `&amp;amp;`，两层解完才是一个 `&`。
+// The same applies to `&` in speech: it's `&amp;amp;` in the file, and only becomes a single `&` after
+// both unescape passes.
 func cleanText(raw string, preserveFormatting bool) string {
 	raw = html.UnescapeString(raw)
 	var stripped string
@@ -79,7 +87,7 @@ func cleanText(raw string, preserveFormatting bool) string {
 	return stripped
 }
 
-// timedTextXML：YouTube timedtext 接口的 XML 形状。
+// timedTextXML is the XML shape of the YouTube timedtext endpoint.
 type timedTextXML struct {
 	Texts []struct {
 		Start float64 `xml:"start,attr"`
@@ -88,10 +96,11 @@ type timedTextXML struct {
 	} `xml:"text"`
 }
 
-// ParseTimedText 把 timedtext XML 解析成分句。
+// ParseTimedText parses timedtext XML into lines.
 //
-// 空串/空 <transcript/> 是**正常**结果（有轨但没内容，直播刚开始时常见），返回空切片不报错；
-// 解不动才是错。
+// An empty string / empty <transcript/> is a **normal** result (the track exists but has no content yet,
+// common right after a livestream starts) and returns an empty slice without an error; only a genuine
+// parse failure is an error.
 func ParseTimedText(raw string, preserveFormatting bool) ([]schema.Snippet, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -104,8 +113,9 @@ func ParseTimedText(raw string, preserveFormatting bool) ([]schema.Snippet, erro
 	out := make([]schema.Snippet, 0, len(doc.Texts))
 	for _, t := range doc.Texts {
 		text := cleanText(t.Body, preserveFormatting)
-		// 全空的句子丢掉：timedtext 里存在只有换行的占位条目，留着会让 count 虚高、
-		// 拼出来的全文多出一堆空格。
+		// Drop lines that are entirely blank: timedtext contains placeholder entries that are just a
+		// newline, and keeping them would inflate the count and leave extra spaces scattered through
+		// the joined text.
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
@@ -114,18 +124,19 @@ func ParseTimedText(raw string, preserveFormatting bool) ([]schema.Snippet, erro
 	return out, nil
 }
 
-// wsRun：连续空白（含换行）→ 一个空格。
+// wsRun matches a run of whitespace (including newlines) → collapsed to one space.
 var wsRun = regexp.MustCompile(`\s+`)
 
-// JoinText 把分句拼成全文。
+// JoinText joins the lines into full text.
 //
-// 两件事：用空格拼、把**句内**的换行也压平。
-// timedtext 的断行是按播放器一行显示得下多少字切的，与语义无关——真实样本里
-// 一句就长这样："♪ A full commitment's\n        what I'm thinking of ♪"。
-// 留着换行，下游 LLM 会把它当成段落边界。
+// Two things happen: joining with spaces, and flattening newlines **within a line** too. timedtext's
+// line breaks are cut by how much text fits on one player display line, unrelated to meaning — a real
+// sample line looks like: "♪ A full commitment's\n        what I'm thinking of ♪". Leaving the newline
+// in would make a downstream LLM treat it as a paragraph boundary.
 //
-// 只压 text 这一份，**snippets 保持原样**：那份是给做时间轴/字幕文件用的，
-// 换行是原始数据的一部分，压掉就还原不回去了。
+// Only the joined text is flattened this way, **snippets are left untouched**: that field is meant for
+// building a timeline/subtitle file, the newline is part of the original data, and flattening it there
+// couldn't be undone.
 func JoinText(ss []schema.Snippet) string {
 	parts := make([]string, 0, len(ss))
 	for _, s := range ss {
@@ -136,13 +147,14 @@ func JoinText(ss []schema.Snippet) string {
 	return strings.Join(parts, " ")
 }
 
-// track：一条字幕轨（内部形态，带取内容用的 URL）。
+// track is one transcript track (internal shape, with the URL used to fetch its content).
 type track struct {
 	Info schema.TrackInfo
 	URL  string
 }
 
-// baseLang：语言代码的主子标签（`-` 之前那段），小写。en-US → en，zh-Hans → zh。
+// baseLang returns the primary subtag of a language code (the part before `-`), lowercased.
+// en-US → en, zh-Hans → zh.
 func baseLang(code string) string {
 	if i := strings.IndexByte(code, '-'); i >= 0 {
 		code = code[:i]
@@ -150,21 +162,27 @@ func baseLang(code string) string {
 	return strings.ToLower(code)
 }
 
-// pickTrack 按「语言优先级 × 字幕类型」选一条轨。
+// pickTrack picks one track by "language priority × transcript kind".
 //
-// 判据的顺序是**语言优先于类型**：用户写 `zh-Hans,en` 的意思是「中文比英文重要」，
-// 那么有中文机翻时就不该因为「英文有人工字幕」而跳去英文。参考项目也是这个顺序。
+// The criteria are ordered **language before kind**: when a user writes `zh-Hans,en`, they mean "Chinese
+// matters more than English", so when a Chinese machine translation exists, it shouldn't be skipped in
+// favor of English just because "English has a manual transcript". The reference project uses this same
+// ordering.
 //
-// **同族即命中**（en 认 en-US / en-GB，反之亦然）。参考项目是精确的 dict 查找，
-// 这一条我们刻意做得比它宽——实报（2026-08-26，用户第一次用就撞上）：
+// **Matching the base language family counts as a hit** (en accepts en-US / en-GB, and vice versa). The
+// reference project does an exact dict lookup; this is deliberately made looser than that — reported in
+// practice (2026-08-26, a user hit this on their very first use):
 //
 //	插件执行失败: 没有匹配的字幕（要的是 en）。这个视频现有：en-US(人工)
+//	("plugin execution failed: no matching transcript (wanted en). This video has: en-US (manual)")
 //
-// 而 `en` 正是默认值：只要视频的轨带地区后缀，默认配置就必挂，而用户没做错任何事。
+// And `en` is exactly the default value: as soon as a video's track carries a regional suffix, the
+// default config would always fail, through no fault of the user's.
 //
-// 同族之内的排序：先看类型（prefer=any 时人工优先——那是这一档的全部意义），
-// 类型相同再拿「代码完全一致」当胜负手（用户写 en 就是更想要 en，而不是 en-GB）。
-// prefer=manual/generated 是硬过滤：整族都不满足就跳到下一个请求语言。
+// Ordering within the same language family: kind is checked first (when prefer=any, manual wins —
+// that's the entire point of this tier), and when the kind is the same, an exact code match breaks the
+// tie (a user writing en wants en specifically, not en-GB). prefer=manual/generated is a hard filter: if
+// the whole family fails it, move on to the next requested language.
 func pickTrack(tracks []track, languages []string, prefer string) (track, error) {
 	if len(tracks) == 0 {
 		return track{}, fmt.Errorf("这个视频没有开放任何字幕")
@@ -178,7 +196,8 @@ func pickTrack(tracks []track, languages []string, prefer string) (track, error)
 		}
 		return true
 	}
-	// 越小越好：人工(0) 优于自动(2)；同类里精确码(-1) 优于同族(0)。
+	// Lower is better: manual (0) beats auto-generated (2); within the same kind, an exact code match
+	// (-1) beats same-family (0).
 	score := func(t track, lang string) int {
 		s := 0
 		if t.Info.IsGenerated {
@@ -203,7 +222,8 @@ func pickTrack(tracks []track, languages []string, prefer string) (track, error)
 			return tracks[best], nil
 		}
 	}
-	// 报错要**把现有的列出来**：只说「没找到 zh-Hans」的话，用户完全不知道该改成什么。
+	// The error must **list what's actually available**: just saying "zh-Hans not found" leaves the
+	// user with no idea what to change it to.
 	have := make([]string, 0, len(tracks))
 	for _, t := range tracks {
 		kind := "人工"
@@ -219,7 +239,8 @@ func pickTrack(tracks []track, languages []string, prefer string) (track, error)
 	return track{}, fmt.Errorf("没有匹配的字幕（要的是 %s）。这个视频现有：%s", want, strings.Join(have, "、"))
 }
 
-// parseLanguages 把逗号分隔的优先级串切成列表；全空时回落 en。
+// parseLanguages splits a comma-separated priority string into a list; falls back to en when it's
+// entirely empty.
 func parseLanguages(s string) []string {
 	out := []string{}
 	for _, p := range strings.Split(s, ",") {
@@ -233,8 +254,9 @@ func parseLanguages(s string) []string {
 	return out
 }
 
-// sortTracks 把人工字幕排到自动生成的前面（列清单时用）。
-// 稳定：同类内保持 YouTube 给的顺序，那个顺序本身有含义（默认轨在前）。
+// sortTracks puts manual transcripts ahead of auto-generated ones (used when listing).
+// Stable: within each kind, YouTube's original order is preserved, and that order itself carries meaning
+// (the default track comes first).
 func sortTracks(tracks []track) []schema.TrackInfo {
 	out := make([]schema.TrackInfo, 0, len(tracks))
 	for _, t := range tracks {

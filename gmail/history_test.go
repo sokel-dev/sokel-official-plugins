@@ -6,12 +6,13 @@ import (
 	"testing"
 )
 
-// history 是**变更流**，不是新邮件列表。一封信的「到达」与随后的「打标签」是两条记录，
-// 都驮着同一个 message——不去重就会把同一封信推给工作流两次。
+// history is a **change stream**, not a new-messages list. A message's "arrival" and its
+// subsequent "label applied" are two separate records, both carrying the same message —
+// without deduping, the same message gets pushed to the workflow twice.
 func TestNewMessageIDsDedupes(t *testing.T) {
 	recs := []historyRecord{
 		{ID: "100", MessagesAdded: []historyMsgItem{{Message: gmailMessage{ID: "m1"}}}},
-		{ID: "101", MessagesAdded: []historyMsgItem{{Message: gmailMessage{ID: "m1"}}}}, // 同一封又出现
+		{ID: "101", MessagesAdded: []historyMsgItem{{Message: gmailMessage{ID: "m1"}}}}, // the same message shows up again
 		{ID: "102", MessagesAdded: []historyMsgItem{{Message: gmailMessage{ID: "m2"}}}},
 	}
 	got := newMessageIDs(recs)
@@ -20,8 +21,9 @@ func TestNewMessageIDsDedupes(t *testing.T) {
 	}
 }
 
-// 只认 messagesAdded：labelsAdded/messagesDeleted 是「已有邮件状态变了」，不是新邮件。
-// 算进来的话，你每标一封已读，工作流就被触发一次。
+// Only messagesAdded is recognized: labelsAdded/messagesDeleted are "an existing message's
+// state changed," not a new message. Counting them in would trigger the workflow every time
+// you mark a message as read.
 func TestOnlyMessagesAddedCounts(t *testing.T) {
 	raw := `[
 	  {"id":"1","labelsAdded":[{"message":{"id":"old1"}}]},
@@ -38,8 +40,9 @@ func TestOnlyMessagesAddedCounts(t *testing.T) {
 	}
 }
 
-// 游标取**最大**而不是最后一条：应答顺序不保证严格递增（分页拼接后尤其），
-// 拿最后一条当游标，一旦它不是最大的，中间那些会被再推一遍。
+// The cursor takes the **max**, not the last entry: the response's order isn't guaranteed to be
+// strictly increasing (especially after paginated results are concatenated); using the last
+// entry as the cursor means anything in between gets re-pushed the moment it isn't actually the max.
 func TestMaxHistoryIDTakesMaxNotLast(t *testing.T) {
 	recs := []historyRecord{{ID: "500"}, {ID: "900"}, {ID: "700"}}
 	if got := maxHistoryID(recs, "100"); got != "900" {
@@ -47,21 +50,23 @@ func TestMaxHistoryIDTakesMaxNotLast(t *testing.T) {
 	}
 }
 
-// historyId 是 uint64，会超过 int32。**按数值比而不是按字符串比**：
-// 字符串比会让 "9999999" > "10000000"，游标直接倒退，然后重推一大批。
+// historyId is a uint64 and can exceed int32. **Compare numerically, not as strings**: a string
+// comparison would make "9999999" > "10000000", pushing the cursor backward and causing a large
+// batch to be re-pushed.
 func TestMaxHistoryIDComparesNumerically(t *testing.T) {
 	recs := []historyRecord{{ID: "9999999"}, {ID: "10000000"}}
 	if got := maxHistoryID(recs, "0"); got != "10000000" {
 		t.Errorf("按数值比应得 10000000, got %s —— 按字符串比会让游标倒退", got)
 	}
-	// 超过 int32 的真实量级
+	// a magnitude genuinely beyond int32
 	recs = []historyRecord{{ID: "2147483647"}, {ID: "4294967296"}}
 	if got := maxHistoryID(recs, "0"); got != "4294967296" {
 		t.Errorf("大于 int32 的 historyId 处理错: %s", got)
 	}
 }
 
-// 没有新记录时游标必须**保持不动**，不能清零——清零下次就从头拉，把整个邮箱重推一遍。
+// With no new records, the cursor must **stay unchanged** and not be reset to zero — resetting
+// would make the next fetch start from scratch and re-push the entire mailbox.
 func TestMaxHistoryIDKeepsCursorWhenEmpty(t *testing.T) {
 	if got := maxHistoryID(nil, "12345"); got != "12345" {
 		t.Errorf("空批次应保持原游标, got %s", got)
@@ -71,7 +76,7 @@ func TestMaxHistoryIDKeepsCursorWhenEmpty(t *testing.T) {
 	}
 }
 
-// 排序只影响观感：解析不了的 id 不能被丢掉。
+// Sorting only affects appearance: an unparseable id must not be dropped.
 func TestSortMessageIDsNeverDropsAny(t *testing.T) {
 	in := []string{"18f2a", "18f01", "不是十六进制", "18f99"}
 	got := sortMessageIDs(in)
@@ -84,7 +89,7 @@ func TestSortMessageIDsNeverDropsAny(t *testing.T) {
 			t.Errorf("丢了 %s: %v", id, got)
 		}
 	}
-	// 能解析的按时间序（id 是十六进制时间序，越新越大）
+	// parseable ones follow time order (ids are a hex time-ordering, newer is larger)
 	a, b := indexOf(got, "18f01"), indexOf(got, "18f2a")
 	if a > b {
 		t.Errorf("可解析的应按数值升序: %v", got)
@@ -100,7 +105,8 @@ func indexOf(s []string, v string) int {
 	return -1
 }
 
-// 真实应答形状回归（字段名写错是静默失效：解出来永远是空，看起来像"没有新邮件"）。
+// A regression test against the real response shape (a wrong field name fails silently: it
+// always decodes to empty, which looks like "no new messages").
 func TestParseHistoryResponse(t *testing.T) {
 	raw := `{"history":[
 	  {"id":"11111","messagesAdded":[{"message":{"id":"18f","threadId":"18t","labelIds":["INBOX","UNREAD"]}}]}

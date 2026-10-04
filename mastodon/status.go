@@ -1,6 +1,6 @@
 package main
 
-// 发布：发嘟、嘟串、删嘟、健康检查、媒体上传。
+// Publishing: post, thread, delete, health check, media upload.
 
 import (
 	"fmt"
@@ -43,7 +43,8 @@ func publish(ctx plugin.Ctx, o publishOpts) (statusOut, error) {
 	if len(poll) > 0 && len(o.Images) > 0 {
 		return statusOut{}, fmt.Errorf("投票和媒体不能同时带（Mastodon 的限制）")
 	}
-	// 字数按实例的上限算，不写死 500——问一次缓存住（见 client.go 的 maxChars）。
+	// The character count is checked against the instance's limit, not hardcoded to 500 — asked
+	// once and cached (see maxChars in client.go).
 	if lim := maxChars(ctx); utf8.RuneCountInString(text) > lim {
 		return statusOut{}, fmt.Errorf("正文 %d 个字，超过本实例的 %d 上限（发长内容请用「发嘟文串」）",
 			utf8.RuneCountInString(text), lim)
@@ -92,7 +93,7 @@ func publish(ctx plugin.Ctx, o publishOpts) (statusOut, error) {
 	var out statusOut
 	err := call(ctx, reqOpts{
 		method: http.MethodPost, path: "/api/v1/statuses", form: form,
-		// 幂等键让「工作流重试」不至于变成时间线上两条一样的嘟文。
+		// The idempotency key keeps a workflow retry from turning into two identical posts on the timeline.
 		idemp: idempotencyKey(text, o.ReplyTo, o.Visible, o.Spoiler),
 	}, &out)
 	if err != nil {
@@ -128,7 +129,8 @@ func opStatusThread(ctx plugin.Ctx, in *MastoStatusThreadIn) (*MastoStatusThread
 	for i, t := range texts {
 		o := publishOpts{
 			Text: t, ReplyTo: prev,
-			// CW 与可见性**整串继承**：一串里混进公开与不列出，读者只能看到断断续续的半串。
+			// CW and visibility are **inherited across the whole thread**: mixing public and
+			// unlisted in one thread leaves readers seeing only a disjointed half.
 			Spoiler: in.SpoilerText, Visible: in.Visibility, Language: in.Language,
 		}
 		if i == 0 {
@@ -136,7 +138,8 @@ func opStatusThread(ctx plugin.Ctx, in *MastoStatusThreadIn) (*MastoStatusThread
 		}
 		out, err := publish(ctx, o)
 		if err != nil {
-			// 中途失败**不回滚**：前面几条已经在时间线上了，删掉是二次破坏。
+			// A mid-thread failure is **not rolled back**: the earlier posts are already on the
+			// timeline, and deleting them would be a second act of damage.
 			return nil, fmt.Errorf("嘟文串发到第 %d 条失败（前 %d 条已发出：%s）: %w",
 				i+1, len(ids), strings.Join(ids, ","), err)
 		}
@@ -176,7 +179,8 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	}
 	if err := call(ctx, reqOpts{method: http.MethodGet,
 		path: "/api/v1/accounts/verify_credentials"}, &acct); err != nil {
-		// 不可用是结论不是故障：平台拿它写凭证状态。
+		// Unavailable is a conclusion, not a fault: the platform uses it to write the credential's
+		// status.
 		return &HealthCheckOut{OK: false, Message: err.Error()}, nil
 	}
 	who := acct.Acct
@@ -189,12 +193,13 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return &HealthCheckOut{OK: true, Account: who, Message: "@" + who}, nil
 }
 
-// —— 媒体 ——
+// —— Media ——
 
-// uploadMedia：传一个文件拿 media id。
+// uploadMedia uploads a single file and returns the media id.
 //
-// **大文件是异步处理的**：v2 接口对图片同步返回 200，对视频/音频返回 202 且 url 为空——
-// 这时立刻拿去发嘟会被 422 拒（「媒体还没处理完」），所以要轮询到处理完。
+// **Large files are processed asynchronously**: the v2 endpoint returns 200 synchronously for
+// images, but 202 with an empty url for video/audio — posting immediately at that point gets
+// rejected with a 422 ("media not finished processing"), so it has to be polled until done.
 func uploadMedia(ctx plugin.Ctx, f *plugin.File, alt string) (string, error) {
 	if f == nil || f.ID == "" {
 		return "", fmt.Errorf("媒体文件是空的")
@@ -230,9 +235,10 @@ func uploadMedia(ctx plugin.Ctx, f *plugin.File, alt string) (string, error) {
 		return "", fmt.Errorf("实例没返回 media id")
 	}
 	if out.URL != "" {
-		return out.ID, nil // 同步处理完了（图片走这条）
+		return out.ID, nil // finished synchronously (this is the path images take)
 	}
-	// 异步：轮询到 url 有值为止。没处理完就发嘟会被 422 拒，而错误里只说「媒体不可用」。
+	// Asynchronous: poll until url has a value. Posting before it's done gets a 422, and the error
+	// just says "media unavailable".
 	deadline := time.Now().Add(3 * time.Minute)
 	for time.Now().Before(deadline) {
 		t := time.NewTimer(2 * time.Second)
@@ -253,9 +259,9 @@ func uploadMedia(ctx plugin.Ctx, f *plugin.File, alt string) (string, error) {
 	return "", fmt.Errorf("媒体处理超时（id=%s）：大视频可稍后重试", out.ID)
 }
 
-// —— 小工具 ——
+// —— Small helpers ——
 
-// linkOf：优先用 url（本站可点的地址），退回 uri（联邦标识）。
+// linkOf prefers url (a clickable address on this instance), falling back to uri (the federated identifier).
 func linkOf(s statusOut) string {
 	if s.URL != "" {
 		return s.URL

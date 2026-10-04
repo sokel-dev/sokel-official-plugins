@@ -1,75 +1,86 @@
 # youtube-transcript
 
-取 YouTube 字幕的第一方插件。取数思路参考 Python 的
-[jdepoix/youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)，
-用 Go 重写并按本平台的契约重新切了操作边界。
+A first-party plugin for fetching YouTube transcripts. The fetching approach is modeled on the Python
+[jdepoix/youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api), rewritten in Go with
+operation boundaries re-cut to match this platform's contract.
 
-用户向文档在 [docs/youtube-transcript.md](docs/youtube-transcript.md)（会被 embed 进二进制、
-在插件详情页展示）。**这一份是给改代码的人看的。**
+User-facing docs live at [docs/youtube-transcript.md](docs/youtube-transcript.md) (embedded into the
+binary and shown on the plugin's detail page). **This file is for whoever is changing the code.**
 
-## 它是怎么取到字幕的
+## How it fetches transcripts
 
-三步，全部走 YouTube 网页客户端自己在用的未公开接口：
+Three steps, all using the undocumented API the YouTube web client itself relies on:
 
 ```
-① GET  youtube.com/watch?v=<id>              → 正则抠出 INNERTUBE_API_KEY
+① GET  youtube.com/watch?v=<id>              → regex-extract INNERTUBE_API_KEY
 ② POST youtube.com/youtubei/v1/player?key=…  → captions.playerCaptionsTracklistRenderer
-③ GET  <captionTrack.baseUrl>                → timedtext XML，即字幕内容
+③ GET  <captionTrack.baseUrl>                → timedtext XML, the transcript content
 ```
 
-翻译是给 ③ 的 URL 加 `&tlang=<code>`，由 YouTube 自己机翻。
+Translation works by appending `&tlang=<code>` to the ③ URL, with YouTube doing the machine translation
+itself.
 
-**为什么不用 YouTube Data API v3**：要 key、有配额，且 `captions.download` 只能下自己频道的，
-别人的视频一律 403 —— 官方 API 根本做不了这件事。
+**Why not the YouTube Data API v3**: it needs a key, has a quota, and `captions.download` only works for
+your own channel's videos — any other video gets a flat 403, meaning the official API simply can't do
+this job at all.
 
-## 会过期的东西都在一处
+## Everything that can go stale lives in one place
 
-`youtube.go` 顶部的常量是这个插件的全部脆弱面：
+The constants at the top of `youtube.go` are this plugin's entire fragile surface:
 
-- `innertubeContext` —— 伪装成 `ANDROID` 客户端。网页客户端近年要 PO Token，Android 这条路暂时不要。
-  **版本号会过期**，过期的症状是 player 接口开始要 PO Token。
-- `apiKeyRe` / `consentRe` —— 从 HTML 里抠东西的正则。YouTube 改页面就会失效。
+- `innertubeContext` — spoofs the `ANDROID` client. The web client has started requiring a PO Token in
+  recent times, while the Android path still doesn't. **The version number does go stale**; the symptom
+  is the player endpoint starting to demand a PO Token.
+- `apiKeyRe` / `consentRe` — regexes that scrape things out of HTML. They break whenever YouTube changes
+  its page structure.
 - `watchURL` / `innertubeURL`
 
-改这些不需要动别处。反过来，收到「找不到 InnerTube key」「player 响应解析失败」的报障，
-先看这里。
+Changing these doesn't require touching anything else. Conversely, when a bug report says "can't find
+InnerTube key" or "failed to parse player response", look here first.
 
-## 代码分工
+## Code layout
 
-| 文件 | 职责 | 能不能测 |
+| File | Responsibility | Testable? |
 |---|---|---|
-| `parse.go` | 纯函数：id 提取、XML 解析、选轨、拼文本 | **能**，`parse_test.go` 全覆盖 |
-| `youtube.go` | HTTP + 风控识别 + 错误翻译 | 不能（要真网络） |
-| `ops.go` | 三个操作的接线，刻意保持薄 | — |
-| `schema/` | 契约声明，改完跑 `sokel-gen generate .` | — |
+| `parse.go` | Pure functions: id extraction, XML parsing, track selection, text joining | **Yes**, fully covered by `parse_test.go` |
+| `youtube.go` | HTTP + anti-bot detection + error translation | No (needs real network) |
+| `ops.go` | Wiring for the three operations, deliberately kept thin | — |
+| `schema/` | Contract declarations; run `sokel-gen generate .` after editing | — |
 
-这么切是因为真正容易错的地方恰好都能脱网测：
+It's split this way because the parts that are actually easy to get wrong happen to be exactly the parts
+that can be tested offline:
 
-- **id 形态**：用户是从地址栏直接粘的。只认 `watch?v=` 的话，手机分享的 `youtu.be`、
-  Shorts、直播回放全会被拒，而他看着自己粘的明明是个好链接。
-- **先去标签再解实体**：反过来的话，正文里字面写着 `&lt;b&gt;` 的内容会先变成 `<b>`
-  再被当标签删掉，用户的原文就少了一截。测试里钉死了这条。
-- **选轨顺序是「语言优先于类型」**：`zh-Hans,en` 的意思是中文比英文重要，
-  有中文机翻时不该因为「英文有人工字幕」跳去英文。
+- **Id shapes**: users paste straight from the address bar. Only recognizing `watch?v=` would reject the
+  `youtu.be` links shared from phones, Shorts links, and live-replay links, while the user is staring at
+  a link they're sure is perfectly valid.
+- **Strip tags first, then unescape entities**: the other way around, content that literally writes
+  `&lt;b&gt;` would first become `<b>` and then get deleted as a tag, costing the user part of their
+  original text. Tests pin this down.
+- **Track-selection order is "language before kind"**: `zh-Hans,en` means Chinese matters more than
+  English, so when a Chinese machine translation exists, it shouldn't be skipped in favor of English just
+  because "English has a manual transcript".
 
-## 改契约
+## Changing the contract
 
 ```bash
-sokel-gen generate .        # 或在本目录 go generate ./...
+sokel-gen generate .        # or, from this directory, go generate ./...
 ```
 
-生成 `zz_types.go` / `zz_register.go` / `zz_credential.go`，别手改。
+This generates `zz_types.go` / `zz_register.go` / `zz_credential.go` — don't hand-edit them.
 
-## 本地跑
+## Running locally
 
 ```bash
 SOKEL_ENDPOINT=http://localhost:8088 SOKEL_TOKEN=skp_xxx go run .
 ```
 
-## 已知取不到的
+## Known gaps
 
-- **年龄限制视频**：需要登录。参考项目的 cookie 认证那条路已被 YouTube 改坏，
-  所以这里**刻意不做** —— 留着只会让人以为能用。
-- **要 PO Token 的视频**（URL 带 `&exp=xpe`）：识别出来明说，不让它退化成一句 XML 解析失败。
-- **机房 IP**：会撞 429 或「确认你不是机器人」。唯一解法是凭证里配住宅代理，
-  这一点必须在用户文档里说清楚，否则用户只会看到「被限流」然后以为插件坏了。
+- **Age-restricted videos**: require login. The reference project's cookie-auth path has already been
+  broken by YouTube, so this is **deliberately not implemented** — keeping it would only mislead people
+  into thinking it works.
+- **Videos requiring a PO Token** (URL contains `&exp=xpe`): detected and reported explicitly, rather
+  than degrading into a bare "XML parse failed".
+- **Datacenter IPs**: will hit a 429 or "confirm you're not a bot". The only fix is configuring a
+  residential proxy in the credential, and this must be spelled out clearly in the user docs, otherwise a
+  user will just see "rate limited" and assume the plugin is broken.

@@ -1,7 +1,9 @@
 package main
 
-// 纯逻辑 + httptest 假网关。darabonba 的泛化调用允许 endpoint 指向任意主机，
-// 签名照算（假网关不验签），所以请求形状能全程打穿。真云联调走 operation:test。
+// Pure logic plus an httptest fake gateway. darabonba's generic call lets endpoint point at
+// any host and still signs as usual (the fake gateway doesn't verify signatures), so the
+// request shape can be exercised end-to-end. Real cloud integration is covered by
+// operation:test.
 
 import (
 	"context"
@@ -35,7 +37,8 @@ func credFor(host string) map[string]string {
 	return map[string]string{"access_key_id": "LTAItest", "access_key_secret": "sk", "region": "cn-hangzhou"}
 }
 
-// dig 系列是全部应答解析的地基，键路径错一层就是静默空值——逐个钉住。
+// The dig family is the foundation of all response parsing — get one level of the key path
+// wrong and you get a silent empty value, so pin each case down.
 func TestDigHelpers(t *testing.T) {
 	m := map[string]any{
 		"Items": map[string]any{"DBInstance": []any{
@@ -44,7 +47,7 @@ func TestDigHelpers(t *testing.T) {
 		"Total": "42",
 	}
 	if got := digStr(m, "Items", "DBInstance"); got == "" {
-		// 数组转字符串没意义，但不该 panic
+		// Converting an array to a string is meaningless, but it shouldn't panic.
 		_ = got
 	}
 	list := digList(m, "Items", "DBInstance")
@@ -66,7 +69,7 @@ func TestParseWhen(t *testing.T) {
 	if v, _ := parseWhen("1700000000", 0); v != 1700000000 {
 		t.Error("秒级时间戳")
 	}
-	// 独立换算的定值：2026-08-20T10:00:00+08:00 = UTC 02:00 = 1787191200。
+	// Independently computed fixed value: 2026-08-20T10:00:00+08:00 = UTC 02:00 = 1787191200.
 	if v, _ := parseWhen("2026-08-20T10:00:00+08:00", 0); v != 1787191200 {
 		t.Errorf("RFC3339 = %d, want 1787191200", v)
 	}
@@ -78,7 +81,7 @@ func TestParseWhen(t *testing.T) {
 	}
 }
 
-// 泛化调用的错误翻译：403 → RAM 指路。
+// Generic call error translation: 403 → points the user at RAM.
 func TestAcsErrTranslation(t *testing.T) {
 	for frag, want := range map[string]string{
 		"InvalidAccessKeyId.NotFound":        "RAM 控制台核对",
@@ -99,7 +102,7 @@ type strErr struct{ s string }
 
 func (e *strErr) Error() string { return e.s }
 
-// 云监控的 Datapoints 是 JSON 串不是数组（历史包袱）。
+// CloudMonitor's Datapoints is a JSON string, not an array (legacy baggage).
 func TestParseJSONArray(t *testing.T) {
 	pts := parseJSONArray(`[{"timestamp":1700000000000,"Average":73.5},{"timestamp":1700000060000,"Average":74.2}]`)
 	if len(pts) != 2 || digFloat(pts[1], "Average") != 74.2 {
@@ -110,7 +113,8 @@ func TestParseJSONArray(t *testing.T) {
 	}
 }
 
-// call 的入参卫生：endpoint 带路径 / 缺三元组，都要把话说清。
+// call input validation: an endpoint with a path, or a missing part of the triple, must both
+// produce a clear error.
 func TestCallValidation(t *testing.T) {
 	ctx := newFake(credFor(""))
 	if _, err := opCall(ctx, &CallIn{Endpoint: "rds.aliyuncs.com/some/path", Action: "X", Version: "2014-08-15"}); err == nil || !strings.Contains(err.Error(), "只填域名") {
@@ -126,8 +130,9 @@ func TestCallValidation(t *testing.T) {
 
 var _ = json.Marshal
 
-// push 的入参卫生与参数规范化：广播时 TargetValue 强制 ALL；圈人时目标值必填；
-// iOS 相关设备类型要带 iOSApnsEnv；extras 序列化后 Android/iOS 两边都发。
+// push input validation and param normalization: TargetValue is forced to ALL when broadcasting;
+// targeted pushes require a target value; iOS-related device types must carry iOSApnsEnv; extras
+// is serialized and sent to both Android and iOS.
 func TestPushValidation(t *testing.T) {
 	ctx := newFake(credFor(""))
 	if _, err := opPush(ctx, &PushIn{Target: "ALL", Title: "t", Body: "b"}); err == nil || !strings.Contains(err.Error(), "AppKey") {
@@ -141,7 +146,8 @@ func TestPushValidation(t *testing.T) {
 	}
 }
 
-// send_mail 入参卫生：正文两种至少一个，发信地址/收件人/主题必填。
+// send_mail input validation: at least one of the two body types is required; sender address,
+// recipient, and subject are all required.
 func TestSendMailValidation(t *testing.T) {
 	ctx := newFake(credFor(""))
 	if _, err := opSendMail(ctx, &SendMailIn{To: "a@b.com", Subject: "s", HTML: "<p>x</p>"}); err == nil || !strings.Contains(err.Error(), "发信地址") {

@@ -1,11 +1,14 @@
 package main
 
-// 出站：REST + Bearer token。比 bluesky 简单——token 是长期的，不用管会话。
+// Outbound calls: REST + Bearer token. Simpler than bluesky — the token is long-lived, no session
+// to manage.
 //
-// 两件事值得单列：
-//   - **幂等键**：发布带 Idempotency-Key（一小时内同键只落一条）。工作流会重试，
-//     不带的话一次超时重试就是时间线上两条一样的嘟文。
-//   - **字数上限问实例**：Mastodon 是联邦网络，500 只是默认值。问一次缓存住。
+// Two things worth calling out separately:
+//   - **Idempotency key**: publishing sends an Idempotency-Key (the same key within an hour lands
+//     only one post). Workflows retry, and without this, a single timeout-and-retry turns into two
+//     identical posts on the timeline.
+//   - **Character limit is asked from the instance**: Mastodon is a federated network, and 500 is
+//     just the default. Asked once and cached.
 
 import (
 	"bytes"
@@ -28,7 +31,7 @@ import (
 
 const defaultMaxChars = 500
 
-// —— 客户端 ——
+// —— Client ——
 
 var (
 	clientMu sync.Mutex
@@ -42,7 +45,7 @@ func clientFor(proxy string) *http.Client {
 	if c, ok := clients[proxy]; ok {
 		return c
 	}
-	c := &http.Client{Timeout: 120 * time.Second} // 传视频要久一点
+	c := &http.Client{Timeout: 120 * time.Second} // video uploads need more time
 	if proxy != "" {
 		if u, err := url.Parse(proxy); err == nil {
 			tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -70,7 +73,7 @@ func baseOf(c Cred) (string, error) {
 	return u, nil
 }
 
-// —— 错误 ——
+// —— Errors ——
 
 type apiError struct {
 	Status  int
@@ -95,13 +98,13 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("实例返回 HTTP %d", e.Status)
 }
 
-// —— 请求 ——
+// —— Requests ——
 
 type reqOpts struct {
 	method string
 	path   string // /api/v1/statuses
 	query  url.Values
-	form   url.Values // 表单体（Mastodon 的写接口收表单，数组用 key[] 重复）
+	form   url.Values // form body (Mastodon's write endpoints take forms; arrays repeat key[])
 	multi  *multipartBody
 	idemp  string // Idempotency-Key
 }
@@ -170,18 +173,19 @@ func call(ctx plugin.Ctx, o reqOpts, out any) error {
 	return nil
 }
 
-// —— 实例信息（字数上限）——
+// —— Instance info (character limit) ——
 
 var (
 	instMu    sync.Mutex
-	instChars = map[string]int{} // 实例地址 → 字数上限
+	instChars = map[string]int{} // instance address → character limit
 )
 
-// maxChars：问实例要字数上限（缓存住）。
+// maxChars asks the instance for its character limit (and caches it).
 //
-// **不能写死 500**：mastodon.social 是 500，中文圈不少实例是 5000，有的到 11000。
-// 写死的话，一条本可以发的长文会被插件自己拦下来，而用户在网页上明明发得出去。
-// 问不到就退回 500——那是官方默认值，宁可保守。
+// **It can't be hardcoded to 500**: mastodon.social uses 500, many Chinese-language instances use
+// 5000, and some go up to 11000. Hardcoding it would mean the plugin rejects a long post the user
+// could clearly submit fine on the web UI. If asking fails, it falls back to 500 — the official
+// default, erring on the conservative side.
 func maxChars(ctx plugin.Ctx) int {
 	cred := credOf(ctx)
 	base, err := baseOf(cred)
@@ -212,18 +216,19 @@ func maxChars(ctx plugin.Ctx) int {
 	return n
 }
 
-// —— 幂等键 ——
+// —— Idempotency key ——
 
-// idempotencyKey：同一条内容重发时要是**同一个键**，否则幂等等于没做。
-// 取「正文 + 回复目标 + 可见性」的摘要：工作流重跑同一个节点，这三样不会变。
+// idempotencyKey must produce **the same key** when the same content is resent, or the idempotency
+// does nothing. It's a digest of "body + reply target + visibility": when a workflow reruns the
+// same node, these three don't change.
 func idempotencyKey(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:16])
 }
 
-// —— 小工具 ——
+// —— Small helpers ——
 
-// statusID：用户可能粘的是嘟文链接（https://实例/@某人/1234567890）。
+// statusID handles that a user might paste in a post link (https://instance/@someone/1234567890).
 func statusID(raw string) string {
 	s := strings.TrimSpace(raw)
 	if i := strings.LastIndex(s, "/"); i >= 0 && strings.Contains(s, "://") {

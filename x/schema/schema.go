@@ -1,26 +1,35 @@
-// Package schema 声明 x 插件的操作、事件与凭证契约。
+// Package schema declares the x plugin's operations, events, and credential contract.
 //
-// 五条贯穿全篇的判断（都是别家插件踩出来的，不是设计偏好）：
+// Five decisions run through all of it (all learned the hard way from other plugins, not stylistic
+// preference):
 //
-//  1. **读的形状按平台的增量流来，不照抄 X 的分页**。X 的翻页是 next_token（一小时就失效，
-//     且只在一次搜索会话内有效），而工作流是「每小时跑一次，接着上次的往下拉」。
-//     所以对外给的是 since_id 游标 + next_cursor/has_more——与其它增量流插件一个形状，
-//     游标存数据表。next_token 只在一次调用内部自动翻页时用。
+//  1. **Reads follow the platform's incremental-stream shape, not a copy of X's pagination.** X's
+//     pagination is next_token (it expires in an hour and is only valid within a single search
+//     session), while a workflow's pattern is "run every hour, continue from last time". So
+//     externally this gives a since_id cursor + next_cursor/has_more — the same shape as other
+//     incremental-stream plugins, with the cursor stored in a data table. next_token is only used
+//     internally for auto-pagination within a single call.
 //
-//  2. **转推与回复要能一眼分掉**。搜索结果里大半是转推，`kind` 字段是插件从
-//     referenced_tweets 推出来的（X 不给），没有它下游只能靠 "RT @" 猜。
+//  2. **Retweets and replies must be distinguishable at a glance.** Most of a search result is
+//     retweets; the `kind` field is derived by the plugin from referenced_tweets (X doesn't give
+//     it), and without it downstream would have no choice but to guess from an "RT @" prefix.
 //
-//  3. **推串是一个操作，不是让人在画布上摆 N 个发推**。X 没有推串接口，靠逐条
-//     in_reply_to 串起来；摆在画布上就是 N 个节点 + N 条连线，改一次文案要动 N 处，
-//     而且中间断了没有任何东西记得断在哪。
+//  3. **A thread is one operation, not N posts laid out on the canvas.** X has no thread endpoint —
+//     threads are chained one in_reply_to at a time; laid out on the canvas that would be N nodes +
+//     N connections, editing the copy once would mean touching N places, and a break partway
+//     through would be untraceable.
 //
-//  4. **媒体上传独立成操作**。它是 INIT/APPEND/FINALIZE 三段式 + 处理轮询，塞进发推里
-//     会让「发一条纯文本」也背上一套分片逻辑；拆开之后画布上是显式的一步，失败可单独重试。
+//  4. **Media upload is its own operation.** It's a three-stage INIT/APPEND/FINALIZE flow plus
+//     processing polling; folding it into the post operation would saddle even "post plain text"
+//     with chunking logic. Splitting it out makes it an explicit canvas step that can be retried on
+//     its own if it fails.
 //
-//  5. **写操作一律回 id 与链接**。发完推拿不到链接的话，下游想发个通知都得自己拼字符串。
+//  5. **Write operations always return an id and a link.** If posting doesn't hand back a link,
+//     downstream has to assemble the URL by hand just to send a notification.
 //
-// 认证只有一条路：平台侧 OAuth 2.0 授权（provider=x，PKCE 由平台处理）。
-// X 的 API 是按次计费的（2026-02 起 pay-per-use），说明书里写清每个操作的开销。
+// There's only one auth path: platform-side OAuth 2.0 authorization (provider=x, with PKCE handled
+// by the platform). X's API is billed per call (pay-per-use since 2026-02), and each operation's
+// cost is documented in the usage doc.
 package schema
 
 import (
@@ -29,9 +38,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// —— 发布 ——
+// —— Publishing ——
 
-// PostCreate 发一条推文：原创、回复、引用、带图、带投票都是它。
+// PostCreate posts a single tweet: original, reply, quote, with media, with a poll — all go through this.
 type PostCreate struct{}
 
 func (PostCreate) Meta() contract.Meta {
@@ -69,10 +78,11 @@ func (PostCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostThread 发一串推文（thread）。
+// PostThread posts a thread (a series of connected tweets).
 //
-// X 没有推串接口：这里逐条发，把上一条的 id 当作下一条的 in_reply_to。
-// **中断了要能接着来**——所以出参给的是「已发出的全部 id」，而不是只给根 id。
+// X has no thread endpoint: this posts them one at a time, using the previous tweet's id as the
+// next one's in_reply_to. **It must be possible to continue after an interruption** — so the
+// output gives "every id posted so far", not just the root id.
 type PostThread struct{}
 
 func (PostThread) Meta() contract.Meta {
@@ -101,7 +111,7 @@ func (PostThread) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostDelete 删一条推文。
+// PostDelete deletes a single tweet.
 type PostDelete struct{}
 
 func (PostDelete) Meta() contract.Meta {
@@ -116,9 +126,9 @@ func (PostDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// —— 媒体 ——
+// —— Media ——
 
-// MediaUpload 上传一个文件，拿到 media_id。
+// MediaUpload uploads a file and returns a media_id.
 type MediaUpload struct{}
 
 func (MediaUpload) Meta() contract.Meta {
@@ -146,11 +156,12 @@ func (MediaUpload) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 互动 ——
+// —— Engagement ——
 //
-// 点赞/转推/收藏/关注各拆成「做」与「取消」两个操作，不合并成一个带开关的。
-// 它们同时也是 agent 的工具：一个叫「取消点赞」的工具，比一个叫「点赞（undo=true）」的
-// 少一次误用；而模型选错开关是不会报错的。
+// Like/retweet/bookmark/follow are each split into a "do" and an "undo" operation, rather than
+// merged into one with a toggle. These are also agent tools: a tool named "unlike" leaves one
+// fewer way to misuse it than one named "like (undo=true)" — and a model picking the wrong value
+// for a toggle wouldn't even error.
 
 func postIDInput() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("post_id").Label("推文 id")}
@@ -160,7 +171,7 @@ func okOutput(label string) []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label(label)}
 }
 
-// Like 点赞。
+// Like likes a tweet.
 type Like struct{}
 
 func (Like) Meta() contract.Meta {
@@ -169,7 +180,7 @@ func (Like) Meta() contract.Meta {
 func (Like) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Like) Outputs() []contract.FieldSpec { return okOutput("已点赞") }
 
-// Unlike 取消点赞。
+// Unlike removes a like.
 type Unlike struct{}
 
 func (Unlike) Meta() contract.Meta {
@@ -178,7 +189,7 @@ func (Unlike) Meta() contract.Meta {
 func (Unlike) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Unlike) Outputs() []contract.FieldSpec { return okOutput("已取消") }
 
-// Repost 转推。
+// Repost retweets.
 type Repost struct{}
 
 func (Repost) Meta() contract.Meta {
@@ -187,7 +198,7 @@ func (Repost) Meta() contract.Meta {
 func (Repost) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Repost) Outputs() []contract.FieldSpec { return okOutput("已转推") }
 
-// Unrepost 取消转推。
+// Unrepost removes a retweet.
 type Unrepost struct{}
 
 func (Unrepost) Meta() contract.Meta {
@@ -196,7 +207,7 @@ func (Unrepost) Meta() contract.Meta {
 func (Unrepost) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Unrepost) Outputs() []contract.FieldSpec { return okOutput("已取消") }
 
-// Bookmark 加书签。
+// Bookmark adds a bookmark.
 type Bookmark struct{}
 
 func (Bookmark) Meta() contract.Meta {
@@ -205,7 +216,7 @@ func (Bookmark) Meta() contract.Meta {
 func (Bookmark) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Bookmark) Outputs() []contract.FieldSpec { return okOutput("已收藏") }
 
-// Unbookmark 取消书签。
+// Unbookmark removes a bookmark.
 type Unbookmark struct{}
 
 func (Unbookmark) Meta() contract.Meta {
@@ -214,7 +225,7 @@ func (Unbookmark) Meta() contract.Meta {
 func (Unbookmark) Inputs() []contract.FieldSpec  { return postIDInput() }
 func (Unbookmark) Outputs() []contract.FieldSpec { return okOutput("已取消") }
 
-// Follow 关注一个账号。
+// Follow follows an account.
 type Follow struct{}
 
 func (Follow) Meta() contract.Meta {
@@ -235,7 +246,7 @@ func (Follow) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Unfollow 取消关注。
+// Unfollow unfollows an account.
 type Unfollow struct{}
 
 func (Unfollow) Meta() contract.Meta {
@@ -244,10 +255,11 @@ func (Unfollow) Meta() contract.Meta {
 func (Unfollow) Inputs() []contract.FieldSpec  { return Follow{}.Inputs() }
 func (Unfollow) Outputs() []contract.FieldSpec { return okOutput("已取消关注") }
 
-// —— 读 ——
+// —— Reading ——
 //
-// 四个读操作共用一套增量游标形状（见本文件顶部第 1 条）：
-// since_id 进、next_cursor/has_more 出，游标存数据表，和其它增量流插件一模一样。
+// The four read operations share one incremental-cursor shape (see point 1 at the top of this
+// file): since_id in, next_cursor/has_more out, cursor stored in a data table — identical to other
+// incremental-stream plugins.
 
 func cursorInputs(desc string) []contract.FieldSpec {
 	return []contract.FieldSpec{
@@ -267,7 +279,7 @@ func cursorOutputs() []contract.FieldSpec {
 	}
 }
 
-// Search 搜最近 7 天的推文。
+// Search searches tweets from the last 7 days.
 type Search struct{}
 
 func (Search) Meta() contract.Meta {
@@ -287,7 +299,7 @@ func (Search) Inputs() []contract.FieldSpec {
 
 func (Search) Outputs() []contract.FieldSpec { return cursorOutputs() }
 
-// UserTimeline 某个账号发的推文。
+// UserTimeline fetches the tweets a given account posted.
 type UserTimeline struct{}
 
 func (UserTimeline) Meta() contract.Meta {
@@ -306,7 +318,7 @@ func (UserTimeline) Inputs() []contract.FieldSpec {
 
 func (UserTimeline) Outputs() []contract.FieldSpec { return cursorOutputs() }
 
-// Mentions 提到授权账号的推文。
+// Mentions fetches tweets that mention the authorized account.
 type Mentions struct{}
 
 func (Mentions) Meta() contract.Meta {
@@ -320,10 +332,11 @@ func (Mentions) Inputs() []contract.FieldSpec {
 
 func (Mentions) Outputs() []contract.FieldSpec { return cursorOutputs() }
 
-// ListPosts 一个列表里的推文。
+// ListPosts fetches the tweets from a list.
 //
-// 这是**按账号盯人的正确姿势**：把要盯的账号都加进一个列表，一次调用拉全部，
-// 比逐个账号调 user_timeline 省几十倍的请求与钱。
+// This is **the right way to watch a group of accounts**: add all the accounts you want to watch
+// into a list and fetch them all in one call — tens of times cheaper in requests and money than
+// calling user_timeline for each account individually.
 type ListPosts struct{}
 
 func (ListPosts) Meta() contract.Meta {
@@ -339,7 +352,7 @@ func (ListPosts) Inputs() []contract.FieldSpec {
 
 func (ListPosts) Outputs() []contract.FieldSpec { return cursorOutputs() }
 
-// PostGet 按 id 取推文（可一次取多条）。
+// PostGet fetches tweets by id (can fetch several at once).
 type PostGet struct{}
 
 func (PostGet) Meta() contract.Meta {
@@ -360,7 +373,7 @@ func (PostGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// UserGet 查账号。
+// UserGet looks up an account.
 type UserGet struct{}
 
 func (UserGet) Meta() contract.Meta {
@@ -382,9 +395,9 @@ func (UserGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 私信 ——
+// —— Direct messages ——
 
-// DMSend 发私信。
+// DMSend sends a direct message.
 type DMSend struct{}
 
 func (DMSend) Meta() contract.Meta {
@@ -408,7 +421,7 @@ func (DMSend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DMEvents 拉私信。
+// DMEvents fetches direct-message events.
 type DMEvents struct{}
 
 func (DMEvents) Meta() contract.Meta {
@@ -433,9 +446,9 @@ func (DMEvents) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 列表 ——
+// —— Lists ——
 
-// ListMemberAdd 把账号加进列表。
+// ListMemberAdd adds an account to a list.
 type ListMemberAdd struct{}
 
 func (ListMemberAdd) Meta() contract.Meta {
@@ -453,7 +466,7 @@ func (ListMemberAdd) Inputs() []contract.FieldSpec {
 
 func (ListMemberAdd) Outputs() []contract.FieldSpec { return okOutput("已加入") }
 
-// ListMemberRemove 把账号移出列表。
+// ListMemberRemove removes an account from a list.
 type ListMemberRemove struct{}
 
 func (ListMemberRemove) Meta() contract.Meta {
@@ -462,14 +475,16 @@ func (ListMemberRemove) Meta() contract.Meta {
 func (ListMemberRemove) Inputs() []contract.FieldSpec  { return ListMemberAdd{}.Inputs() }
 func (ListMemberRemove) Outputs() []contract.FieldSpec { return okOutput("已移出") }
 
-// —— 健康检查 ——
+// —— Health check ——
 
-// HealthCheck 这条凭证还活着吗。
+// HealthCheck checks whether this credential is still alive.
 //
-// **操作 id 是平台约定的 `health_check`**（credential.HealthCheckOp）：凭证页的「测试」按钮、
-// 工作流里的「检查凭证」都调它。平台无从代劳——「还活着吗」怎么问只有插件自己知道。
+// **The operation id is the platform-mandated `health_check`** (credential.HealthCheckOp): both
+// the credential page's "test" button and the workflow's "check credential" call it. The platform
+// can't do this on its own — only the plugin knows how to ask "are you still alive".
 //
-// 出参 ok=false 表示凭证不可用，**这不是错误**：调用要成功返回，让上层把原因写进凭证状态。
+// An output of ok=false means the credential is unusable, **and this is not an error**: the call
+// must return successfully so the caller can record the reason in the credential's status.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -487,13 +502,15 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 事件 ——
+// —— Events ——
 //
-// 两个事件共享 post_id / author_username（见 Events.CommonFields）：平台把公共字段平铺到
-// 触发输入顶层，两条分支共用同一套变量——接「发推文」回复时绑一个就够。
+// The two events share post_id / author_username (see Events.CommonFields): the platform flattens
+// the common fields into the top level of the trigger input, so both branches share the same set
+// of variables — binding one when wiring up a reply via "post" is enough.
 //
-// **为什么是轮询而不是 webhook**：X 的实时推送（filtered stream / Account Activity）
-// 只在 Enterprise 档，自助档拿不到。轮询提及/搜索是唯一可行的路，间隔与配额都写在凭证里。
+// **Why polling instead of webhooks**: X's real-time push (filtered stream / Account Activity) is
+// only available on the Enterprise tier, unreachable on the self-serve plan. Polling mentions/search
+// is the only viable path; the interval and quota are both configured on the credential.
 
 func postEventFields() []contract.FieldSpec {
 	return []contract.FieldSpec{
@@ -510,7 +527,7 @@ func postEventFields() []contract.FieldSpec {
 	}
 }
 
-// MentionReceived 有人 @ 了授权账号。
+// MentionReceived fires when someone @'s the authorized account.
 type MentionReceived struct{}
 
 func (MentionReceived) EventMeta() contract.EventMeta {
@@ -518,7 +535,7 @@ func (MentionReceived) EventMeta() contract.EventMeta {
 }
 func (MentionReceived) Fields() []contract.FieldSpec { return postEventFields() }
 
-// KeywordMatched 关键词命中（凭证里配查询式）。
+// KeywordMatched fires on a keyword match (the query is configured on the credential).
 type KeywordMatched struct{}
 
 func (KeywordMatched) EventMeta() contract.EventMeta {
@@ -526,23 +543,24 @@ func (KeywordMatched) EventMeta() contract.EventMeta {
 }
 func (KeywordMatched) Fields() []contract.FieldSpec { return postEventFields() }
 
-// Events 声明公共字段。
+// Events declares the shared fields.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"post_id", "text"} }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential 本插件的凭证契约。
+// Credential is this plugin's credential contract.
 //
-// 只有 OAuth 一条路：X 的写操作要用户身份，而 client_secret 在平台手里
-// （插件永远看不到它，也不经手 refresh_token）。
+// There's only one path, OAuth: X's write operations require a user identity, and client_secret is
+// held by the platform (the plugin never sees it, and never touches refresh_token either).
 type Credential struct{}
 
-// AuthMeta：X 的 OAuth 2.0。
+// AuthMeta: X's OAuth 2.0.
 //
-// **作用域一次要齐**：X 不支持增量授权，少申请一个就得让所有人重新授权一遍。
-// offline.access 是命门——没有它就没有 refresh_token，access_token 两小时后失效且无法自愈。
+// **Scopes must all be granted in one go**: X doesn't support incremental authorization — missing
+// one means making everyone re-authorize from scratch. offline.access is the critical one — without
+// it there's no refresh_token, and the access_token expires in two hours with no way to recover.
 func (Credential) AuthMeta() contract.AuthMeta {
 	return auth.OAuth("x",
 		"tweet.read", "tweet.write", "users.read",
@@ -560,13 +578,15 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.Secret("access_token").Label("访问令牌（授权注入）").Desc("点「授权」后由平台写入，勿手填").Optional(),
 		field.Secret("refresh_token").Label("刷新令牌（授权注入）").Desc("勿手填").Optional(),
-		// X 在境外。没有这一项，插件在国内部署装上就是废的，而症状只是「超时」，
-		// 看不出是网络不通（与 notion / 搜索插件同一条教训）。
+		// X is hosted abroad. Without this field, the plugin is dead on arrival for a domestic
+		// deployment, and the only symptom is "timeout" — it doesn't show that the network simply
+		// can't reach it (same lesson as the notion / search plugins).
 		field.Text("proxy").Label("出站代理").
 			Desc("如 http://127.0.0.1:7897；部署环境直连不了 x.com 时必填").Optional(),
 
-		// —— 事件源的配置 ——
-		// 盯什么只能由凭证说了算：事件源是常驻进程，它没有「节点配置」这回事。
+		// —— Event source configuration ——
+		// What to watch can only be decided by the credential: the event source is a long-running
+		// process, with no such thing as "per-node configuration".
 		field.Select("watch_mentions", "off", "on").
 			Label("监听提及").Desc("填 on 则有人 @ 授权账号时触发工作流；off = 不监听").Default("off"),
 		field.Text("watch_query").Label("监听的查询式").

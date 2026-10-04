@@ -1,20 +1,24 @@
 package main
 
-// 事件源：larkws 长连接 → 三类平台事件。
+// Event source: larkws long-lived connection -> three kinds of platform events.
 //
-// 这是引官方 SDK 的头号理由（见 client.go 顶注）：**事件不走公网 webhook**。
-// 插件主动向飞书建一条 WebSocket，事件从连接上推下来——不要公网 IP、不要
-// 加解密验签，与「插件出站接 broker」的部署哲学完全同构。
+// This is the number-one reason the official SDK was pulled in (see the top comment in
+// client.go): **events don't arrive over a public webhook**. The plugin actively opens a
+// WebSocket to Feishu, and events are pushed down that connection — no public IP needed, no
+// encrypt/decrypt/verify step, exactly isomorphic to the "plugin makes an outbound connection to
+// the broker" deployment philosophy.
 //
-// 前置（写在 docs/feishu.md，用户侧要配）：开放平台「事件与回调」把订阅方式
-// 设为**长连接**，并勾选 im.message.receive_v1 / im.chat.member.bot.added_v1；
-// 卡片回调在「卡片交互」处同样选长连接。
+// Prerequisite (documented in docs/feishu.md for users to configure): in the Open Platform's
+// "Events & Callbacks," set the subscription method to **long connection**, and check
+// im.message.receive_v1 / im.chat.member.bot.added_v1; card callbacks under "Card Interaction"
+// need the same long-connection setting.
 //
-// per-credential：一条凭证（= 一个应用）一条长连接，多应用单实例由 SDK 的
-// source supervisor 管（telegram 多 bot 同款机制）。
+// Per-credential: one credential (= one app) gets one long-lived connection; multiple apps in a
+// single instance are managed by the SDK's source supervisor (the same mechanism as Telegram's
+// multi-bot setup).
 //
-// 去重：飞书会重推事件（至少一次语义），event_id 交给平台按
-// (pluginId, event, eventID) 去重——插件内不自建去重表。
+// Dedup: Feishu re-delivers events (at-least-once semantics); event_id is handed to the platform
+// to dedup by (pluginId, event, eventID) — the plugin doesn't build its own dedup table.
 
 import (
 	"context"
@@ -39,7 +43,8 @@ func runEvents(ctx plugin.SourceCtx) error {
 		return fmt.Errorf("凭证缺 app_id/app_secret，事件源不启动")
 	}
 
-	// 长连接模式下平台不做签名校验（认证发生在建连时），两个 token 传空即可。
+	// In long-connection mode the platform doesn't do signature verification
+	// (authentication happens at connection time), so both tokens can be passed empty.
 	handler := dispatcher.NewEventDispatcher("", "").
 		OnP2MessageReceiveV1(func(_ context.Context, ev *larkim.P2MessageReceiveV1) error {
 			return onMessage(ctx, ev)
@@ -59,7 +64,8 @@ func runEvents(ctx plugin.SourceCtx) error {
 		larkws.WithOnReconnecting(func() { ctx.ReportStatus("degraded", "长连接断开，重连中") }),
 		larkws.WithOnReconnected(func() { ctx.ReportStatus("ok", "长连接已恢复") }),
 	)
-	// Start 阻塞直到 ctx 取消（凭证被删/禁用时 supervisor 取消它）。
+	// Start blocks until ctx is canceled (the supervisor cancels it when the credential is
+	// deleted/disabled).
 	err := cli.Start(ctx)
 	if err != nil && ctx.Err() == nil {
 		return fmt.Errorf("飞书长连接失败: %w（多半是 app_id/app_secret 有误，或应用没把订阅方式设为「长连接」）", err)
@@ -67,7 +73,7 @@ func runEvents(ctx plugin.SourceCtx) error {
 	return nil
 }
 
-// onMessage im.message.receive_v1 → 「收到消息」。
+// onMessage handles im.message.receive_v1 -> "message received".
 func onMessage(ctx plugin.SourceCtx, ev *larkim.P2MessageReceiveV1) error {
 	if ev.Event == nil || ev.Event.Message == nil {
 		return nil
@@ -83,8 +89,10 @@ func onMessage(ctx plugin.SourceCtx, ev *larkim.P2MessageReceiveV1) error {
 	if s := ev.Event.Sender; s != nil && s.SenderId != nil {
 		e.SenderOpenID = str(s.SenderId.OpenId)
 	}
-	// text 消息的正文在 content 的 JSON 串里；@人以 @_user_N 占位出现在文本中，
-	// 对应关系在 mentions 里。给下游的 text 把占位符去掉——工作流关心的是指令本身。
+	// A text message's body is in content's JSON string; an @-mention appears in the text
+	// as an @_user_N placeholder, with the mapping in mentions. The placeholders are
+	// stripped from the text handed downstream — the workflow cares about the actual
+	// instruction.
 	if str(m.MessageType) == "text" {
 		var c struct {
 			Text string `json:"text"`
@@ -102,7 +110,7 @@ func onMessage(ctx plugin.SourceCtx, ev *larkim.P2MessageReceiveV1) error {
 	return TriggerMessage(ctx, ev.EventV2Base.Header.EventID, e)
 }
 
-// onBotAdded im.chat.member.bot.added_v1 → 「bot 被拉进群」。
+// onBotAdded handles im.chat.member.bot.added_v1 -> "bot added to a chat".
 func onBotAdded(ctx plugin.SourceCtx, ev *larkim.P2ChatMemberBotAddedV1) error {
 	if ev.Event == nil {
 		return nil
@@ -118,9 +126,10 @@ func onBotAdded(ctx plugin.SourceCtx, ev *larkim.P2ChatMemberBotAddedV1) error {
 	return TriggerBotAdded(ctx, ev.EventV2Base.Header.EventID, e)
 }
 
-// onCardAction card.action.trigger → 「卡片按钮点击」。
-// 返回一个轻 toast 让飞书端立刻有反馈；卡片本身要不要更新由工作流决定
-// （用 call 直调 cardkit 接口），插件不越权替用户改卡片。
+// onCardAction handles card.action.trigger -> "card button clicked".
+// Returns a lightweight toast so the Feishu client gets immediate feedback; whether the card
+// itself needs updating is up to the workflow (via a direct `call` to the cardkit API) — the
+// plugin doesn't overstep and modify the card on the user's behalf.
 func onCardAction(ctx plugin.SourceCtx, ev *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
 	if ev.Event == nil {
 		return nil, nil

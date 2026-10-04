@@ -1,21 +1,26 @@
-// Package schema 声明 feishu 插件的操作、事件与凭证契约。
+// Package schema declares the feishu plugin's operation, event, and credential contracts.
 //
-// 定位：飞书**自建应用**的全能力侧——消息/卡片/查人/群管理/云文档/多维表格/网盘 +
-// 长连接事件源（收到消息 / 卡片按钮 / bot 进群 → 起工作流）。
-// 群里的「自定义机器人 webhook」是另一个插件（feishu-webhook）：凭证形态与授权范围
-// 完全不同（一条群 webhook vs 一个企业应用），不混在一个凭证池里。
+// Scope: the full-capability side of a Feishu **custom app** — messages/cards/user lookup/chat
+// management/docs/bitable/drive + a long-connection event source (message received / card
+// button clicked / bot added to a chat -> starts a workflow). The group "custom bot webhook" is
+// a separate plugin (feishu-webhook): the credential shape and authorization scope are
+// completely different (one group webhook vs. one enterprise app), so they aren't pooled
+// together in one credential pool.
 //
-// 分层沿用 telegram-bot 的判断：**typed 常用 + call 保底**。typed 操作给画布
-// 「填字段」的体验；call 收 method+path+body 覆盖全量开放平台 API，飞书加接口零改代码。
+// The layering follows the same decision as telegram-bot: **typed for common cases + call as a
+// fallback**. Typed operations give the canvas a "fill in fields" experience; call takes
+// method+path+body and covers the entire Open Platform API, so Feishu adding an endpoint
+// requires zero code changes here.
 //
-// 两条飞书特有的约定，操作设计都围着它们转：
+// Two Feishu-specific conventions that the operation design revolves around:
 //
-//   - **receive_id 是带类型的**。同一个「发给谁」按 receive_id_type 解释成
-//     open_id / chat_id / user_id / email / union_id 之一——所以发送类操作都带
-//     一个类型下拉，而不是让用户猜「这串 id 是什么」。
-//   - **图片/文件要先换 key**。飞书不收原始字节直发，要先 upload 换 image_key/file_key
-//     再引用。send_image/send_file 内部包掉这两步；单独的 upload_* 留给「一次上传、
-//     多次发送」的流程。
+//   - **receive_id is typed.** The same "who to send to" is interpreted via receive_id_type as
+//     one of open_id / chat_id / user_id / email / union_id — so every send-type operation
+//     carries a type dropdown instead of making the user guess "what kind of id is this string."
+//   - **Images/files must be exchanged for a key first.** Feishu doesn't accept raw bytes sent
+//     directly; they must first be uploaded to exchange for an image_key/file_key, then
+//     referenced. send_image/send_file wrap both steps internally; the standalone upload_*
+//     operations are for an "upload once, send multiple times" flow.
 package schema
 
 import (
@@ -23,7 +28,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// receiveIDFields 发送类操作共有的「发给谁」两件套。
+// receiveIDFields is the "who to send to" pair shared by all send-type operations.
 func receiveIDFields() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.String("receive_id").Label("接收方 ID").
@@ -38,7 +43,7 @@ func receiveIDFields() []contract.FieldSpec {
 	}
 }
 
-// sentMessageOutputs 发送类操作统一的产出。
+// sentMessageOutputs is the uniform output shared by all send-type operations.
 func sentMessageOutputs() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.String("message_id").Label("消息 ID").Desc("om_ 开头；回复/撤回都认它"),
@@ -46,7 +51,7 @@ func sentMessageOutputs() []contract.FieldSpec {
 	}
 }
 
-// SendText 发文本。
+// SendText sends plain text.
 type SendText struct{}
 
 func (SendText) Meta() contract.Meta {
@@ -62,7 +67,7 @@ func (SendText) Inputs() []contract.FieldSpec {
 
 func (SendText) Outputs() []contract.FieldSpec { return sentMessageOutputs() }
 
-// SendMarkdown 发 Markdown（内部包成单元素卡片）。
+// SendMarkdown sends Markdown (internally wrapped into a single-element card).
 type SendMarkdown struct{}
 
 func (SendMarkdown) Meta() contract.Meta {
@@ -86,7 +91,7 @@ func (SendMarkdown) Inputs() []contract.FieldSpec {
 
 func (SendMarkdown) Outputs() []contract.FieldSpec { return sentMessageOutputs() }
 
-// SendCard 发交互卡片（完整 JSON）。
+// SendCard sends an interactive card (full JSON).
 type SendCard struct{}
 
 func (SendCard) Meta() contract.Meta {
@@ -103,7 +108,7 @@ func (SendCard) Inputs() []contract.FieldSpec {
 
 func (SendCard) Outputs() []contract.FieldSpec { return sentMessageOutputs() }
 
-// SendImage 发图片（上传换 key + 发送，两步包成一步）。
+// SendImage sends an image (upload-for-key + send, two steps wrapped into one).
 type SendImage struct{}
 
 func (SendImage) Meta() contract.Meta {
@@ -122,7 +127,7 @@ func (SendImage) Outputs() []contract.FieldSpec {
 		field.String("image_key").Label("图片 key").Desc("可存下来复用，免得重复上传"))
 }
 
-// SendFile 发文件。
+// SendFile sends a file.
 type SendFile struct{}
 
 func (SendFile) Meta() contract.Meta {
@@ -141,7 +146,8 @@ func (SendFile) Outputs() []contract.FieldSpec {
 		field.String("file_key").Label("文件 key"))
 }
 
-// ReplyMessage 回复某条消息（消息事件触发的工作流里最常用）。
+// ReplyMessage replies to a specific message (the most common op in workflows triggered by a
+// message event).
 type ReplyMessage struct{}
 
 func (ReplyMessage) Meta() contract.Meta {
@@ -159,7 +165,7 @@ func (ReplyMessage) Inputs() []contract.FieldSpec {
 
 func (ReplyMessage) Outputs() []contract.FieldSpec { return sentMessageOutputs() }
 
-// RecallMessage 撤回。
+// RecallMessage recalls a message.
 type RecallMessage struct{}
 
 func (RecallMessage) Meta() contract.Meta {
@@ -175,7 +181,7 @@ func (RecallMessage) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// UploadImage 只上传不发送。
+// UploadImage only uploads, doesn't send.
 type UploadImage struct{}
 
 func (UploadImage) Meta() contract.Meta {
@@ -191,7 +197,7 @@ func (UploadImage) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("image_key").Label("图片 key")}
 }
 
-// UploadFile 只上传不发送。
+// UploadFile only uploads, doesn't send.
 type UploadFile struct{}
 
 func (UploadFile) Meta() contract.Meta {
@@ -207,7 +213,7 @@ func (UploadFile) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("file_key").Label("文件 key")}
 }
 
-// GetUser 按 email/手机号查 open_id——给用户发私信前必经的一跳。
+// GetUser looks up an open_id by email/mobile number — a required hop before DMing a user.
 type GetUser struct{}
 
 func (GetUser) Meta() contract.Meta {
@@ -229,7 +235,7 @@ func (GetUser) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ListChats bot 所在的群列表。
+// ListChats lists chats the bot belongs to.
 type ListChats struct{}
 
 func (ListChats) Meta() contract.Meta {
@@ -251,7 +257,7 @@ func (ListChats) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Chat 一个群。
+// Chat is one chat.
 type Chat struct {
 	ChatID      string `sokel:"chat_id" label:"群 ID"`
 	Name        string `sokel:"name" label:"群名"`
@@ -260,7 +266,7 @@ type Chat struct {
 	External    bool   `sokel:"external,optional" label:"是否外部群"`
 }
 
-// CreateChat 建群。
+// CreateChat creates a chat.
 type CreateChat struct{}
 
 func (CreateChat) Meta() contract.Meta {
@@ -281,7 +287,7 @@ func (CreateChat) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("chat_id").Label("群 ID")}
 }
 
-// AddChatMembers 拉人进群。
+// AddChatMembers adds members to a chat.
 type AddChatMembers struct{}
 
 func (AddChatMembers) Meta() contract.Meta {
@@ -302,9 +308,9 @@ func (AddChatMembers) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 云文档（docx）——
+// —— Docs (docx) ——
 
-// DocxCreate 创建云文档。
+// DocxCreate creates a doc.
 type DocxCreate struct{}
 
 func (DocxCreate) Meta() contract.Meta {
@@ -329,7 +335,7 @@ func (DocxCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocxAppend 向文档追加内容。
+// DocxAppend appends content to a doc.
 type DocxAppend struct{}
 
 func (DocxAppend) Meta() contract.Meta {
@@ -348,9 +354,9 @@ func (DocxAppend) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("block_count").Label("追加的块数")}
 }
 
-// —— 多维表格（bitable）——
+// —— Bitable ——
 
-// bitableLoc 多维表格操作共有的定位两件套。
+// bitableLoc is the location pair shared by all Bitable operations.
 func bitableLoc() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.String("app_token").Label("多维表格 token").
@@ -360,7 +366,7 @@ func bitableLoc() []contract.FieldSpec {
 	}
 }
 
-// BitableListRecords 查记录。
+// BitableListRecords queries records.
 type BitableListRecords struct{}
 
 func (BitableListRecords) Meta() contract.Meta {
@@ -386,13 +392,14 @@ func (BitableListRecords) Outputs() []contract.FieldSpec {
 	}
 }
 
-// BitableRecord 一条记录。fields 的键是**字段名**（不是字段 id），与网页上看到的一致。
+// BitableRecord is a single record. The keys of fields are **field names** (not field ids),
+// matching what's shown on the web page.
 type BitableRecord struct {
 	RecordID string         `sokel:"record_id" label:"记录 ID"`
 	Fields   map[string]any `sokel:"fields" label:"字段" desc:"键=字段名，值形状随字段类型（文本串/数字/选项数组…），由多维表格列配置决定"`
 }
 
-// BitableCreateRecord 加记录。
+// BitableCreateRecord adds a record.
 type BitableCreateRecord struct{}
 
 func (BitableCreateRecord) Meta() contract.Meta {
@@ -411,7 +418,7 @@ func (BitableCreateRecord) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("record_id").Label("记录 ID")}
 }
 
-// BitableUpdateRecord 改记录。
+// BitableUpdateRecord updates a record.
 type BitableUpdateRecord struct{}
 
 func (BitableUpdateRecord) Meta() contract.Meta {
@@ -430,7 +437,7 @@ func (BitableUpdateRecord) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// BitableDeleteRecord 删记录。
+// BitableDeleteRecord deletes a record.
 type BitableDeleteRecord struct{}
 
 func (BitableDeleteRecord) Meta() contract.Meta {
@@ -445,9 +452,9 @@ func (BitableDeleteRecord) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// —— 网盘 ——
+// —— Drive ——
 
-// DriveUpload 上传文件到网盘。
+// DriveUpload uploads a file to Drive.
 type DriveUpload struct{}
 
 func (DriveUpload) Meta() contract.Meta {
@@ -470,9 +477,9 @@ func (DriveUpload) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 保底 ——
+// —— Fallback ——
 
-// Call 通用调用：覆盖整个开放平台 API。
+// Call is a generic call that covers the entire Open Platform API.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -500,7 +507,7 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检操作。
+// HealthCheck is the platform's conventional credential health-check operation.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -518,12 +525,15 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 事件（长连接推下来，起工作流）——
+// —— Events (pushed down over the long connection, starting a workflow) ——
 //
-// 三个事件共享 chat_id（Events.CommonFields）：平台把它平铺到触发输入顶层，
-// 回复节点绑同一个变量即可，不必按分支从各自 payload 下钻。
+// The three events share chat_id (Events.CommonFields): the platform flattens it to the top
+// level of the trigger input, so a reply node can bind the same variable without drilling into
+// each branch's own payload.
 
-// MessageReceived 收到消息（单聊直发，群聊要 @bot 才收得到——由飞书权限决定，不是本插件筛的）。
+// MessageReceived fires on a received message (direct in a 1:1 chat; in a group chat it only
+// arrives when the bot is @-mentioned — that's decided by Feishu's permissions, not filtered by
+// this plugin).
 type MessageReceived struct{}
 
 func (MessageReceived) EventMeta() contract.EventMeta {
@@ -543,7 +553,7 @@ func (MessageReceived) Fields() []contract.FieldSpec {
 	}
 }
 
-// CardAction 卡片按钮点击。
+// CardAction fires on a card button click.
 type CardAction struct{}
 
 func (CardAction) EventMeta() contract.EventMeta {
@@ -562,7 +572,7 @@ func (CardAction) Fields() []contract.FieldSpec {
 	}
 }
 
-// BotAdded bot 被拉进群。
+// BotAdded fires when the bot is added to a chat.
 type BotAdded struct{}
 
 func (BotAdded) EventMeta() contract.EventMeta {
@@ -578,14 +588,15 @@ func (BotAdded) Fields() []contract.FieldSpec {
 	}
 }
 
-// Events 声明公共字段。
+// Events declares the common fields.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"chat_id"} }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：自建应用凭证。一条凭证 = 一个应用；事件源按凭证起长连接（多应用单实例）。
+// Credential is a custom app's credential. One credential = one app; the event source opens one
+// long-lived connection per credential (multiple apps in a single instance).
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

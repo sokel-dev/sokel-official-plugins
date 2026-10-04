@@ -1,10 +1,12 @@
-// submail —— Sokel 第一方插件：SUBMAIL（赛邮）国内短信 + 国际短信。
+// submail -- a first-party Sokel plugin: SUBMAIL domestic SMS + international SMS.
 //
-// 纯 HTTP 表单接口（api.mysubmail.com），无 SDK。设计判断见 schema/schema.go 顶注。
-// 鉴权用明文 appkey 模式（signature = appkey）：平台到 SUBMAIL 全程 HTTPS，
-// 摘要签名模式防的「传输中窥视」在这里不成立，而它换来的是时间戳对表的脆弱性。
+// Plain HTTP form API (api.mysubmail.com), no SDK. Design decisions are documented at the top
+// of schema/schema.go. Auth uses the plaintext appkey mode (signature = appkey): the platform
+// to SUBMAIL connection is HTTPS end to end, so the "eavesdropping in transit" that the digest
+// signature mode defends against doesn't apply here, while that mode would trade in the
+// fragility of clock-synced timestamps.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./submail
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./submail
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -25,8 +27,8 @@ import (
 )
 
 var (
-	apiBase   = "https://api.mysubmail.com"    // 发送/余额（测试替换）
-	apiBaseV4 = "https://api-v4.mysubmail.com" // 发送状态查询只在 v4 网关有（实测老网关 Unknown method）
+	apiBase   = "https://api.mysubmail.com"    // send/balance (swapped out in tests)
+	apiBaseV4 = "https://api-v4.mysubmail.com" // delivery-status queries only exist on the v4 gateway (the old gateway returns "Unknown method" in practice)
 )
 
 func main() {
@@ -68,7 +70,7 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// appOf 取国内/国际对应的那对钥匙；缺的那组给指路报错。
+// appOf returns the matching domestic/international key pair; a missing one gets a pointed error.
 func appOf(cred Cred, intl bool) (appid, appkey string, err error) {
 	if intl {
 		appid, appkey = strings.TrimSpace(cred.IntlAppid), strings.TrimSpace(cred.IntlAppkey)
@@ -84,21 +86,21 @@ func appOf(cred Cred, intl bool) (appid, appkey string, err error) {
 	return appid, appkey, nil
 }
 
-// subResp SUBMAIL 统一应答。
+// subResp is SUBMAIL's unified response.
 type subResp struct {
 	Status string `json:"status"` // success / error
 	Code   int    `json:"code"`
 	Msg    string `json:"msg"`
 	SendID string `json:"send_id"`
 	Fee    int    `json:"fee"`
-	// balance 接口
+	// for the balance endpoint
 	Balance       json.Number `json:"balance"`
 	Transactional json.Number `json:"transactional_balance"`
 }
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 
-// post 表单调用。明文鉴权：signature = appkey。
+// post makes a form call. Plaintext auth: signature = appkey.
 func post(ctx plugin.Ctx, path string, form url.Values) (*subResp, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+path, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -121,11 +123,11 @@ func post(ctx plugin.Ctx, path string, form url.Values) (*subResp, error) {
 	return &r, nil
 }
 
-// subErr 高频错误码 → 下一步做什么。
+// subErr maps common error codes to next steps.
 func subErr(code int, msg string) error {
 	switch code {
 	case 101, 102, 103, 104, 109, 110:
-		// 109/110 是签名/appkey 校验失败——实测假钥匙回 109 且 msg 为空。
+		// 109/110 mean signature/appkey verification failed -- a fake key is observed to return 109 with an empty msg.
 		return fmt.Errorf("SUBMAIL 不认这对 appid/appkey（code %d: %s）——控制台「应用集成」核对，注意国内与国际是两个应用", code, msg)
 	case 105, 119:
 		return fmt.Errorf("应用被禁用或 IP 不在白名单（code %d: %s）——控制台该应用的设置里检查", code, msg)
@@ -141,14 +143,15 @@ func subErr(code int, msg string) error {
 	return fmt.Errorf("SUBMAIL 返回错误 %d：%s", code, msg)
 }
 
-// —— 操作 ——
+// -- operations --
 
 func opSmsSend(ctx plugin.Ctx, in *SmsSendIn) (*SmsSendOut, error) {
 	to, content := strings.TrimSpace(in.To), strings.TrimSpace(in.Content)
 	if to == "" || content == "" {
 		return nil, fmt.Errorf("手机号与内容都要填")
 	}
-	// 没带【签名】九成会被运营商拒收，而 SUBMAIL 的报错要等回执才知道——提前拦。
+	// Without a 【signature】, carriers reject the message nine times out of ten, and SUBMAIL's
+	// error only shows up once the delivery report comes back -- reject it up front instead.
 	if !strings.Contains(content, "【") || !strings.Contains(content, "】") {
 		return nil, fmt.Errorf("内容缺短信签名——国内短信必须带已报备的【签名】（通常放开头），否则运营商直接拒收")
 	}
@@ -231,8 +234,9 @@ func opIntlXsend(ctx plugin.Ctx, in *IntlXsendIn) (*IntlXsendOut, error) {
 	return &IntlXsendOut{SendID: r.SendID, Fee: r.Fee}, nil
 }
 
-// opBalance 国内与国际各查各的端点（**端点不同、计量也不同**：国内按条、国际按金额）。
-// 配了哪组查哪边；一组都没配才报错。
+// opBalance queries each of the domestic and international endpoints separately (different
+// endpoints, different units: domestic by message count, international by amount). It queries
+// whichever group is configured; only errors if neither group is configured.
 func opBalance(ctx plugin.Ctx, _ *BalanceIn) (*BalanceOut, error) {
 	cred := credOf(ctx)
 	out := &BalanceOut{}
@@ -261,7 +265,7 @@ func opBalance(ctx plugin.Ctx, _ *BalanceIn) (*BalanceOut, error) {
 	return out, nil
 }
 
-// logResp /sms/log 的应答：results 数组原样透传（形状由 SUBMAIL 定义）。
+// logResp is /sms/log's response: the results array is passed through as-is (its shape is defined by SUBMAIL).
 type logResp struct {
 	Status  string           `json:"status"`
 	Code    int              `json:"code"`
@@ -269,8 +273,9 @@ type logResp struct {
 	Results []map[string]any `json:"results"`
 }
 
-// opSmsLog 查下发状态。**收单成功 ≠ 到手机**：签名未报备/内容风控/空号都在
-// 这里的 dropped + report 里体现，同步应答看不到。
+// opSmsLog checks delivery status. Accepting the submission does not mean it reached the
+// phone: an unregistered signature, content risk-control, or an invalid number all show up in
+// this endpoint's dropped + report data, not in the synchronous send response.
 func opSmsLog(ctx plugin.Ctx, in *SmsLogIn) (*SmsLogOut, error) {
 	sendID, to := strings.TrimSpace(in.SendID), strings.TrimSpace(in.To)
 	if sendID == "" && to == "" {
@@ -325,7 +330,7 @@ func toAny(in []map[string]any) []any {
 	return out
 }
 
-// opHealthCheck 配了哪组就查哪组，两组都配就都查——一组坏了要说清是哪组。
+// opHealthCheck checks whichever group is configured, both if both are configured -- if one is broken, say clearly which one.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cred := credOf(ctx)
 	var parts []string
@@ -341,7 +346,7 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	}
 	if strings.TrimSpace(cred.IntlAppid) != "" {
 		checked = true
-		// 国际应用要打国际余额端点——拿国际钥匙打 /balance/sms 会把有效凭证误判成坏的。
+		// The international app must hit the international balance endpoint -- hitting /balance/sms with the international key would misjudge a valid credential as broken.
 		if _, err := post(ctx, "/balance/internationalsms", url.Values{
 			"appid": {strings.TrimSpace(cred.IntlAppid)}, "signature": {strings.TrimSpace(cred.IntlAppkey)},
 		}); err != nil {

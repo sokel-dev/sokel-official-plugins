@@ -8,8 +8,9 @@ import (
 
 func b64url(s string) string { return base64.URLEncoding.EncodeToString([]byte(s)) }
 
-// Gmail 的 payload 是**递归的 MIME 树**。只看第一层的话，
-// 纯文本邮件能取到正文、带附件的邮件正文全空——因为正文被推进了 alternative 那层。
+// Gmail's payload is a **recursive MIME tree**. Only looking at the first level would mean:
+// plain-text messages get their body, but any message with an attachment comes out with an
+// empty body — because the body got pushed down into the alternative level.
 func TestExtractBodiesWalksMimeTree(t *testing.T) {
 	// multipart/mixed → [multipart/alternative → (plain, html), application/pdf]
 	root := gmailPart{
@@ -34,7 +35,7 @@ func TestExtractBodiesWalksMimeTree(t *testing.T) {
 	}
 }
 
-// 单层邮件（最常见的纯文本信）也要работать。
+// A flat message (the most common plain-text case) must also work.
 func TestExtractBodiesFlat(t *testing.T) {
 	text, html := extractBodies(gmailPart{MimeType: "text/plain", Body: gmailBody{Data: b64url("hi")}})
 	if text != "hi" || html != "" {
@@ -42,8 +43,9 @@ func TestExtractBodiesFlat(t *testing.T) {
 	}
 }
 
-// **附件里的 text/plain 不是正文**：一封带 readme.txt 的邮件，
-// 正文不能变成那个 txt 的内容。判据是 filename 非空即附件。
+// **text/plain inside an attachment is not the body**: a message with readme.txt attached must
+// not end up with its body turned into that txt file's content. The criterion is that a
+// non-empty filename means it's an attachment.
 func TestTextAttachmentIsNotBody(t *testing.T) {
 	root := gmailPart{
 		MimeType: "multipart/mixed",
@@ -57,10 +59,10 @@ func TestTextAttachmentIsNotBody(t *testing.T) {
 	}
 }
 
-// 正文是 base64url（-_ 而非 +/），且常常没有 padding。
-// 用标准 base64 解会在含 - 或 _ 的内容上失败。
+// The body is base64url (-_ instead of +/), and often has no padding.
+// Decoding with standard base64 fails on content containing - or _.
 func TestDecodeBodyHandlesBase64URLVariants(t *testing.T) {
-	raw := "a?b>c~d" // 编码后会出现 - 或 _
+	raw := "a?b>c~d" // encodes to something containing - or _
 	std := base64.URLEncoding.EncodeToString([]byte(raw))
 	rawNoPad := base64.RawURLEncoding.EncodeToString([]byte(raw))
 	if got := decodeBody(std); got != raw {
@@ -72,14 +74,14 @@ func TestDecodeBodyHandlesBase64URLVariants(t *testing.T) {
 	if got := decodeBody(""); got != "" {
 		t.Errorf("空应回空")
 	}
-	// 解不出宁可空，也不要返回乱码
+	// prefer empty over garbled bytes when decoding fails
 	if got := decodeBody("!!!not base64!!!"); got != "" {
 		t.Errorf("非法输入应回空而不是乱码: %q", got)
 	}
 }
 
-// 邮件头**大小写不敏感**（RFC 5322）。按字面比对的话，
-// 某些转发链路来的邮件主题会莫名为空。
+// Message headers are **case-insensitive** (RFC 5322). Comparing literally would make the
+// subject of some forwarded messages come out inexplicably empty.
 func TestHeaderIsCaseInsensitive(t *testing.T) {
 	p := gmailPart{Headers: []gmailHdr{
 		{Name: "subject", Value: "小写的主题"},
@@ -96,15 +98,16 @@ func TestHeaderIsCaseInsensitive(t *testing.T) {
 	}
 }
 
-// 附件判据是「有 attachmentId」而不是「有 filename」：
-// 内嵌图片（cid:）没名字但可下载；只有名字没 attachmentId 的拉不到字节，收进来只会让人点了报错。
+// The attachment criterion is "has an attachmentId," not "has a filename": an inline image
+// (cid:) has no name but is downloadable; a part with only a name and no attachmentId has no
+// bytes to fetch, and including it would just make someone click it and get an error.
 func TestExtractAttachmentsByAttachmentID(t *testing.T) {
 	root := gmailPart{
 		MimeType: "multipart/mixed",
 		Parts: []gmailPart{
-			{MimeType: "image/png", Filename: "", Body: gmailBody{AttachmentID: "inline1", Size: 10}}, // 内嵌图，无名
+			{MimeType: "image/png", Filename: "", Body: gmailBody{AttachmentID: "inline1", Size: 10}}, // inline image, unnamed
 			{MimeType: "application/pdf", Filename: "a.pdf", Body: gmailBody{AttachmentID: "att1", Size: 20}},
-			{MimeType: "text/plain", Filename: "看着像附件.txt"}, // 无 attachmentId → 拉不到字节
+			{MimeType: "text/plain", Filename: "看着像附件.txt"}, // no attachmentId -> no bytes to fetch
 		},
 	}
 	got := extractAttachments(root)
@@ -122,8 +125,9 @@ func TestExtractAttachmentsByAttachmentID(t *testing.T) {
 	}
 }
 
-// 真实形状回归：拿一段贴近 Gmail 实际应答的 JSON 走一遍，
-// 确保字段名（camelCase）与嵌套都对得上——写错一个 json tag 是静默失效。
+// A regression test against the real shape: run a JSON blob close to an actual Gmail response
+// through the parser, making sure field names (camelCase) and nesting all line up — a wrong
+// json tag fails silently.
 func TestParseRealisticPayload(t *testing.T) {
 	raw := `{
 	  "id":"18f","threadId":"18t","snippet":"摘要…","labelIds":["INBOX","UNREAD"],

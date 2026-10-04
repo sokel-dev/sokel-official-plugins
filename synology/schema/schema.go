@@ -1,7 +1,9 @@
-// Package schema 声明 synology 插件的操作与事件契约。
+// Package schema declares the operation and event contracts for the synology plugin.
 //
-// 事件与操作用同一套声明手法：类型上写方法，生成器读它。此前事件只能命令式声明
-// （DeclareEvent[T] + 反射），这个插件因此一直迁不到声明式。
+// Events and operations use the same declarative approach: methods written on a type,
+// read by the generator. Events used to only support imperative declaration
+// (DeclareEvent[T] + reflection), which is why this plugin had been stuck unable to move
+// to the declarative style.
 package schema
 
 import (
@@ -9,12 +11,13 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// —— 事件 ——
+// —— events ——
 //
-// 三个事件共享 path/name/ext/dir 四个公共字段（见 Events.CommonFields）：
-// 平台把它们平铺到触发输入顶层，各分支共用同一变量。
+// The three events share four common fields, path/name/ext/dir (see
+// Events.CommonFields): the platform flattens them into the top level of the trigger
+// input, so each branch shares the same variables.
 
-// FileCreated 新文件落定后。
+// FileCreated fires once a new file has settled.
 type FileCreated struct{}
 
 func (FileCreated) EventMeta() contract.EventMeta {
@@ -23,7 +26,7 @@ func (FileCreated) EventMeta() contract.EventMeta {
 }
 func (FileCreated) Fields() []contract.FieldSpec { return fileFields() }
 
-// FileChanged 已有文件被改写并落定。
+// FileChanged fires when an existing file is rewritten and has settled.
 type FileChanged struct{}
 
 func (FileChanged) EventMeta() contract.EventMeta {
@@ -31,20 +34,22 @@ func (FileChanged) EventMeta() contract.EventMeta {
 }
 func (FileChanged) Fields() []contract.FieldSpec { return fileFields() }
 
-// FileDeleted 文件被删除或移出监听树。
+// FileDeleted fires when a file is deleted or moved out of the watched tree.
 type FileDeleted struct{}
 
 func (FileDeleted) EventMeta() contract.EventMeta {
 	return contract.EventMeta{ID: "file_deleted", Label: "文件删除"}
 }
 
-// 删除事件没有 size/mtime——文件已经不在了。
+// The delete event has no size/mtime -- the file is already gone.
 func (FileDeleted) Fields() []contract.FieldSpec { return commonFileFields() }
 
-// Events 声明公共字段。
+// Events declares the common fields.
 //
-// 显式列出而不是从各事件推交集：推的话，将来新增一个事件少写了某字段，
-// 公共字段就悄悄缩水、存量工作流跟着断，而那时没人会想到是这里。
+// Listed explicitly rather than inferred as the intersection across events: inferring it
+// would mean that if a future event is added missing some field, the common fields would
+// silently shrink and existing workflows would break along with it, with no one thinking
+// to look here at that point.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"path", "name", "ext", "dir"} }
@@ -65,9 +70,9 @@ func fileFields() []contract.FieldSpec {
 	)
 }
 
-// —— 操作 ——
+// —— operations ——
 
-// ReadFile 按路径读取监听目录内的文件。
+// ReadFile reads a file inside the watched directory by path.
 type ReadFile struct{}
 
 func (ReadFile) Meta() contract.Meta {
@@ -88,7 +93,7 @@ func (ReadFile) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ListDir 列出监听目录内某子目录的条目。
+// ListDir lists the entries of a subdirectory inside the watched directory.
 type ListDir struct{}
 
 func (ListDir) Meta() contract.Meta {
@@ -106,7 +111,7 @@ func (ListDir) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DirEntry 目录里的一个条目。
+// DirEntry is one entry inside a directory.
 type DirEntry struct {
 	Name  string `sokel:"name" label:"名称"`
 	Path  string `sokel:"path" label:"完整路径"`
@@ -115,7 +120,7 @@ type DirEntry struct {
 	Mtime string `sokel:"mtime" label:"修改时间"`
 }
 
-// MoveFile 监听目录内移动/改名（处理完归档的典型用法）。
+// MoveFile moves/renames a file inside the watched directory (the typical use case being archiving after processing).
 type MoveFile struct{}
 
 func (MoveFile) Meta() contract.Meta {
@@ -136,7 +141,7 @@ func (MoveFile) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeleteFile 删除监听目录内的一个文件。
+// DeleteFile deletes one file inside the watched directory.
 type DeleteFile struct{}
 
 func (DeleteFile) Meta() contract.Meta {
@@ -151,9 +156,9 @@ func (DeleteFile) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("是否成功")}
 }
 
-// —— 凭证 ——
+// —— credential ——
 
-// Credential 凭证契约（值均为字符串，注册时自报 schema）。
+// Credential is the credential contract (all values are strings; the schema is self-reported at registration).
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {
@@ -169,14 +174,21 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检（操作 id 必须是 health_check，凭证页的「检查」按钮据此验活）。
+// HealthCheck is the platform's standard credential health check (the operation id must
+// be health_check; the credential page's "Check" button relies on this to verify
+// liveness).
 //
-// 这个插件的「上游」就是挂进容器的那个目录——它不连 DSM API，凭证也不是账号密码，
-// 而是一条容器内路径（见包头部署说明）。所以体检问的正是它唯一会错的那件事：
-// 卷挂上了吗、路径拼对了吗、容器用户读得了吗。这三样错任何一样，表现都是
-// 「事件源一直不出事件」——一种极难自证的静默故障，正该由体检当场说破。
+// This plugin's "upstream" is just the directory mounted into the container -- it
+// doesn't connect to a DSM API, and the credential isn't a username/password either, but
+// a path inside the container (see the package-level deployment notes). So the health
+// check asks exactly the one thing that can go wrong: is the volume mounted, is the path
+// correct, can the container user read it. Any one of these three being wrong looks the
+// same from outside -- "the event source just never fires anything" -- an extremely hard
+// failure to diagnose on your own, which is exactly what the health check should expose
+// on the spot.
 //
-// 出参 ok=false + message 表示不可用（不抛错——抛错在界面上只剩一个红叉，说不出是哪一样错了）。
+// ok=false + message in the output means unavailable (not an error -- an error would
+// leave nothing but a red X in the UI, with no way to tell which of the three went wrong).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {

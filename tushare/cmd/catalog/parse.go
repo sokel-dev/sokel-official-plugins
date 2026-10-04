@@ -1,8 +1,10 @@
 package main
 
-// 文档站的 HTML 解析。用正则而不是引一个 HTML 解析库：只认这一个站的两处固定结构
-// （导航的 ul/li 嵌套、参数表前面的段落标记），而且解析对不上时是**抓不到东西**，
-// 不是解析成别的东西——上层会把每一个跳过的页面列名，不会静默少接口。
+// HTML parsing for the doc site. Regex instead of pulling in an HTML parser library: it only
+// relies on this one site's two fixed structures (the nav's ul/li nesting, and the paragraph
+// markers in front of the parameter tables), and when parsing doesn't match, it **gets nothing**
+// rather than parsing into something else — the caller lists every page it had to skip, so
+// endpoints never silently go missing.
 
 import (
 	"fmt"
@@ -29,7 +31,7 @@ func getHTML(url string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// 不带 UA 会被挡。
+		// Gets blocked without a UA.
 		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; sokel-catalog/1.0)")
 		res, err := hc.Do(req)
 		if err != nil {
@@ -51,15 +53,16 @@ func getHTML(url string) (string, error) {
 	return "", lastErr
 }
 
-// ===== 导航树 =====
+// ===== Navigation tree =====
 
 var (
 	navTokenRe = regexp.MustCompile(`<ul\b|</ul>|<a href="/document/2\?doc_id=(\d+)"[^>]*>(.*?)</a>`)
 	tagRe      = regexp.MustCompile(`<[^>]+>`)
 )
 
-// fetchIndex 抓导航树。层级靠 <ul> 的嵌套深度还原，同一深度的后来者顶掉前一个，
-// 于是每个链接都能算出自己的目录路径。
+// fetchIndex scrapes the navigation tree. Hierarchy is reconstructed from the nesting depth of
+// <ul>, where a later item at the same depth replaces the previous one, so every link can compute
+// its own category path.
 func fetchIndex() ([]node, error) {
 	page, err := getHTML(docBaseURL)
 	if err != nil {
@@ -107,7 +110,7 @@ func fetchIndex() ([]node, error) {
 	return out, nil
 }
 
-// ===== 接口详情 =====
+// ===== Endpoint detail =====
 
 var (
 	apiNameRes = []*regexp.Regexp{
@@ -122,10 +125,11 @@ var (
 	describeRe = regexp.MustCompile(`描述\s*[：:]\s*([^<]{2,300})`)
 )
 
-// 这几个名字是示例代码里的调用，不是接口名。
+// These names are calls from sample code, not endpoint names.
 var notAPINames = map[string]bool{"query": true, "pro_api": true, "api": true, "daily_basic_": true}
 
-// fetchDetail 解析一个文档页。返回 (nil, 原因, nil) 表示这页不是接口页（分类页/已下线）。
+// fetchDetail parses one doc page. Returning (nil, reason, nil) means this page isn't an endpoint
+// page (a category page / decommissioned).
 func fetchDetail(n node) (*API, string, error) {
 	page, err := getHTML(fmt.Sprintf("%s?doc_id=%d", docBaseURL, n.DocID))
 	if err != nil {
@@ -168,8 +172,9 @@ func fetchDetail(n node) (*API, string, error) {
 	return api, "", nil
 }
 
-// paramsAfter 取 marker 段落之后的**第一张**表。
-// 这是与旧抓取器唯一也是关键的区别：表格身份由标记决定，不由表头猜。
+// paramsAfter takes the **first** table after the marker paragraph.
+// This is the sole but critical difference from the old scraper: a table's identity is decided by
+// the marker, not guessed from its header.
 func paramsAfter(page, marker string) []Param {
 	i := strings.Index(page, marker)
 	if i < 0 {
@@ -184,8 +189,9 @@ func paramsAfter(page, marker string) []Param {
 		return nil
 	}
 
-	// 表头定列序。同样是这两张表，TuShare 有的页面出参是「名称/类型/默认显示/描述」，
-	// 有的少了「默认显示」——按名字找列就都能应付。
+	// The header decides column order. For the same two tables, some TuShare pages have outputs
+	// "name/type/default-shown/description", others are missing "default-shown" — looking columns
+	// up by name handles both.
 	head := cellsOf(rows[0][1])
 	col := map[string]int{}
 	for i, h := range head {
@@ -239,7 +245,7 @@ func cellsOf(rowHTML string) []string {
 	return out
 }
 
-// textOf 去标签、还原实体、压空白。
+// textOf strips tags, unescapes entities, and collapses whitespace.
 func textOf(s string) string {
 	s = tagRe.ReplaceAllString(s, " ")
 	s = html.UnescapeString(s)

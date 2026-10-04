@@ -1,10 +1,12 @@
 package main
 
-// 假上游。钉的是四件「不测就一定错」的事：
-//   - **游标既不漏也不重**（同一秒多条、重复推送两种情形）；
-//   - 首次拉取不回溯全部历史；
-//   - RSS 与 Atom 的字段名不同，一个解析器要同时认；
-//   - 雪球的时间戳是**毫秒**——当秒用会把 2026 年算成 56000 年，游标一跳到未来就再也收不到新内容。
+// Fake upstreams. These pin down four things that are guaranteed to break without a test:
+//   - **The cursor neither drops nor repeats items** (same-second multiples and duplicate
+//     deliveries);
+//   - the first fetch doesn't backfill the whole history;
+//   - RSS and Atom use different field names, and one parser has to recognize both;
+//   - Xueqiu's timestamp is in **milliseconds** — treating it as seconds would turn 2026 into
+//     the year 56000, jumping the cursor into the future and cutting off all new content.
 
 import (
 	"context"
@@ -71,7 +73,7 @@ func feedURL(t *testing.T, body string) (*fakeCtx, string) {
 	return &fakeCtx{Context: context.Background(), cred: map[string]string{}}, srv.URL + "/feed.xml"
 }
 
-// RSS：条目按时间**正序**给出，摘要去 HTML，图片抽出来。
+// RSS: items come back **in ascending time order**, the summary strips HTML, images are extracted.
 func TestRSSParsing(t *testing.T) {
 	ctx, u := feedURL(t, rss20)
 	out, err := opFetch(ctx, &FeedFetchIn{Source: "rss", Target: u, MaxItems: 50})
@@ -105,7 +107,8 @@ func TestRSSParsing(t *testing.T) {
 	}
 }
 
-// Atom 的字段名与 RSS 不同（entry/updated/summary/link href），一个解析器要同时认。
+// Atom's field names differ from RSS's (entry/updated/summary/link href); one parser has to
+// recognize both.
 func TestAtomParsing(t *testing.T) {
 	ctx, u := feedURL(t, atom)
 	out, err := opFetch(ctx, &FeedFetchIn{Source: "rss", Target: u, MaxItems: 50})
@@ -124,7 +127,8 @@ func TestAtomParsing(t *testing.T) {
 	}
 }
 
-// 不是 feed 的地址要说清楚，而不是回一个空列表让人以为「没有新内容」。
+// A URL that isn't a feed should be reported clearly, instead of returning an empty list that
+// makes people think "no new content."
 func TestNonFeedIsExplained(t *testing.T) {
 	ctx, u := feedURL(t, `<html><body>我是网页不是 feed</body></html>`)
 	if _, err := opFetch(ctx, &FeedFetchIn{Source: "rss", Target: u}); err == nil {
@@ -132,9 +136,9 @@ func TestNonFeedIsExplained(t *testing.T) {
 	}
 }
 
-// —— 游标 ——
+// —— Cursor ——
 
-// 第二次拉同一个源：一条新的都没有 → count=0 且**游标原样不动**。
+// Fetching the same source a second time: no new items -> count=0 and **the cursor is unchanged**.
 func TestCursorSkipsSeen(t *testing.T) {
 	ctx, u := feedURL(t, rss20)
 	first, err := opFetch(ctx, &FeedFetchIn{Source: "rss", Target: u, MaxItems: 50})
@@ -150,12 +154,13 @@ func TestCursorSkipsSeen(t *testing.T) {
 	}
 }
 
-// **同一秒发的多条**：只按时间戳过滤会漏掉第二条——快讯类源一秒好几条是常态。
+// **Multiple items published in the same second**: filtering by timestamp alone would drop the
+// second item — wire-style feeds commonly emit several items per second.
 func TestSameSecondItemsAreNotLost(t *testing.T) {
 	cur := cursor{T: "2026-08-19T02:00:00Z", Seen: []string{shortHash("a")}}
 	items := []schema.Item{
-		{ID: "a", PublishedAt: "2026-08-19T02:00:00Z"}, // 见过
-		{ID: "b", PublishedAt: "2026-08-19T02:00:00Z"}, // 同一秒但没见过 → 必须收
+		{ID: "a", PublishedAt: "2026-08-19T02:00:00Z"}, // already seen
+		{ID: "b", PublishedAt: "2026-08-19T02:00:00Z"}, // same second but not seen -> must keep
 	}
 	kept, next, _ := filterNew(items, cur, 50, false)
 	if len(kept) != 1 || kept[0].ID != "b" {
@@ -166,7 +171,7 @@ func TestSameSecondItemsAreNotLost(t *testing.T) {
 	}
 }
 
-// 见过的 id 窗口不能无限膨胀，否则游标最后有几十 KB。
+// The window of seen ids must not grow without bound, or the cursor ends up tens of KB in size.
 func TestSeenWindowIsBounded(t *testing.T) {
 	cur := cursor{}
 	for i := 0; i < 200; i++ {
@@ -178,7 +183,8 @@ func TestSeenWindowIsBounded(t *testing.T) {
 	}
 }
 
-// 首次拉取只取最近一批——接一个发了十年的源，不该把几千条一次性灌进工作流。
+// The first fetch only takes the most recent batch — connecting a feed that's been publishing
+// for ten years shouldn't dump thousands of items into the workflow at once.
 func TestFirstRunDoesNotBacklog(t *testing.T) {
 	items := make([]schema.Item, 100)
 	for i := range items {
@@ -193,7 +199,7 @@ func TestFirstRunDoesNotBacklog(t *testing.T) {
 	}
 }
 
-// —— 雪球 ——
+// —— Xueqiu ——
 
 func TestXueqiuTimeline(t *testing.T) {
 	var gotAuth string
@@ -203,7 +209,7 @@ func TestXueqiuTimeline(t *testing.T) {
 			gotAuth = r.Header.Get("Cookie")
 			io.WriteString(w, `{"statuses":[{"id":123,"text":"<p>看好这个方向</p>","target":"/u/1/123",
 				"created_at":1787000000000,"user":{"screen_name":"投研君"}}]}`)
-		default: // 首页：发匿名令牌
+		default: // homepage: issues the anonymous token
 			http.SetCookie(w, &http.Cookie{Name: "xq_a_token", Value: "anon"})
 			io.WriteString(w, "<html></html>")
 		}
@@ -226,7 +232,8 @@ func TestXueqiuTimeline(t *testing.T) {
 		t.Fatalf("应当 1 条: %+v", out)
 	}
 	it := out.Items[0]
-	// created_at 是**毫秒**。当秒用会算出 56000 年，游标一跳到未来就再也收不到新内容。
+	// created_at is in **milliseconds**. Treating it as seconds would compute the year
+	// 56000, jumping the cursor into the future and cutting off all new content.
 	if !strings.HasPrefix(it.PublishedAt, "2026-") {
 		t.Errorf("毫秒时间戳没换算对: %q", it.PublishedAt)
 	}
@@ -238,10 +245,12 @@ func TestXueqiuTimeline(t *testing.T) {
 	}
 }
 
-// 取不到匿名令牌时要告诉人怎么办，而不是回一句「HTTP 400」。
+// When the anonymous token can't be obtained, the error should tell people what to do, not just
+// say "HTTP 400".
 func TestXueqiuTokenFailureIsActionable(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 只发 WAF cookie，不发 xq_a_token——这正是打错入口（首页）时的真实表现
+		// Only issues the WAF cookie, not xq_a_token — this is exactly what happens when
+		// hitting the wrong entry point (the homepage)
 		http.SetCookie(w, &http.Cookie{Name: "acw_tc", Value: "waf"})
 		io.WriteString(w, "<html>没有令牌</html>")
 	}))
@@ -258,7 +267,7 @@ func TestXueqiuTokenFailureIsActionable(t *testing.T) {
 	}
 }
 
-// 转发不是原创观点，要能过滤掉。
+// A repost isn't an original take and should be filterable.
 func TestSkipReposts(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "hot/list") {
@@ -284,7 +293,7 @@ func TestSkipReposts(t *testing.T) {
 	}
 }
 
-// 不认识的来源要当场说清楚有哪些。
+// An unrecognized source should immediately list which ones are available.
 func TestUnknownSource(t *testing.T) {
 	ctx := &fakeCtx{Context: context.Background(), cred: map[string]string{}}
 	_, err := opFetch(ctx, &FeedFetchIn{Source: "weibo"})
@@ -293,19 +302,20 @@ func TestUnknownSource(t *testing.T) {
 	}
 }
 
-// —— 财联社 ——
+// —— Cailianpress (CLS) ——
 
-// 签名是它唯一的门槛：参数按键排序 → SHA1 → MD5。**顺序错了签名就废**。
+// The signature is its only gate: params sorted by key -> SHA1 -> MD5. **Wrong order ruins the
+// signature.**
 func TestCLSSign(t *testing.T) {
 	q := url.Values{"os": {"web"}, "appName": {"CailianpressWeb"}, "sv": {"8.7.9"}, "name": {"telegraph"}}
 	got := clsSign(q)
-	// 手算一遍：Encode() 按键排序 → sha1 → md5
+	// Compute it by hand: Encode() sorts by key -> sha1 -> md5
 	s1 := sha1.Sum([]byte(q.Encode()))
 	s2 := md5.Sum([]byte(hex.EncodeToString(s1[:])))
 	if got != hex.EncodeToString(s2[:]) {
 		t.Fatalf("签名算法不对: %s", got)
 	}
-	// 换个插入顺序，签名必须相同（Encode 排序保证的）
+	// With a different insertion order, the signature must be the same (guaranteed by Encode's sorting)
 	q2 := url.Values{"sv": {"8.7.9"}, "name": {"telegraph"}, "appName": {"CailianpressWeb"}, "os": {"web"}}
 	if clsSign(q2) != got {
 		t.Error("参数插入顺序影响了签名——没按键排序")
@@ -338,7 +348,7 @@ func TestCLSTelegraph(t *testing.T) {
 	if it.Title != "央行开展 5000 亿逆回购" {
 		t.Errorf("电报常常没有标题，该用正文顶上: %q", it.Title)
 	}
-	// 财联社的 ctime 是**秒**（雪球那边是毫秒，别混）
+	// CLS's ctime is in **seconds** (Xueqiu uses milliseconds — don't mix them up)
 	if !strings.HasPrefix(it.PublishedAt, "2026-") {
 		t.Errorf("秒级时间戳没换算对: %q", it.PublishedAt)
 	}
@@ -347,8 +357,9 @@ func TestCLSTelegraph(t *testing.T) {
 	}
 }
 
-// 签名失效时财联社回的是**空数据而不是报错**——不点破的话，
-// 表现是「一直没有新内容」，而实际上一条都拉不到。
+// When the signature is invalid, CLS responds with **empty data instead of an error** — without
+// calling that out, it looks like "no new content ever," when in fact nothing is being fetched
+// at all.
 func TestCLSEmptyIsExplained(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, `{"errno":1001,"error":"sign error","data":{"roll_data":[]}}`)
@@ -363,10 +374,11 @@ func TestCLSEmptyIsExplained(t *testing.T) {
 	}
 }
 
-// —— 东方财富 ——
+// —— Eastmoney ——
 
-// 应答是 **JSONP**：外面裹着 jQueryxxx(...)。直接 json.Unmarshal 会得到
-// 「invalid character 'j'」，看不出是这个原因——所以壳必须先剥。
+// The response is **JSONP**: wrapped in jQueryxxx(...). A direct json.Unmarshal would fail with
+// "invalid character 'j'", which doesn't make the real cause obvious — so the shell must be
+// stripped first.
 func TestEastmoneyJSONP(t *testing.T) {
 	var gotQuery url.Values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -390,12 +402,12 @@ func TestEastmoneyJSONP(t *testing.T) {
 		t.Fatalf("应当 1 条: %+v", out)
 	}
 	it := out.Items[0]
-	// 搜索结果的标题/摘要带高亮标签，要去掉
+	// Titles/summaries in search results carry highlight tags, which should be stripped
 	if strings.Contains(it.Title, "<em>") || it.Title != "贵州茅台三季报" {
 		t.Errorf("高亮标签没去掉: %q", it.Title)
 	}
-	// 它给的是东八区本地时间且没有时区标注：按 UTC 解会整体差 8 小时，
-	// 而游标正是据此判断新旧。
+	// What it returns is UTC+8 local time with no timezone marker: parsing it as UTC would
+	// be off by 8 hours across the board, and the cursor uses this value to judge new vs. old.
 	if it.PublishedAt != "2026-08-19T02:30:00Z" {
 		t.Errorf("时区没按东八区换算: %q", it.PublishedAt)
 	}
@@ -404,7 +416,7 @@ func TestEastmoneyJSONP(t *testing.T) {
 	}
 }
 
-// 关键词是必填的——空关键词在发请求前拦下。
+// A keyword is required — an empty keyword is rejected before sending the request.
 func TestEastmoneyNeedsKeyword(t *testing.T) {
 	ctx := &fakeCtx{Context: context.Background(), cred: map[string]string{}}
 	if _, err := opFetch(ctx, &FeedFetchIn{Source: "eastmoney_search"}); err == nil {
@@ -412,9 +424,9 @@ func TestEastmoneyNeedsKeyword(t *testing.T) {
 	}
 }
 
-// —— 金十数据 ——
+// —— Jin10 ——
 
-// 两个固定请求头是全部门槛，少一个就被拒。
+// The two fixed headers are the whole gate; missing either gets the request rejected.
 func TestJin10Headers(t *testing.T) {
 	var gotHdr http.Header
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -437,7 +449,7 @@ func TestJin10Headers(t *testing.T) {
 		t.Fatalf("应当 1 条: %+v", out)
 	}
 	it := out.Items[0]
-	// 与东财同一个坑：东八区本地时间、无时区标注
+	// Same pitfall as Eastmoney: UTC+8 local time, no timezone marker
 	if it.PublishedAt != "2026-08-19T02:30:00Z" {
 		t.Errorf("时区没按东八区换算: %q", it.PublishedAt)
 	}
@@ -449,7 +461,8 @@ func TestJin10Headers(t *testing.T) {
 	}
 }
 
-// 请求头失效时它回 4xx——错误信息要直接指向那两个头，而不是笼统的「HTTP 403」。
+// When the headers are invalid it responds with 4xx — the error message should point directly
+// at those two headers, not just say "HTTP 403".
 func TestJin10RejectedIsExplained(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(403)
@@ -465,8 +478,9 @@ func TestJin10RejectedIsExplained(t *testing.T) {
 	}
 }
 
-// 匿名令牌必须去 /hq 拿：**首页只回阿里云 WAF 的 acw_tc**（实测），打错入口的表现是
-// 「一直取不到令牌」，而那会把人引向「去粘 Cookie」的弯路。
+// The anonymous token must be obtained from /hq: **the homepage only returns Alibaba Cloud
+// WAF's acw_tc** (confirmed in practice), and hitting the wrong entry point shows up as "the
+// token never arrives," which sends people down the detour of "go paste a cookie."
 func TestXueqiuTokenComesFromHQ(t *testing.T) {
 	var paths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -503,8 +517,9 @@ func TestXueqiuTokenComesFromHQ(t *testing.T) {
 	}
 }
 
-// 热帖榜是**套了一层壳**的：壳自己的 id 是榜单条目 id，正文/时间/作者全在
-// original_status 里。不拆壳的话条目会变成一堆空标题 + 错 id（而且 id 撞不上去重）。
+// The hot-posts list is **wrapped in a shell**: the shell's own id is the list-entry id, while
+// the body/time/author all live inside original_status. Without unwrapping it, items end up
+// with empty titles and wrong ids (and ids won't collide for dedup purposes).
 func TestXueqiuHotsUnwrapsShell(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -543,7 +558,8 @@ func TestXueqiuHotsUnwrapsShell(t *testing.T) {
 		t.Errorf("壳没拆开: %+v", out.Items[0])
 	}
 
-	// 快讯的 target 是**绝对地址**，不能再往前拼站点域名。
+	// A flash-news target is an **absolute URL**, which must not be concatenated with the
+	// site domain again.
 	out, err = opFetch(ctx, &FeedFetchIn{Source: "xueqiu_livenews", MaxItems: 10})
 	if err != nil {
 		t.Fatal(err)
@@ -556,9 +572,11 @@ func TestXueqiuHotsUnwrapsShell(t *testing.T) {
 	}
 }
 
-// 游标的外形：**短、不转义、人眼能看懂卡在哪个时间**。它要落进数据表一格并在调试台显示，
-// 早先直接 dump JSON 的话满屏 \" 转义。老的 JSON 游标必须继续认——否则已经在跑的
-// 工作流会把它当成「没有游标」，重头推一遍全部历史。
+// The cursor's shape: **short, no escaping, a human can tell at a glance where it's stuck**. It
+// has to land in a data table cell and be shown on the debug console, and dumping JSON directly
+// used to fill the screen with \" escapes. Old JSON cursors must still be recognized —
+// otherwise a workflow already running would treat it as "no cursor" and push the entire
+// history again from scratch.
 func TestCursorWireFormat(t *testing.T) {
 	c := cursor{T: "2026-08-19T08:35:52Z", Seen: []string{"2ceab3c4", "6bb9e374"}}
 	got := c.dump()
@@ -571,12 +589,13 @@ func TestCursorWireFormat(t *testing.T) {
 	if back := parseCursor(got); back.T != c.T || len(back.Seen) != 2 || back.Seen[1] != "6bb9e374" {
 		t.Errorf("往返对不上: %+v", back)
 	}
-	// 老形态
+	// old shape
 	old := parseCursor(`{"t":"2026-08-19T08:35:52Z","seen":["2ceab3c4","6bb9e374"]}`)
 	if old.T != c.T || len(old.Seen) != 2 {
 		t.Errorf("老 JSON 游标没认出来: %+v", old)
 	}
-	// 空游标要回空串，不能回一个 "|"——那会让「有没有游标」这件事变得含糊。
+	// An empty cursor should return an empty string, not "|" — that would make "is there a
+	// cursor" ambiguous.
 	if s := (cursor{}).dump(); s != "" {
 		t.Errorf("空游标 = %q", s)
 	}

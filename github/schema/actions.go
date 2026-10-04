@@ -1,16 +1,17 @@
 package schema
 
-// GitHub Actions + 发布 + 仓库家务（标签/里程碑/协作者/分支保护）。
+// GitHub Actions + releases + repo housekeeping (labels/milestones/collaborators/branch protection).
 //
-// 覆盖的机器人形态：CI 看门狗（失败就开 Issue / 通知）、release-drafter（发版）、
-// labeler 的前置（标签得先存在）、准入审计（谁有写权限、主分支保护有没有被关掉）。
+// Bot shapes covered: CI watchdog (open an Issue / notify on failure), release-drafter (cut a
+// release), labeler's prerequisite (the label must exist first), access audits (who has write
+// access, whether main branch protection got turned off).
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// WorkflowRunsList 工作流运行记录。
+// WorkflowRunsList lists workflow runs.
 type WorkflowRunsList struct{}
 
 func (WorkflowRunsList) Meta() contract.Meta {
@@ -39,7 +40,7 @@ func (WorkflowRunsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// WorkflowRun 一次工作流运行。
+// WorkflowRun is a single workflow run.
 type WorkflowRun struct {
 	ID         int    `sokel:"id" label:"运行 ID" desc:"查作业与日志要它"`
 	Name       string `sokel:"name" label:"工作流名"`
@@ -56,7 +57,7 @@ type WorkflowRun struct {
 	UpdatedAt  string `sokel:"updated_at" label:"更新时间"`
 }
 
-// WorkflowDispatch 手动触发工作流。
+// WorkflowDispatch manually triggers a workflow.
 type WorkflowDispatch struct{}
 
 func (WorkflowDispatch) Meta() contract.Meta {
@@ -82,7 +83,7 @@ func (WorkflowDispatch) Outputs() []contract.FieldSpec {
 	}
 }
 
-// RunJobs 一次运行里的作业。
+// RunJobs lists the jobs in a single run.
 type RunJobs struct{}
 
 func (RunJobs) Meta() contract.Meta {
@@ -106,7 +107,7 @@ func (RunJobs) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Job 一个作业。
+// Job is a single job.
 type Job struct {
 	ID         int      `sokel:"id" label:"作业 ID" desc:"取日志要它"`
 	Name       string   `sokel:"name" label:"作业名"`
@@ -117,7 +118,7 @@ type Job struct {
 	URL        string   `sokel:"url" label:"页面地址"`
 }
 
-// JobLog 作业日志。
+// JobLog is a job's log.
 type JobLog struct{}
 
 func (JobLog) Meta() contract.Meta {
@@ -142,9 +143,9 @@ func (JobLog) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 发布 ——
+// —— Releases ——
 
-// ReleasesList 发布列表。
+// ReleasesList lists releases.
 type ReleasesList struct{}
 
 func (ReleasesList) Meta() contract.Meta {
@@ -162,7 +163,7 @@ func (ReleasesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Release 一次发布。
+// Release is a single release.
 type Release struct {
 	ID          int    `sokel:"id" label:"发布 ID"`
 	TagName     string `sokel:"tag_name" label:"标签"`
@@ -176,7 +177,7 @@ type Release struct {
 	PublishedAt string `sokel:"published_at" label:"发布时间" desc:"草稿为空"`
 }
 
-// ReleaseCreate 发版。
+// ReleaseCreate cuts a release.
 type ReleaseCreate struct{}
 
 func (ReleaseCreate) Meta() contract.Meta {
@@ -207,9 +208,9 @@ func (ReleaseCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 仓库家务 ——
+// —— Repo housekeeping ——
 
-// LabelsList 标签列表。
+// LabelsList lists repo labels.
 type LabelsList struct{}
 
 func (LabelsList) Meta() contract.Meta {
@@ -228,14 +229,15 @@ func (LabelsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Label 一个标签。
+// Label is a single label.
 type Label struct {
 	Name        string `sokel:"name" label:"名字"`
 	Color       string `sokel:"color" label:"颜色" desc:"六位十六进制，不带 #"`
 	Description string `sokel:"description" label:"说明"`
 }
 
-// LabelCreate 建标签。labeler 机器人的前置——标签不存在时打标签会 422。
+// LabelCreate creates a label. A prerequisite for labeler bots — applying a label that doesn't
+// exist yet returns 422.
 type LabelCreate struct{}
 
 func (LabelCreate) Meta() contract.Meta {
@@ -259,7 +261,7 @@ func (LabelCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MilestonesList 里程碑列表。
+// MilestonesList lists milestones.
 type MilestonesList struct{}
 
 func (MilestonesList) Meta() contract.Meta {
@@ -282,7 +284,7 @@ func (MilestonesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Milestone 一个里程碑。
+// Milestone is a single milestone.
 type Milestone struct {
 	Number       int    `sokel:"number" label:"编号" desc:"给 Issue 设里程碑时可以用它，也可以用标题"`
 	Title        string `sokel:"title" label:"标题"`
@@ -294,7 +296,7 @@ type Milestone struct {
 	URL          string `sokel:"url" label:"页面地址"`
 }
 
-// CollaboratorsList 协作者列表。准入审计用。
+// CollaboratorsList lists collaborators. Used for access audits.
 type CollaboratorsList struct{}
 
 func (CollaboratorsList) Meta() contract.Meta {
@@ -320,7 +322,7 @@ func (CollaboratorsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Collaborator 一个协作者。
+// Collaborator is a single collaborator.
 type Collaborator struct {
 	Login      string `sokel:"login" label:"用户名"`
 	Permission string `sokel:"permission" label:"权限" desc:"admin / maintain / push / triage / pull"`
@@ -328,7 +330,7 @@ type Collaborator struct {
 	URL        string `sokel:"url" label:"主页"`
 }
 
-// BranchProtectionGet 查分支保护。
+// BranchProtectionGet looks up branch protection.
 type BranchProtectionGet struct{}
 
 func (BranchProtectionGet) Meta() contract.Meta {

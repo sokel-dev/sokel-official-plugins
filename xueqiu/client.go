@@ -1,13 +1,16 @@
 package main
 
-// 出站。三个接口都是网页端自己在调的私有接口（抓包得来，无文档）：
+// Egress. All three endpoints are private ones the web frontend calls itself (obtained by
+// packet capture, undocumented):
 //
-//	POST /statuses/update.json      发帖（表单；要 session_token）
-//	POST /photo/upload.json         传图（multipart，字段名 file）
-//	GET  /etc/private_fund/state.json  登录态探测（无副作用，用作 health_check）
+//	POST /statuses/update.json      post (form; needs session_token)
+//	POST /photo/upload.json         upload image (multipart, field name "file")
+//	GET  /etc/private_fund/state.json  login-state probe (no side effects, used as health_check)
 //
-// **无文档意味着应答形状是猜的**，所以解析一律走「宽松提取」：在 JSON 里递归找想要的东西，
-// 而不是钉死某个键名。钉死的话，雪球改一次字段名就全线报错，而错误信息只会说「解析失败」。
+// **Undocumented means the response shape is guesswork**, so parsing always goes through
+// "loose extraction": recursively searching the JSON for what's wanted instead of pinning
+// down a specific key name. Pinning it down would turn one Xueqiu field rename into a
+// blanket failure, with the error only saying "parse failed".
 
 import (
 	"bytes"
@@ -27,10 +30,11 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// base / mpBase：**是 var 不是 const**——测试要把它们指到假上游上。
+// base / mpBase: **vars, not consts** — tests need to point them at a fake upstream.
 //
-// 两个子站是两套接口：xueqiu.com 发**短帖**（要 session_token），
-// mp.xueqiu.com 发**长文**（不要 session_token，也没见风控参数）。同一份 cookie。
+// The two subdomains are two separate APIs: xueqiu.com posts **short posts** (needs
+// session_token), mp.xueqiu.com posts **long articles** (no session_token needed, and no
+// risk-control param observed either). Same cookie for both.
 var (
 	base   = "https://xueqiu.com"
 	mpBase = "https://mp.xueqiu.com"
@@ -76,16 +80,16 @@ func cookieOf(c Cred) (string, error) {
 	return ck, nil
 }
 
-// —— 请求 ——
+// —— request ——
 
 type reqOpts struct {
 	method string
 	path   string
-	// host：留空用 base（xueqiu.com）。长文那套在 mp.xueqiu.com 上——
-	// 同一份 cookie，不同的子站与接口（见 article.go）。
+	// host: empty means base (xueqiu.com). The long-article API lives on mp.xueqiu.com —
+	// same cookie, different subdomain and endpoints (see article.go).
 	host    string
-	form    url.Values     // 表单体
-	multi   *multipartBody // 文件体
+	form    url.Values     // form body
+	multi   *multipartBody // file body
 	referer string
 }
 
@@ -94,8 +98,9 @@ type multipartBody struct {
 	ctype string
 }
 
-// do：发一次请求。**四个头是雪球认人的关键**：Cookie、UA、X-Requested-With、Referer/Origin。
-// 少任何一个都可能被 WAF 当成爬虫拦掉，而它回的是一个和登录态无关的错误页。
+// do: sends one request. **Four headers are key to Xueqiu recognizing a real client**:
+// Cookie, UA, X-Requested-With, Referer/Origin. Missing any one of them risks being
+// blocked by the WAF as a crawler, which responds with an error page unrelated to login state.
 func do(ctx plugin.Ctx, o reqOpts, out any) error {
 	cred := credOf(ctx)
 	ck, err := cookieOf(cred)
@@ -107,8 +112,9 @@ func do(ctx plugin.Ctx, o reqOpts, out any) error {
 		host = base
 	}
 	uri := host + o.path
-	// 风控参数：网页请求 URL 上挂着它。留空先不带——多数情况下能过；
-	// 真被拦了，错误信息会让用户去粘一条（见 translate）。
+	// Risk-control param: attached to the URL on web requests. Leave it off by default —
+	// most of the time it goes through fine; if it actually gets blocked, the error
+	// message tells the user to paste one in (see translate).
 	if p := strings.TrimSpace(cred.RiskParam); p != "" {
 		uri += "?md5__1038=" + url.QueryEscape(p)
 	}
@@ -162,11 +168,12 @@ func uaOf(c Cred) string {
 	return defaultUA
 }
 
-// translate：把雪球的失败翻译成人话。
+// translate: turns a Xueqiu failure into a human-readable message.
 //
-// 它的失败有三种，长得都不一样：HTTP 层的 403/401、JSON 信封里的 error_code/error_description、
-// 以及**被 WAF 拦下时回的一整页 HTML**。第三种最坑——按 JSON 解会得到「解析失败」，
-// 而真正的原因是风控。
+// Its failures come in three different-looking shapes: an HTTP-level 403/401, an
+// error_code/error_description inside a JSON envelope, and **a full HTML page returned
+// when the WAF blocks the request**. The third is the nastiest — parsing it as JSON would
+// just say "parse failed", while the real cause is risk control.
 func translate(status int, raw []byte) error {
 	body := strings.TrimSpace(string(raw))
 	if strings.HasPrefix(body, "<") {
@@ -204,9 +211,10 @@ func translate(status int, raw []byte) error {
 
 // —— session_token ——
 //
-// 发帖接口要它，而它不在 cookie 里（传图与登录态探测都不需要）。
-// 优先用凭证里手工粘的；没有就去首页抓一次——抓不到时**明确告诉用户去哪儿复制**，
-// 而不是发一个必然被拒的请求。
+// The posting endpoint needs it, and it isn't in the cookie (uploading images and the
+// login-state probe don't need it). Prefers the one manually pasted into the credential;
+// otherwise it's scraped from the homepage once — and if that fails, **tell the user
+// exactly where to copy it from** rather than sending a request that's bound to be rejected.
 
 var tokenRe = regexp.MustCompile(`session_token["'\s:=]{1,6}["']([A-Za-z0-9_\-]{8,64})["']`)
 
@@ -253,12 +261,13 @@ func sessionToken(ctx plugin.Ctx) (string, error) {
 		"F12 → Network → update.json → 请求体里复制 session_token 的值，粘进凭证的同名字段")
 }
 
-// —— 宽松提取 ——
+// —— loose extraction ——
 //
-// 应答形状没有文档，钉死键名等于把「雪球改一次字段名」变成「全线解析失败」。
-// 这两个函数在任意深度的 JSON 里找想要的东西。
+// The response shape is undocumented, so pinning down a key name would turn one Xueqiu
+// field rename into a blanket parse failure. These two functions search for what's wanted
+// at any depth in the JSON.
 
-// findString：递归找第一个满足 want 的字符串值。
+// findString: recursively finds the first string value that satisfies want.
 func findString(v any, want func(string) bool) string {
 	switch t := v.(type) {
 	case string:
@@ -281,7 +290,7 @@ func findString(v any, want func(string) bool) string {
 	return ""
 }
 
-// findID：按键名找 id（数字或字符串都认——雪球的 id 是大整数，JSON 解出来是 float64）。
+// findID: looks up an id by key name (accepts both number and string — Xueqiu's ids are large integers that JSON decodes as float64).
 func findID(v any, keys ...string) string {
 	m, ok := v.(map[string]any)
 	if !ok {
@@ -305,10 +314,11 @@ func findID(v any, keys ...string) string {
 	return ""
 }
 
-// —— 小工具 ——
+// —— small helpers ——
 
-// uidFromCookie：从 xq_id_token（JWT）的载荷里读 uid。
-// 只为拼帖子链接用——读不到就不拼，**不因此让发布失败**。
+// uidFromCookie: reads uid from the payload of xq_id_token (a JWT).
+// Only used to build the post link — if it can't be read, the link is simply omitted;
+// **this must not fail the publish**.
 func uidFromCookie(cookie string) string {
 	i := strings.Index(cookie, "xq_id_token=")
 	if i < 0 {
@@ -377,7 +387,7 @@ func firstNonEmpty(vs ...string) string {
 	return ""
 }
 
-// readAllLimited：读页面用，封个顶免得被一个巨大的响应撑爆。
+// readAllLimited: for reading a page, with a cap so a huge response can't blow things up.
 func readAllLimited(r io.Reader) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r, 4<<20))
 }

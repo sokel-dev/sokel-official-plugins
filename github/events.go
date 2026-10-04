@@ -1,19 +1,24 @@
 package main
 
-// 轮询事件源（不用配 webhook 的那条路；与 webhook.go 二选一）。
+// The polling event source (the path that doesn't need a webhook configured; pick one or the
+// other with webhook.go).
 //
-// 走 /repos/{o}/{r}/events：GitHub 把仓库的活动流放在这里，一次调用就能拿到
-// 推送/Issue/PR/评论/发布五类，比逐个接口轮询省得多（速率配额每小时 5000 次，
-// 一个仓库一分钟一次是 60 次/小时，盯十来个仓库很宽裕）。
+// Goes through /repos/{o}/{r}/events: GitHub puts a repo's activity feed here, and a single call
+// gets you five kinds of activity — pushes/Issues/PRs/comments/releases — which is much cheaper
+// than polling each endpoint separately (the rate limit is 5000/hour; polling one repo once a
+// minute is 60 calls/hour, so watching a dozen or so repos is comfortably within budget).
 //
-// 两个必须处理的细节：
+// Two details that must be handled:
 //
-//   - **首轮不触发**。第一次拉到的是最近 30 条历史活动，照发的话插件一启动就会
-//     把三十条陈年事件全推进工作流。所以首轮只记游标（primed），从第二轮起才推。
-//   - **活动流有缓存**。GitHub 明说这个接口有约 60 秒缓存，所以轮询间隔小于 60 秒
-//     没有意义，只是白烧配额。
+//   - **The first round doesn't fire events**. The first fetch returns the most recent 30
+//     historical activities; dispatching them as-is would flood the workflow with 30 stale events
+//     the moment the plugin starts. So the first round only records the cursor (primed), and
+//     events are only dispatched from the second round on.
+//   - **The activity feed is cached**. GitHub documents about 60 seconds of caching on this
+//     endpoint, so polling more often than every 60 seconds is pointless and just burns quota.
 //
-// 工作流失败不在活动流里（GitHub 不把它算作仓库活动），单独查一次 Actions 运行记录。
+// Workflow failures aren't in the activity feed (GitHub doesn't count them as repo activity), so
+// they're queried separately via the Actions runs endpoint.
 
 import (
 	"context"
@@ -31,8 +36,9 @@ func runEvents(ctx plugin.SourceCtx) error {
 	cred := credOf(ctx)
 	repos := splitRepos(cred.WatchRepos)
 	if len(repos) == 0 {
-		// 没配就报「等配置」而不是静静退出——凭证列表上那一行会亮起来，
-		// 否则用户只会看到一个什么都不做的源，无从判断是坏了还是没配。
+		// Report "waiting for config" rather than silently exiting — that lights up the row on
+		// the credential list; otherwise the user would just see a source that does nothing,
+		// with no way to tell if it's broken or just unconfigured.
 		ctx.ReportStatus("idle", "凭证里没填「事件盯哪些仓库」，轮询源不启动")
 		return nil
 	}
@@ -42,9 +48,9 @@ func runEvents(ctx plugin.SourceCtx) error {
 	}
 	log.Printf("[github] 轮询源启动，盯 %d 个仓库：%s", len(repos), strings.Join(repos, ", "))
 
-	seen := map[string]string{}  // repo → 上次见过的最新事件 id
-	primed := map[string]bool{}  // repo → 首轮是否已过
-	runSeen := map[string]bool{} // 工作流失败去重（run_id+attempt）
+	seen := map[string]string{}  // repo → the newest event id last seen
+	primed := map[string]bool{}  // repo → whether the first round has passed
+	runSeen := map[string]bool{} // workflow-failure dedup (run_id+attempt)
 
 	for {
 		for _, repo := range repos {
@@ -78,7 +84,7 @@ func splitRepos(s string) []string {
 	return out
 }
 
-// pollRepo 拉一个仓库的活动流并按类型分发。
+// pollRepo fetches one repo's activity feed and dispatches by type.
 func pollRepo(ctx plugin.SourceCtx, repo string, seen map[string]string, primed map[string]bool) error {
 	rp, err := repoPath(repo)
 	if err != nil {
@@ -96,12 +102,12 @@ func pollRepo(ctx plugin.SourceCtx, repo string, seen map[string]string, primed 
 	newest := str(list[0], "id")
 
 	if !primed[repo] {
-		// 首轮：只记游标，不推。
+		// First round: record the cursor only, don't dispatch.
 		seen[repo], primed[repo] = newest, true
 		log.Printf("[github] %s 首轮记录游标 %s（历史事件不补发）", repo, newest)
 		return nil
 	}
-	// 活动流是新→旧，倒着遍历才能按时间顺序推。
+	// The activity feed is newest→oldest; iterate backwards to dispatch in chronological order.
 	for i := len(list) - 1; i >= 0; i-- {
 		e := list[i]
 		id := str(e, "id")
@@ -114,7 +120,8 @@ func pollRepo(ctx plugin.SourceCtx, repo string, seen map[string]string, primed 
 	return nil
 }
 
-// newerThan 活动流的 id 是**递增的十进制数字串**（但会超过 int64 的舒适区，按长度+字典序比）。
+// newerThan: the activity feed's id is a **monotonically increasing decimal digit string** (but
+// can exceed int64's comfort zone, so compare by length, then lexically).
 func newerThan(id, last string) bool {
 	if last == "" {
 		return true
@@ -125,10 +132,11 @@ func newerThan(id, last string) bool {
 	return id > last
 }
 
-// dispatchActivity 把一条活动流事件翻译成插件契约里的事件。
+// dispatchActivity translates one activity-feed event into an event in the plugin contract.
 //
-// 活动流的 payload 与 webhook 的 payload **形状相近但不相同**（比如没有 repository 顶层对象），
-// 所以不能直接复用 webhook 那套解析——这是两条路各写一份的原因。
+// The activity feed's payload and the webhook's payload **look similar but aren't the same**
+// (e.g. there's no top-level repository object), so the webhook parsing code can't be reused
+// directly — that's why each path has its own implementation.
 func dispatchActivity(ctx plugin.SourceCtx, repo, id string, e map[string]any) {
 	pl := obj(e, "payload")
 	actor := nested(e, "actor", "login")
@@ -234,7 +242,8 @@ func dispatchActivity(ctx plugin.SourceCtx, repo, id string, e map[string]any) {
 	}
 }
 
-// pollFailedRuns 查最近失败的工作流。活动流里没有它，只能单独问一次。
+// pollFailedRuns looks up recently failed workflows. They're not in the activity feed, so this
+// has to be queried separately.
 func pollFailedRuns(ctx plugin.SourceCtx, repo string, seen map[string]bool, primed bool) error {
 	rp, err := repoPath(repo)
 	if err != nil {
@@ -244,7 +253,8 @@ func pollFailedRuns(ctx plugin.SourceCtx, repo string, seen map[string]bool, pri
 		"status": "failure", "per_page": 10,
 	})
 	if err != nil {
-		// Actions 没开的仓库这里会 404——不该让整个轮询循环报错。
+		// A repo with Actions disabled returns 404 here — that shouldn't fail the whole polling
+		// loop.
 		if strings.Contains(err.Error(), "404") {
 			return nil
 		}
@@ -255,14 +265,15 @@ func pollFailedRuns(ctx plugin.SourceCtx, repo string, seen map[string]bool, pri
 		if r == nil {
 			continue
 		}
-		// run_id + attempt：重试失败是一次新的真事件，只按 run_id 去重会把它吃掉。
+		// run_id + attempt: a retry that also fails is a new, genuine event — deduping by run_id
+		// alone would swallow it.
 		key := repo + ":" + str(r, "id") + ":" + str(r, "run_attempt")
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
 		if !primed {
-			continue // 首轮只记不推，与活动流同一条规矩
+			continue // first round only records, doesn't dispatch — same rule as the activity feed
 		}
 		_ = TriggerWorkflowFailed(ctx, "poll:run:"+key, &WorkflowFailedEvent{
 			Repo: repo, Workflow: str(r, "name"), RunID: num(r, "id"),

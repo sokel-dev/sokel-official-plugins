@@ -1,7 +1,8 @@
 package main
 
-// 目录接口的运行时：参数装配 + 白名单。与其它增量流插件同一套形状，
-// 差别只在上游怎么调（一个端点 + api_name，响应是列式的）。
+// Runtime for catalog endpoints: parameter assembly + allowlist. Same shape as the other
+// incremental-stream plugins; the only difference is how the upstream is called (one endpoint
+// plus api_name, with a columnar response).
 
 import (
 	"fmt"
@@ -11,13 +12,15 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// queryCatalog 按入参调一次 TuShare 并把列式结果还原成记录。
+// queryCatalog calls TuShare once with the given inputs and restores the columnar result into records.
 //
-// 这里用反射，是因为两百多个操作的入参结构各不相同而装配逻辑完全一样。
-// 范围限得很死：只读生成物里的字符串字段（生成器保证入参全是 string）。
+// It uses reflection because the input structs differ across the 200+ operations while the
+// assembly logic is exactly the same. The scope is kept narrow: it only reads string fields off
+// the generated types (the generator guarantees every input is a string).
 //
-// fields 是**生成期算好的全列清单**：TuShare 不传 fields 只回默认列，
-// 而契约里声明了全部列——不显式要，画布上就会有一半字段永远是空的。
+// fields is **the full column list computed at generation time**: TuShare only returns the default
+// columns unless fields is passed, while the contract declares every column — without asking for
+// them explicitly, half the fields would always be empty on the canvas.
 func queryCatalog[R any](ctx plugin.Ctx, apiName string, in any, fields string, alias map[string]string) ([]R, error) {
 	params := map[string]string{}
 	v := reflect.ValueOf(in)
@@ -51,7 +54,8 @@ func queryCatalog[R any](ctx plugin.Ctx, apiName string, in any, fields string, 
 	return decodeRows[R](data)
 }
 
-// registerCatalog 按白名单注册目录接口，返回注册了几个。默认全部注册（TUSHARE_APIS=none 关掉）。
+// registerCatalog registers catalog endpoints per the allowlist and returns how many got registered.
+// Everything is registered by default (set TUSHARE_APIS=none to turn it off).
 func registerCatalog(h plugin.Host, spec string) int {
 	match := catalogMatcher(spec)
 	n := 0
@@ -64,12 +68,14 @@ func registerCatalog(h plugin.Host, spec string) int {
 	return n
 }
 
-// catalogMatcher 解析 TUSHARE_APIS：
+// catalogMatcher parses TUSHARE_APIS:
 //
-//	空 / *    全开（2026-09-17 起默认全开：用户要的是「TuShare 全部接口都能用」，按需收窄才是例外）
-//	none      一个都不开
-//	daily,trade_cal     按接口名精确匹配
-//	行情数据            带 / 或含中文时按目录路径包含匹配（整段一起开）
+//	empty / *           everything on (default on since 2026-09-17: the user wants "every TuShare
+//	                     endpoint usable", narrowing it down on demand is the exception)
+//	none                nothing on
+//	daily,trade_cal      exact match by endpoint name
+//	行情数据             when it contains "/" or Chinese characters, matches by category path
+//	                     substring (turns on the whole group at once)
 func catalogMatcher(spec string) func(id, category string) bool {
 	spec = strings.TrimSpace(spec)
 	if spec == "" || spec == "*" {

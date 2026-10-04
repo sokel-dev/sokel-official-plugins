@@ -1,10 +1,11 @@
 package main
 
-// 写操作九个。
+// Nine write operations.
 //
-// 一条共同的路子：**先取表结构再拼属性**（见 props.go）。多一次往返换来的是
-// 「列名写错了」「这列是算出来的」「候选值只有这几个」在发请求之前就说清楚——
-// 而 Notion 自己的 validation_error 只会告诉你 body 里第几个字段不合法。
+// One shared approach: **fetch the schema before assembling properties** (see props.go). The extra
+// round trip buys clear, pre-request errors for "wrong column name", "this column is computed",
+// "only these candidate values exist" — whereas Notion's own validation_error only tells you which
+// field index in the body is invalid.
 
 import (
 	"bytes"
@@ -19,7 +20,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// opPageCreate 建页面：父是页面就是普通子页，父是数据源就是建一行。
+// opPageCreate creates a page: a page parent means an ordinary subpage, a data source parent means
+// creating a row.
 func opPageCreate(ctx plugin.Ctx, in *NotionPageCreateIn) (*NotionPageCreateOut, error) {
 	parentID, err := requireID("parent_id", in.ParentID)
 	if err != nil {
@@ -40,8 +42,8 @@ func opPageCreate(ctx plugin.Ctx, in *NotionPageCreateIn) (*NotionPageCreateOut,
 		if props == nil {
 			props = map[string]any{}
 		}
-		// 标题单独给一个入参：它是每张表都有的那一列，但列名各不相同
-		// （「名称」「Name」「任务」），让人每次去查列名纯属添堵。
+		// Title gets its own input field: every table has this column, but the name differs
+		// ("名称", "Name", "任务"), and making people look it up every time would just be friction.
 		if in.Title != "" {
 			specs, err := dataSourceProps(ctx, dsID)
 			if err != nil {
@@ -56,7 +58,8 @@ func opPageCreate(ctx plugin.Ctx, in *NotionPageCreateIn) (*NotionPageCreateOut,
 	} else {
 		body["parent"] = map[string]any{"type": "page_id", "page_id": parentID}
 		if len(in.Props) > 0 {
-			// 普通页面只有标题一个属性。悄悄丢掉用户填的属性，比报错难查得多。
+			// An ordinary page has only a title property. Silently dropping what the user filled
+			// in for props would be far harder to debug than erroring.
 			return nil, fmt.Errorf("父是页面时不能写属性（普通页面只有标题）；要写属性请把父设成数据源")
 		}
 		if in.Title != "" {
@@ -66,8 +69,9 @@ func opPageCreate(ctx plugin.Ctx, in *NotionPageCreateIn) (*NotionPageCreateOut,
 	if len(props) > 0 {
 		body["properties"] = props
 	}
-	// markdown 直接进建页请求（Notion 支持），不必建完再补一次正文——
-	// 两次请求意味着「页建好了但正文没写进去」这种半截状态。
+	// markdown goes straight into the create-page request (Notion supports this), avoiding a
+	// second call to fill in content afterward — two requests would mean a half-done state where
+	// "the page exists but the content wasn't written" is possible.
 	if in.Markdown != "" {
 		body["markdown"] = in.Markdown
 	}
@@ -82,7 +86,7 @@ func opPageCreate(ctx plugin.Ctx, in *NotionPageCreateIn) (*NotionPageCreateOut,
 	return &NotionPageCreateOut{ID: p.ID, URL: p.URL, Title: pageTitle(p.Properties)}, nil
 }
 
-// opPageUpdate 改属性。
+// opPageUpdate updates properties.
 func opPageUpdate(ctx plugin.Ctx, in *NotionPageUpdateIn) (*NotionPageUpdateOut, error) {
 	id, err := requireID("page_id", in.PageID)
 	if err != nil {
@@ -90,8 +94,10 @@ func opPageUpdate(ctx plugin.Ctx, in *NotionPageUpdateIn) (*NotionPageUpdateOut,
 	}
 	body := map[string]any{}
 	if len(in.Props) > 0 || in.Title != "" {
-		// 属性要按列的类型来拼，而类型在**页面所属数据源**的表结构里——
-		// 所以改属性必须先读一次页面。库外的普通页面没有数据源，只能改标题。
+		// Properties have to be assembled by column type, and the type lives in the schema of
+		// **the page's data source** — so updating properties always starts with reading the page
+		// once. An ordinary page outside any database has no data source and can only have its
+		// title changed.
 		var cur notionPage
 		if err := callAPI(ctx, reqOpts{method: http.MethodGet, path: "/pages/" + id}, &cur); err != nil {
 			return nil, err
@@ -134,7 +140,7 @@ func opPageUpdate(ctx plugin.Ctx, in *NotionPageUpdateIn) (*NotionPageUpdateOut,
 	return &NotionPageUpdateOut{ID: p.ID, URL: p.URL}, nil
 }
 
-// opPageContent 改正文：追加 / 整页替换 / 搜索替换。
+// opPageContent edits content: append / full-page replace / find-and-replace.
 func opPageContent(ctx plugin.Ctx, in *NotionPageContentIn) (*NotionPageContentOut, error) {
 	id, err := requireID("page_id", in.PageID)
 	if err != nil {
@@ -172,7 +178,7 @@ func opPageContent(ctx plugin.Ctx, in *NotionPageContentIn) (*NotionPageContentO
 	return &NotionPageContentOut{ID: id, Markdown: md.Markdown, Truncated: md.Truncated}, nil
 }
 
-// opPageTrash 移进回收站 / 恢复。
+// opPageTrash moves to trash / restores.
 func opPageTrash(ctx plugin.Ctx, in *NotionPageTrashIn) (*NotionPageTrashOut, error) {
 	id, err := requireID("page_id", in.PageID)
 	if err != nil {
@@ -186,7 +192,7 @@ func opPageTrash(ctx plugin.Ctx, in *NotionPageTrashIn) (*NotionPageTrashOut, er
 	return &NotionPageTrashOut{ID: p.ID, InTrash: p.InTrash || p.Archived}, nil
 }
 
-// opBlockAppend 追加原始块。
+// opBlockAppend appends raw blocks.
 func opBlockAppend(ctx plugin.Ctx, in *NotionBlockAppendIn) (*NotionBlockAppendOut, error) {
 	id, err := requireID("block_id", in.BlockID)
 	if err != nil {
@@ -194,7 +200,8 @@ func opBlockAppend(ctx plugin.Ctx, in *NotionBlockAppendIn) (*NotionBlockAppendO
 	}
 	children, ok := in.Blocks.([]any)
 	if !ok {
-		// 单个块也认：手填时给一个对象是很自然的写法，为此报错纯属添堵。
+		// A single block is accepted too: giving one object when filling this in by hand is the
+		// natural thing to do, and erroring over it would just be friction.
 		if m, isObj := in.Blocks.(map[string]any); isObj {
 			children = []any{m}
 		} else {
@@ -205,7 +212,8 @@ func opBlockAppend(ctx plugin.Ctx, in *NotionBlockAppendIn) (*NotionBlockAppendO
 		return nil, fmt.Errorf("blocks 是空的")
 	}
 	if len(children) > 100 {
-		// Notion 单请求上限 100 块。静默截断会让人以为全写进去了。
+		// Notion caps a single request at 100 blocks. Silently truncating would make people
+		// think everything got written.
 		return nil, fmt.Errorf("一次最多 100 块，给了 %d 块（分几次追加）", len(children))
 	}
 	var resp struct {
@@ -224,7 +232,7 @@ func opBlockAppend(ctx plugin.Ctx, in *NotionBlockAppendIn) (*NotionBlockAppendO
 	return out, nil
 }
 
-// opCommentCreate 加评论。
+// opCommentCreate adds a comment.
 func opCommentCreate(ctx plugin.Ctx, in *NotionCommentCreateIn) (*NotionCommentCreateOut, error) {
 	if strings.TrimSpace(in.Text) == "" {
 		return nil, fmt.Errorf("评论内容是空的")
@@ -245,7 +253,7 @@ func opCommentCreate(ctx plugin.Ctx, in *NotionCommentCreateIn) (*NotionCommentC
 	return &NotionCommentCreateOut{ID: c.ID, DiscussionID: c.DiscussionID}, nil
 }
 
-// opDBCreate 建数据库。
+// opDBCreate creates a database.
 func opDBCreate(ctx plugin.Ctx, in *NotionDBCreateIn) (*NotionDBCreateOut, error) {
 	parentID, err := requireID("parent_page_id", in.ParentPageID)
 	if err != nil {
@@ -255,7 +263,8 @@ func opDBCreate(ctx plugin.Ctx, in *NotionDBCreateIn) (*NotionDBCreateOut, error
 		return nil, fmt.Errorf("要给列定义（至少一个 title 列，如 {\"名称\":{\"title\":{}}}）")
 	}
 	if !hasTitleColumn(in.Properties) {
-		// Notion 会拒，但它的报错是 body.properties 层面的，看不出缺的是什么。
+		// Notion would reject this too, but its error is at the body.properties level and
+		// doesn't reveal what's actually missing.
 		return nil, fmt.Errorf("列定义里必须**恰好有一个** title 列，如 {\"名称\":{\"title\":{}}}")
 	}
 	body := map[string]any{
@@ -285,7 +294,7 @@ func hasTitleColumn(props map[string]any) bool {
 	return false
 }
 
-// opDBUpdateSchema 改表结构（加列/删列/改名）。
+// opDBUpdateSchema updates a schema (add/remove columns, rename).
 func opDBUpdateSchema(ctx plugin.Ctx, in *NotionDBUpdateSchemaIn) (*NotionDBUpdateSchemaOut, error) {
 	dsID, err := resolveDataSource(ctx, in.DataSourceID)
 	if err != nil {
@@ -305,15 +314,15 @@ func opDBUpdateSchema(ctx plugin.Ctx, in *NotionDBUpdateSchemaIn) (*NotionDBUpda
 	if err := callAPI(ctx, reqOpts{method: http.MethodPatch, path: "/data_sources/" + dsID, body: body}, &ds); err != nil {
 		return nil, err
 	}
-	invalidateDataSource(dsID) // 表结构变了，缓存里那份立刻作废
+	invalidateDataSource(dsID) // Schema changed, evict the cached copy immediately
 	return &NotionDBUpdateSchemaOut{DataSourceID: ds.ID, Properties: toPropSpecs(ds.Properties)}, nil
 }
 
-// opFileUpload 把平台文件层里的文件传进 Notion。
+// opFileUpload sends a file from the platform's file layer into Notion.
 //
-// 三步：申请一个 file_upload → 把字节 POST 上去 → 拿 id 给块或属性引用。
-// 出参给的是 id 不是链接：Notion 的文件必须被某个块/属性引用才算落地，
-// 直接给链接会让人以为拿到了一条能贴的地址。
+// Three steps: request a file_upload -> POST the bytes -> hand the id to a block or property
+// reference. The output gives an id, not a link: a Notion file only "lands" once some block or
+// property references it, and handing back a link would make people think they got a pastable URL.
 func opFileUpload(ctx plugin.Ctx, in *NotionFileUploadIn) (*NotionFileUploadOut, error) {
 	if in.File == nil {
 		return nil, fmt.Errorf("没有给文件")
@@ -329,8 +338,8 @@ func opFileUpload(ctx plugin.Ctx, in *NotionFileUploadIn) (*NotionFileUploadOut,
 	if name == "" {
 		name = "upload.bin"
 	}
-	// 单次上传上限 20MB（超过要分片，那是另一套流程）。先说清楚，
-	// 否则表现是传到一半被 Notion 拒，错因看不出来。
+	// Single-upload cap is 20MB (going over requires chunked upload, a separate flow). Say so
+	// upfront, otherwise the symptom is Notion rejecting it partway through with no clue why.
 	const singlePartMax = 20 << 20
 	if len(data) > singlePartMax {
 		return nil, fmt.Errorf("文件 %.1f MB，超过 Notion 单次上传上限 20 MB", float64(len(data))/(1<<20))
@@ -353,7 +362,8 @@ func opFileUpload(ctx plugin.Ctx, in *NotionFileUploadIn) (*NotionFileUploadOut,
 	return &NotionFileUploadOut{FileUploadID: created.ID, Filename: name}, nil
 }
 
-// sendFileBytes：字节走 multipart 传到 Notion 给的地址（不是 JSON 接口，所以不走 callAPI）。
+// sendFileBytes sends bytes as multipart to the URL Notion handed back (not a JSON endpoint, so it
+// doesn't go through callAPI).
 func sendFileBytes(ctx plugin.Ctx, uploadURL, name, mime string, data []byte) error {
 	cred := sokel.CredentialAs[Cred](ctx)
 	tok, err := authToken(cred)
@@ -403,7 +413,7 @@ func sendFileBytes(ctx plugin.Ctx, uploadURL, name, mime string, data []byte) er
 	return nil
 }
 
-// iconValue：一个 emoji 或一条图片地址。
+// iconValue builds an emoji or image URL icon.
 func iconValue(s string) map[string]any {
 	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
 		return map[string]any{"type": "external", "external": map[string]any{"url": s}}

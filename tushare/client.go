@@ -1,10 +1,13 @@
 package main
 
-// TuShare Pro 的出口层：一个 POST 打天下 + 列式响应还原成记录。
+// The outbound layer for TuShare Pro: one POST handles everything, and the columnar response is
+// restored into records.
 //
-// 与巨潮很不一样的两点，插件的形状基本由它们决定：
-//   - 所有接口共用一个端点，靠请求体里的 api_name 区分；鉴权是 token，不是签名。
-//   - 响应是**列式**的（fields 一行列名 + items 一堆数组），不是对象数组。
+// Two ways this is quite different from Juchao, and they basically shape this plugin:
+//   - Every endpoint shares one single HTTP endpoint, distinguished by api_name in the request
+//     body; auth is a token, not a signature.
+//   - The response is **columnar** (one fields row of column names + items as a bunch of arrays),
+//     not an array of objects.
 
 import (
 	"bytes"
@@ -39,7 +42,8 @@ type tsRequest struct {
 	Fields  string            `json:"fields,omitempty"`
 }
 
-// tsResponse code 非 0 即业务失败，msg 是给人看的（多半是「积分不够」「没权限」）。
+// tsResponse: a non-zero code means a business-level failure; msg is meant for humans (usually
+// "insufficient points" or "no permission").
 type tsResponse struct {
 	RequestID string  `json:"request_id"`
 	Code      int     `json:"code"`
@@ -47,15 +51,17 @@ type tsResponse struct {
 	Data      *tsData `json:"data"`
 }
 
-// tsData 列式结果：fields 是列名，items 每行一个值数组，顺序与 fields 对齐。
+// tsData is the columnar result: fields holds the column names, items holds one value array per
+// row, in the same order as fields.
 type tsData struct {
 	Fields  []string `json:"fields"`
 	Items   [][]any  `json:"items"`
 	HasMore bool     `json:"has_more"`
 }
 
-// call 调一次 TuShare。重试有界（三次退避）：一次调用就是画布上的一步，
-// 拉不到就让这步失败、让定时器带着原游标再来。
+// call makes one TuShare request. Retries are bounded (three attempts with backoff): one call is
+// one step on the canvas, so if it can't be fetched, let this step fail and let the scheduler come
+// back with the original cursor.
 func (c *client) call(ctx context.Context, apiName string, params map[string]string, fields string) (*tsData, error) {
 	var lastErr error
 	for attempt := range 3 {
@@ -115,8 +121,8 @@ func (c *client) doCall(ctx context.Context, apiName string, params map[string]s
 		return nil, fmt.Errorf("解析 TuShare 响应失败: %w；原文 %s", err, truncate(string(raw), 200))
 	}
 	if resp.Code != 0 {
-		// 这里的 msg 会原样呈给用户，多半是「抱歉，您没有访问该接口的权限」这类，
-		// 换成自己的措辞只会丢信息。
+		// msg is surfaced to the user verbatim; it's usually something like "sorry, you don't have
+		// access to this endpoint" — rewording it in our own words would only lose information.
 		return nil, fmt.Errorf("TuShare 接口 %s 报错[%d]：%s", apiName, resp.Code, resp.Msg)
 	}
 	if resp.Data == nil {
@@ -125,10 +131,11 @@ func (c *client) doCall(ctx context.Context, apiName string, params map[string]s
 	return resp.Data, nil
 }
 
-// decodeRows 把列式结果还原成记录。
+// decodeRows restores the columnar result into records.
 //
-// 走一趟 JSON 而不是逐字段反射赋值：类型转换（数字/字符串/null）交给 encoding/json，
-// 它对不上会报错——而手写转换里对不上的那一格通常是**静默**填零值。
+// It round-trips through JSON instead of assigning fields via reflection field by field: type
+// conversion (number/string/null) is left to encoding/json, which errors on a mismatch — whereas a
+// hand-written conversion usually fills the mismatched cell with the zero value **silently**.
 func decodeRows[R any](d *tsData) ([]R, error) {
 	if d == nil || len(d.Items) == 0 {
 		return nil, nil
@@ -154,8 +161,9 @@ func decodeRows[R any](d *tsData) ([]R, error) {
 	return out, nil
 }
 
-// transientErr 值得重试的错误（网络抖动 / 5xx / 429）。
-// 业务错误（没权限、积分不够）重试多少次都是同一个结果。
+// transientErr marks an error worth retrying (network blips / 5xx / 429).
+// Business errors (no permission, insufficient points) give the same result no matter how many
+// times they're retried.
 type transientErr struct{ error }
 
 func retryable(err error) bool {

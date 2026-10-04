@@ -1,14 +1,20 @@
-// wechat-claw —— 微信 iLink Bot（wechat-clawbot-client-go）插件：收发一体。
+// wechat-claw — a WeChat iLink Bot (wechat-clawbot-client-go) plugin: send and receive in one.
 //
-//   - 凭证 = 一个微信账号：session 由「凭证管理 → 登录/授权」扫码获得（P2 协作式认证），
-//     插件不落地任何凭证（platformStore：读=平台下发，写=sokel.credential.update 回写）。
-//   - 多账号单实例：P0 per-credential supervisor 天然覆盖——配几个凭证就跑几个账号。
-//   - 事件：message（chat_id 公共字段顶层平铺）；操作：send_text / send_image / send_file。
-//   - 发送依赖运行中 client 的 context token（随入站消息进 store）→ 微信组建议单副本部署。
+//   - Credential = one WeChat account: the session is obtained via a QR-code scan in
+//     "Credential management → Login/Authorize" (P2 collaborative authentication); the plugin
+//     never persists any credential itself (platformStore: reads = issued by the platform, writes
+//     = written back via sokel.credential.update).
+//   - Multiple accounts in a single instance: naturally covered by the P0 per-credential
+//     supervisor — configure as many credentials as accounts you want to run.
+//   - Events: message (chat_id flattened to the top level as a shared field); operations:
+//     send_text / send_image / send_file.
+//   - Sending depends on the running client's context token (rebuilt from inbound messages into
+//     the store) → the WeChat group recommends a single-replica deployment.
 //
-// ⚠️ 合规提示：iLink bot API 属非官方通道，有封号风险——建议专号专用。
+// Compliance warning: the iLink bot API is an unofficial channel and carries a ban risk — a
+// dedicated account is recommended.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx SOKEL_NATS_TOKEN=xxx ./wechat-claw
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx SOKEL_NATS_TOKEN=xxx ./wechat-claw
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -28,8 +34,9 @@ func env(key, def string) string {
 	return def
 }
 
-// Cred：微信账号凭证。session 不手填——扫码登录后由平台写入（协作式认证）。
-// —— 发送操作 ——
+// Cred: the WeChat account credential. session isn't filled in by hand — the platform writes it
+// after a QR-code login (collaborative authentication).
+// —— Send operations ——
 
 func opSendText(ctx plugin.Ctx, in *SendTextIn) (*SendTextOut, error) {
 	c, err := runningClientFor(ctx.Credential())
@@ -90,19 +97,19 @@ func main() {
 		Name:     "wechat-claw",
 	})
 
-	RegisterCredential(p)                    // 凭证契约（schema 声明生成；Cred 在 zz_credential.go）
-	p.SetDoc(usageDoc, "")                   // 使用说明（docs/*.md）：凭证怎么拿、有什么坑，随握手上报给平台
-	RegisterAuth(p, opAuthStart, opAuthPoll) // 扫码登录：参数表由 schema 声明的步骤决定
+	RegisterCredential(p)                    // credential contract (generated from the schema declaration; Cred lives in zz_credential.go)
+	p.SetDoc(usageDoc, "")                   // usage doc (docs/*.md): how to get credentials, what the gotchas are; reported to the platform with the handshake
+	RegisterAuth(p, opAuthStart, opAuthPoll) // QR-code login: the parameter list is decided by the steps declared in the schema
 
-	// —— 操作契约 ——（send_* 上画布；auth_* 内部操作走凭证面板登录流，不上画布）
+	// —— Operation contracts —— (send_* appear on the canvas; auth_* are internal operations that go through the credential panel's login flow, not the canvas)
 	OnSendText(p, opSendText)
 	OnSendImage(p, opSendImage)
 	OnSendFile(p, opSendFile)
 
-	// —— 事件契约 ——
+	// —— Event contracts ——
 	DeclareEvents(p)
 
-	// 常驻事件源：per-credential（每个已登录账号一份长连接）。
+	// Standing event source: per-credential (one long connection per logged-in account).
 	sokel.RegisterSource(p, sokel.Source{ID: "wechat", Label: "微信长连接"}, runWechatSource)
 
 	if err := p.Run(); err != nil {

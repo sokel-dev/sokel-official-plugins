@@ -1,6 +1,6 @@
 package main
 
-// credFrom / withBlobMime：两个跨文件用到的小工具，单独放一处免得在 client.go 里显得突兀。
+// credFrom / withBlobMime: two small helpers used across files, kept here on their own so they don't feel out of place in client.go.
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 
 func credFrom(ctx plugin.Ctx) Cred { return sokel.CredentialAs[Cred](ctx) }
 
-// withBlobMime：把 blob 的真实 Content-Type 带进 rpc（uploadBlob 不是 JSON 请求）。
+// withBlobMime: carries the blob's real Content-Type into the rpc call (uploadBlob isn't a JSON request).
 func withBlobMime(ctx context.Context, mime string) context.Context {
 	return context.WithValue(ctx, blobMimeKey{}, mime)
 }
 
-// queryOf：键值对 → url.Values（读接口的查询参数就那么几个，不值得每处写三行）。
+// queryOf: key-value pairs → url.Values (read endpoints only ever need a few query params, not worth three lines each time).
 func queryOf(kv ...string) url.Values {
 	q := url.Values{}
 	for i := 0; i+1 < len(kv); i += 2 {

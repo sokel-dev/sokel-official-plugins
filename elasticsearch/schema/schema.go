@@ -1,22 +1,30 @@
-// Package schema 声明 elasticsearch 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the elasticsearch plugin.
 //
-// 定位：把 ES 当**工作流的检索与写入后端**——查日志/文档、灌数据、管索引。
-// 走裸 HTTP 而不是官方 SDK：ES 的 REST 接口在 7/8/9 之间基本没动，
-// 裸 HTTP 一套代码通吃三个大版本，**连 OpenSearch 也能用**（它是 ES 7 的分叉）；
-// 官方 SDK 反过来会把大版本锁死在客户端库上。
+// Positioning: treat ES as **the workflow's search and write backend** — query
+// logs/documents, pump in data, manage indices. It uses plain HTTP instead of the
+// official SDK: ES's REST interface has barely changed across 7/8/9, so plain HTTP lets
+// one codebase cover all three major versions, **and it even works with OpenSearch**
+// (a fork of ES 7); the official SDK, on the other hand, locks the major version to the
+// client library.
 //
-// 四条约定，操作设计围着它们转：
+// Four conventions the operation design revolves around:
 //
-//   - **查询体原样透传**：query/aggs 直接收 ES Query DSL 的 JSON，不做二次封装。
-//     ES 的查询语言本身就是产品，包一层只会让人查着官方文档却写不对。
-//     只想快速试一下的用 q（Lucene 简式，如 `status:error AND host:a1`）。
-//   - **total 会撒谎**：ES 默认只精确统计到 10000 条，超出回的是下界。
-//     契约里单出一个 total_is_lower_bound 说明这件事——否则「一共就 10000 条」
-//     这个假结论会一路传到报表里。
-//   - **危险操作要有闸**：按查询删除不给查询 = 删光索引，删索引带通配 = 删光集群。
-//     两处都在插件侧挡住，让人显式换一个操作而不是靠手稳。
-//   - **写入与可见分离**：ES 写完不是立刻可搜（默认 1 秒刷新）。refresh 开关在契约里
-//     给了位置并写明代价——「写完马上查却查不到」是这套系统最常见的困惑。
+//   - **The query body is passed through verbatim**: query/aggs accept raw ES Query DSL
+//     JSON directly, with no extra wrapping. ES's query language is itself the product;
+//     wrapping it would only make people read the official docs and still get it wrong.
+//     For a quick one-off, use q (Lucene shorthand, e.g. `status:error AND host:a1`).
+//   - **total lies**: ES only counts exactly up to 10000 by default; beyond that it
+//     returns a lower bound. The contract surfaces a dedicated total_is_lower_bound field
+//     to say so — otherwise the false conclusion "there are only 10000 in total" would
+//     propagate straight into reports.
+//   - **Dangerous operations need a gate**: delete-by-query with no query = wipe the
+//     whole index, delete-index with a wildcard = wipe the whole cluster. Both are
+//     blocked on the plugin side, forcing an explicit switch to a different operation
+//     instead of relying on a steady hand.
+//   - **Write and visibility are separate**: a write in ES isn't searchable immediately
+//     (refresh defaults to ~1 second). The refresh toggle has a place in the contract with
+//     its cost spelled out — "wrote it and immediately queried but couldn't find it" is
+//     the most common confusion with this system.
 package schema
 
 import (
@@ -35,9 +43,9 @@ func queryField() contract.FieldSpec {
 		Label("查询").Optional()
 }
 
-// —— 检索 ——
+// —— search ——
 
-// Search 搜索。
+// Search runs a search.
 type Search struct{}
 
 func (Search) Meta() contract.Meta {
@@ -77,7 +85,7 @@ func (Search) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Hit 一条命中文档。
+// Hit is one matched document.
 type Hit struct {
 	ID     string         `sokel:"id" label:"文档 ID"`
 	Index  string         `sokel:"index" label:"所在索引"`
@@ -85,7 +93,7 @@ type Hit struct {
 	Source map[string]any `sokel:"source" label:"文档内容" desc:"原始 _source，字段由索引里的文档决定"`
 }
 
-// Count 统计条数。
+// Count counts matching documents.
 type Count struct{}
 
 func (Count) Meta() contract.Meta {
@@ -105,9 +113,9 @@ func (Count) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("count").Label("条数")}
 }
 
-// —— 文档读写 ——
+// —— document read/write ——
 
-// DocGet 取文档。
+// DocGet fetches a document.
 type DocGet struct{}
 
 func (DocGet) Meta() contract.Meta {
@@ -130,7 +138,7 @@ func (DocGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocIndex 写入文档。
+// DocIndex writes a document.
 type DocIndex struct{}
 
 func (DocIndex) Meta() contract.Meta {
@@ -157,7 +165,7 @@ func (DocIndex) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocUpdate 更新文档。
+// DocUpdate updates a document.
 type DocUpdate struct{}
 
 func (DocUpdate) Meta() contract.Meta {
@@ -182,7 +190,7 @@ func (DocUpdate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocDelete 删除文档。
+// DocDelete deletes a document.
 type DocDelete struct{}
 
 func (DocDelete) Meta() contract.Meta {
@@ -202,7 +210,7 @@ func (DocDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// BulkIndex 批量写入。
+// BulkIndex writes documents in bulk.
 type BulkIndex struct{}
 
 func (BulkIndex) Meta() contract.Meta {
@@ -231,7 +239,7 @@ func (BulkIndex) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeleteByQuery 按查询删除。
+// DeleteByQuery deletes documents matching a query.
 type DeleteByQuery struct{}
 
 func (DeleteByQuery) Meta() contract.Meta {
@@ -254,9 +262,9 @@ func (DeleteByQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 索引管理 ——
+// —— index management ——
 
-// IndexInfo 一个索引的概况。
+// IndexInfo is a summary of one index.
 type IndexInfo struct {
 	Name      string `sokel:"name" label:"索引名"`
 	Health    string `sokel:"health" label:"健康" desc:"green / yellow / red"`
@@ -265,7 +273,7 @@ type IndexInfo struct {
 	StoreSize string `sokel:"store_size" label:"占用空间"`
 }
 
-// IndicesList 索引列表。
+// IndicesList lists indices.
 type IndicesList struct{}
 
 func (IndicesList) Meta() contract.Meta {
@@ -286,7 +294,7 @@ func (IndicesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IndexCreate 建索引。
+// IndexCreate creates an index.
 type IndexCreate struct{}
 
 func (IndexCreate) Meta() contract.Meta {
@@ -312,7 +320,7 @@ func (IndexCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IndexDelete 删索引。
+// IndexDelete deletes an index.
 type IndexDelete struct{}
 
 func (IndexDelete) Meta() contract.Meta {
@@ -330,7 +338,7 @@ func (IndexDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// MappingGet 看字段定义。
+// MappingGet retrieves field definitions (mapping).
 type MappingGet struct{}
 
 func (MappingGet) Meta() contract.Meta {
@@ -346,7 +354,7 @@ func (MappingGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MappingPut 加字段定义。
+// MappingPut adds field definitions (mapping).
 type MappingPut struct{}
 
 func (MappingPut) Meta() contract.Meta {
@@ -365,7 +373,7 @@ func (MappingPut) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("已生效")}
 }
 
-// AliasSwitch 切别名。
+// AliasSwitch switches an alias.
 type AliasSwitch struct{}
 
 func (AliasSwitch) Meta() contract.Meta {
@@ -389,7 +397,7 @@ func (AliasSwitch) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Reindex 重建索引。
+// Reindex rebuilds an index.
 type Reindex struct{}
 
 func (Reindex) Meta() contract.Meta {
@@ -416,7 +424,7 @@ func (Reindex) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ClusterHealth 集群健康。
+// ClusterHealth reports cluster health.
 type ClusterHealth struct{}
 
 func (ClusterHealth) Meta() contract.Meta {
@@ -437,9 +445,9 @@ func (ClusterHealth) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 保底 ——
+// —— fallback ——
 
-// Call 通用调用。
+// Call makes a generic call.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -465,7 +473,7 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform's standard credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -486,7 +494,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— credential ——
 
 type Credential struct{}
 

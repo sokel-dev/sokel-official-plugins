@@ -1,15 +1,16 @@
 package main
 
-// GitHub 调用层：REST v3 + GraphQL v4。纯 HTTP，无 SDK 可省。
+// GitHub call layer: REST v3 + GraphQL v4. Plain HTTP, no SDK needed.
 //
-// 两条传输并存的理由见 schema/projects.go 顶注（Projects V2 只有 GraphQL）。
-// github.com 与 GitHub Enterprise Server 的差别只在 base：
+// See the top comment in schema/projects.go for why both transports coexist (Projects V2 is
+// GraphQL-only). github.com and GitHub Enterprise Server differ only in the base:
 //
-//	github.com  →  https://api.github.com          GraphQL: https://api.github.com/graphql
-//	GHES        →  https://host/api/v3             GraphQL: https://host/api/graphql
+//	github.com  ->  https://api.github.com          GraphQL: https://api.github.com/graphql
+//	GHES        ->  https://host/api/v3             GraphQL: https://host/api/graphql
 //
-// 注意 GHES 的 GraphQL 端点是 /api/graphql 而**不是** /api/v3/graphql——照着 REST 的
-// 形状拼会得到 404，而 404 在这里看起来像「你没权限」，很难往「端点拼错了」上想。
+// Note that GHES's GraphQL endpoint is /api/graphql, **not** /api/v3/graphql — building it the
+// same way as the REST path gives a 404, and that 404 looks like "you lack permission" here,
+// which makes it hard to think of "the endpoint is wrong" as the cause.
 
 import (
 	"bytes"
@@ -34,18 +35,19 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// restBase REST 根地址。
+// restBase returns the REST root address.
 func restBase(cred Cred) string {
 	b := strings.TrimRight(strings.TrimSpace(cred.BaseURL), "/")
 	if b == "" {
 		return "https://api.github.com"
 	}
-	// 用户可能连 /api/v3 一起填了——去重，别拼成 /api/v3/api/v3
+	// the user may have filled in /api/v3 as well — dedupe it, don't end up with /api/v3/api/v3
 	b = strings.TrimSuffix(b, "/api/v3")
 	return b + "/api/v3"
 }
 
-// graphQLBase GraphQL 端点。见文件顶注：GHES 走 /api/graphql，不跟 REST 的 /api/v3。
+// graphQLBase returns the GraphQL endpoint. See the file's top comment: GHES uses /api/graphql,
+// not REST's /api/v3.
 func graphQLBase(cred Cred) string {
 	b := strings.TrimRight(strings.TrimSpace(cred.BaseURL), "/")
 	if b == "" {
@@ -66,8 +68,9 @@ func tokenOf(ctx plugin.Ctx) (string, error) {
 	return t, nil
 }
 
-// ghCall 一次 REST 调用。GET/DELETE 走 query，其余走 JSON body。
-// 返回原始字节 + 应答头（分页与速率信息都在头里）。
+// ghCall makes one REST call. GET/DELETE go through the query string, everything else through a
+// JSON body. Returns the raw bytes plus the response headers (pagination and rate-limit info
+// both live in the headers).
 func ghCall(ctx plugin.Ctx, method, path string, params map[string]any) ([]byte, http.Header, error) {
 	cred := credOf(ctx)
 	token, err := tokenOf(ctx)
@@ -93,7 +96,8 @@ func ghCall(ctx plugin.Ctx, method, path string, params map[string]any) ([]byte,
 		return nil, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	// 显式声明 API 版本：不带的话 GitHub 用「当前默认」，哪天默认换代了行为会静默变。
+	// Declare the API version explicitly: without it, GitHub uses "the current default", and
+	// behavior will silently change whenever that default moves on.
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if rd != nil {
@@ -128,11 +132,13 @@ func encodeQuery(params map[string]any) string {
 	return q.Encode()
 }
 
-// ghErr 高频错误 → 下一步该干什么。
+// ghErr maps frequent errors to what to do next.
 //
-// GitHub 的 403 有**两种完全不同的含义**：权限不够，和速率限制。区分靠 X-RateLimit-Remaining：
-// 为 0 就是被限流了。混为一谈的话，用户会拿着「权限不够」去反复检查令牌 scope，
-// 而其实只要等几分钟——这是接 GitHub 最费时间的一个误导。
+// GitHub's 403 has **two completely different meanings**: insufficient permissions, and rate
+// limiting. Tell them apart via X-RateLimit-Remaining: 0 means rate-limited. Conflating the two
+// sends users off repeatedly re-checking their token's scopes when all they needed to do was
+// wait a few minutes — this is the single most time-wasting bit of misdirection when
+// integrating with GitHub.
 func ghErr(code int, raw []byte, path string, h http.Header) error {
 	var e struct {
 		Message string `json:"message"`
@@ -176,7 +182,8 @@ func ghErr(code int, raw []byte, path string, h http.Header) error {
 		return fmt.Errorf("令牌权限不够（403：%s）——经典令牌要勾 repo（私有仓库）与 workflow（触发 Actions）；"+
 			"细粒度令牌要在该仓库上给对应的读写权限", msg)
 	case http.StatusNotFound:
-		// GitHub 对无权限的私有资源同样回 404（防探测）——话要说全，否则用户会一直核对路径。
+		// GitHub also returns 404 for private resources you lack access to (anti-enumeration)
+		// — the message needs to say this explicitly, or users will keep re-checking the path.
 		return fmt.Errorf("找不到（404：%s）——核对 %s；**没权限的私有仓库 GitHub 也回 404**，"+
 			"确认令牌的账号在这个仓库里、且细粒度令牌授权了它", msg, path)
 	case http.StatusConflict:
@@ -189,7 +196,7 @@ func ghErr(code int, raw []byte, path string, h http.Header) error {
 	return fmt.Errorf("GitHub 返回 HTTP %d：%s", code, msg)
 }
 
-// resetHint 限流恢复时间。X-RateLimit-Reset 是 Unix 秒。
+// resetHint reports the time until the rate limit resets. X-RateLimit-Reset is Unix seconds.
 func resetHint(h http.Header) string {
 	if v := strings.TrimSpace(h.Get("Retry-After")); v != "" {
 		return v + " 秒"
@@ -206,10 +213,11 @@ func resetHint(h http.Header) string {
 
 // —— GraphQL ——
 
-// ghGraphQL 一次 GraphQL 调用。
+// ghGraphQL makes one GraphQL call.
 //
-// GraphQL 的错误**不走 HTTP 状态码**：查询失败照样 200，错误在响应体的 errors 里。
-// 不解 errors 的话，一个拼错的字段名会表现成「返回了空数据」——看起来像「这个看板是空的」。
+// GraphQL errors **don't use the HTTP status code**: a failed query still returns 200, with the
+// error in the response body's `errors` field. Without parsing `errors`, a misspelled field name
+// shows up as "returned empty data" — which looks like "this board is empty".
 func ghGraphQL(ctx plugin.Ctx, query string, vars map[string]any) (map[string]any, error) {
 	cred := credOf(ctx)
 	token, err := tokenOf(ctx)
@@ -248,7 +256,8 @@ func ghGraphQL(ctx plugin.Ctx, query string, vars map[string]any) (map[string]an
 			msgs = append(msgs, e.Message)
 		}
 		joined := strings.Join(msgs, "; ")
-		// 看板相关最常见的两种：令牌少 project scope、或组织/个人认错了。
+		// The two most common board-related causes: the token lacks the project scope, or the
+		// wrong org/user was specified.
 		if strings.Contains(joined, "INSUFFICIENT_SCOPES") || strings.Contains(joined, "read:project") {
 			return nil, fmt.Errorf("令牌缺看板权限——经典令牌要加 project（或 read:project）scope，"+
 				"细粒度令牌要给 Projects 读写。原文：%s", joined)
@@ -258,12 +267,13 @@ func ghGraphQL(ctx plugin.Ctx, query string, vars map[string]any) (map[string]an
 	return out.Data, nil
 }
 
-// —— 解析小工具 ——
+// —— parsing helpers ——
 
-// repoSplit 拆 owner/repo。GitHub 全程要求这个形态，早点拒比让 URL 拼出个 404 强。
+// repoSplit splits owner/repo. GitHub requires this shape throughout; rejecting early is better
+// than letting a bad URL produce a 404 downstream.
 func repoSplit(repo string) (string, string, error) {
 	r := strings.Trim(strings.TrimSpace(repo), "/")
-	// 容忍整条仓库地址：https://github.com/owner/repo(.git)
+	// tolerate a full repo URL: https://github.com/owner/repo(.git)
 	if i := strings.Index(r, "github.com/"); i >= 0 {
 		r = r[i+len("github.com/"):]
 	}
@@ -275,7 +285,7 @@ func repoSplit(repo string) (string, string, error) {
 	return url.PathEscape(parts[0]), url.PathEscape(parts[1]), nil
 }
 
-// repoPath /repos/owner/repo 前缀。
+// repoPath builds the /repos/owner/repo prefix.
 func repoPath(repo string) (string, error) {
 	o, r, err := repoSplit(repo)
 	if err != nil {
@@ -284,11 +294,12 @@ func repoPath(repo string) (string, error) {
 	return "/repos/" + o + "/" + r, nil
 }
 
-// hasNext 从 Link 头判断还有没有下一页。
+// hasNext determines whether there's a next page from the Link header.
 //
-// GitHub **不回总数**（搜索接口除外），只在 Link 里给 rel="next"。
-// 拿「本页条数 == 每页大小」当判据是错的：正好整除时会多请求一页，
-// 而最后一页恰好满时又会漏判——所以只认 Link。
+// GitHub **does not return a total count** (except on search endpoints); it only gives
+// rel="next" in the Link header. Using "this page's count == page size" as the criterion is
+// wrong: it over-fetches one extra page when the total divides evenly, and misses the case
+// where the last page happens to be full — so only the Link header is trusted.
 func hasNext(h http.Header) bool {
 	for _, link := range h.Values("Link") {
 		for _, seg := range strings.Split(link, ",") {
@@ -346,12 +357,12 @@ func arr(m map[string]any, k string) []any {
 	return a
 }
 
-// nested 取 m[k1][k2] 的字符串（user.login 这类）。
+// nested reads the string at m[k1][k2] (things like user.login).
 func nested(m map[string]any, k1, k2 string) string {
 	return str(obj(m, k1), k2)
 }
 
-// namesOf 从对象数组里抽某个字段（labels 的 name、assignees 的 login）。
+// namesOf extracts one field from an array of objects (e.g. labels' `name`, assignees' `login`).
 func namesOf(v any, key string) []string {
 	list, _ := v.([]any)
 	out := make([]string, 0, len(list))
@@ -368,7 +379,8 @@ func namesOf(v any, key string) []string {
 	return out
 }
 
-// clip 截断长文本。Issue 正文/搜索片段动辄几 KB，几十条就能把下游上下文吃满。
+// clip truncates long text. Issue bodies/search snippets routinely run to several KB each; a
+// few dozen of them can fill up the downstream context.
 func clip(s string, n int) string {
 	if len(s) <= n {
 		return s
@@ -376,7 +388,7 @@ func clip(s string, n int) string {
 	return s[:n] + "…"
 }
 
-// perPage 每页条数与页码。GitHub 的 per_page 上限是 100。
+// perPage builds the page size and page number params. GitHub's per_page cap is 100.
 func perPage(page int) map[string]any {
 	if page < 1 {
 		page = 1
@@ -384,16 +396,17 @@ func perPage(page int) map[string]any {
 	return map[string]any{"per_page": 50, "page": page}
 }
 
-// isPullRequest 这条 Issue 其实是不是 PR。
+// isPullRequest reports whether this Issue is actually a PR.
 //
-// GitHub 的 /issues 接口**会把 PR 一起返回**，判据是有没有 pull_request 这个键
-// （不是看标题、不是看 URL）。见 schema 包顶注第一条。
+// GitHub's /issues endpoint **returns PRs mixed in**; the criterion is whether the
+// pull_request key is present (not the title, not the URL). See the first point in the schema
+// package's top comment.
 func isPullRequest(m map[string]any) bool {
 	_, ok := m["pull_request"]
 	return ok
 }
 
-// toIssue 把一条 Issue/PR 的 JSON 转成契约形状。
+// toIssue converts one Issue/PR's JSON into the contract shape.
 func toIssue(m map[string]any) schema.Issue {
 	return schema.Issue{
 		Number:    num(m, "number"),
@@ -413,10 +426,11 @@ func toIssue(m map[string]any) schema.Issue {
 	}
 }
 
-// toPR 把一条 PR 的 JSON 转成契约形状。
+// toPR converts one PR's JSON into the contract shape.
 //
-// mergeable 刻意是字符串而不是布尔：GitHub 异步计算它，未算完时是 null——
-// 用布尔的话 null 会落成 false，看起来像「有冲突」，而其实是「还不知道」。
+// mergeable is deliberately a string, not a bool: GitHub computes it asynchronously and it's
+// null while not yet computed — with a bool, null would collapse to false, which looks like
+// "has conflicts" when it actually means "not known yet".
 func toPR(m map[string]any) schema.PR {
 	mergeable := "unknown"
 	if v, ok := m["mergeable"].(bool); ok {

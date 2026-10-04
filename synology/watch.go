@@ -1,11 +1,18 @@
-// 文件变动监听 source（per-credential：一个凭证 = 一个受监听子目录 = 本文件跑一个实例）。
+// File-change watching source (per-credential: one credential = one watched subdirectory
+// = one instance of this file running).
 //
-// 设计要点（Synology/SMB 实况驱动，见 README）：
-//   - fsnotify 不递归：初始 walk 全树加 watch，新建子目录动态补；整目录搬入时给内部文件补 created。
-//   - 落定检测：SMB 客户端保存 = 临时文件+rename，大文件拷贝 = create+持续 write——
-//     文件静默 settle 秒且 size 稳定才上报，否则 wf 会拿到写了一半的文件。
-//   - Synology 垃圾恒忽略：@eaDir（缩略图）/#recycle（回收站）/@* 系统目录/Office 锁文件/._* AppleDouble。
-//   - inotify watch 上限（DSM 默认 8192）打满时 Add 报 no space：状态板亮 error 指去调 sysctl，不静默。
+// Design notes (driven by real-world Synology/SMB behavior, see README):
+//   - fsnotify doesn't recurse: the initial walk adds a watch on the whole tree, and new
+//     subdirectories get one added dynamically; moving a whole directory in backfills
+//     "created" for its inner files.
+//   - Settle detection: an SMB client save is temp-file+rename, a large file copy is
+//     create+continuous write — a file is only reported once it's been silent for
+//     `settle` seconds with a stable size, otherwise the workflow would get a half-written file.
+//   - Synology junk is always ignored: @eaDir (thumbnails) / #recycle (recycle bin) / @*
+//     system directories / Office lock files / ._* AppleDouble.
+//   - When the inotify watch limit (DSM defaults to 8192) is hit, Add returns "no space":
+//     this is surfaced as an error on the status board pointing at the sysctl fix, never
+//     swallowed silently.
 package main
 
 import (
@@ -24,15 +31,16 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// 内置忽略（Synology/系统噪声）：目录名或文件名精确/前缀命中即忽略整棵子树。
+// Built-in ignores (Synology/system noise): an exact or prefix match on a directory or
+// file name ignores the whole subtree.
 var builtinIgnoreExact = map[string]bool{
 	"#recycle": true, "#snapshot": true, ".SynologyWorkingDirectory": true,
 	"Thumbs.db": true, ".DS_Store": true, "desktop.ini": true,
 }
-var builtinIgnorePrefix = []string{"@", "._", "~$"} // @eaDir/@tmp 等系统目录、AppleDouble、Office 锁
+var builtinIgnorePrefix = []string{"@", "._", "~$"} // system directories like @eaDir/@tmp, AppleDouble, Office locks
 var builtinIgnoreSuffix = []string{".tmp", ".part", ".crdownload", ".swp", ".download"}
 
-// isIgnoredName 名字级忽略：内置规则 + 凭证追加的子串模式。
+// isIgnoredName: name-level ignoring: built-in rules + substring patterns appended by the credential.
 func isIgnoredName(name string, extra []string) bool {
 	if builtinIgnoreExact[name] {
 		return true
@@ -57,8 +65,8 @@ func isIgnoredName(name string, extra []string) bool {
 
 type watchCfg struct {
 	root    string
-	include map[string]bool // 小写扩展名（无点）；空=全部
-	ignore  []string        // 追加忽略子串
+	include map[string]bool // lowercase extensions (no dot); empty = all
+	ignore  []string        // extra ignore substrings
 	settle  time.Duration
 }
 
@@ -84,7 +92,7 @@ func parseWatchCfg(cred map[string]string) (watchCfg, error) {
 	return cfg, nil
 }
 
-// includeMatch 文件是否命中扩展名过滤（目录不适用）。
+// includeMatch: whether a file matches the extension filter (doesn't apply to directories).
 func (c watchCfg) includeMatch(path string) bool {
 	if len(c.include) == 0 {
 		return true
@@ -92,7 +100,7 @@ func (c watchCfg) includeMatch(path string) bool {
 	return c.include[strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))]
 }
 
-// ignoredPath root 以下任一路径段命中忽略规则 → 整条路径忽略。
+// ignoredPath: if any path segment below root matches an ignore rule → the whole path is ignored.
 func (c watchCfg) ignoredPath(path string) bool {
 	rel, err := filepath.Rel(c.root, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -106,34 +114,38 @@ func (c watchCfg) ignoredPath(path string) bool {
 	return false
 }
 
-// fsWatcher 一棵目录树的监听器。emit(kind, path, info)：kind ∈ created/changed/deleted（deleted 时 info=nil）。
+// fsWatcher: a watcher for one directory tree. emit(kind, path, info): kind is one of
+// created/changed/deleted (info is nil for deleted).
 type fsWatcher struct {
 	cfg  watchCfg
 	emit func(kind, path string, info os.FileInfo)
 
 	w       *fsnotify.Watcher
 	mu      sync.Mutex
-	known   map[string]bool // 已存在文件清单：区分 created/changed；初始盘点不发事件
+	known   map[string]bool // inventory of existing files: distinguishes created/changed; the initial inventory emits no events
 	pending map[string]*pendingFile
 	dirs    int
 }
 
 type pendingFile struct {
 	timer *time.Timer
-	size  int64 // 上次观察到的 size；落定检查时不一致 → 还在写，重新计时
+	size  int64 // the size last observed; a mismatch at settle-check time means still being written, so the timer resets
 }
 
 func newFSWatcher(cfg watchCfg, emit func(kind, path string, info os.FileInfo)) *fsWatcher {
 	return &fsWatcher{cfg: cfg, emit: emit, known: map[string]bool{}, pending: map[string]*pendingFile{}}
 }
 
-// addTree 递归加 watch + 盘点既有文件。fire=true 时对树内既有文件按新增调度（整目录搬入场景——
-// 目录 move 进来只有目录一条 Create 事件，内部文件不会逐个报）。返回首个 watch 失败错误（上限打满）。
+// addTree: recursively adds watches + inventories existing files. When fire=true,
+// existing files in the tree are scheduled as if newly created (the "whole directory
+// moved in" case — moving a directory in produces only one Create event for the
+// directory itself, with no individual event for its inner files). Returns the first
+// watch-add error (e.g. the limit was hit).
 func (fw *fsWatcher) addTree(root string, fire bool) error {
 	var addErr error
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // 读不动的子树跳过，不因单点失败中断整体
+			return nil // skip a subtree that can't be read, don't let one failure stop the whole walk
 		}
 		if p != fw.cfg.root && fw.cfg.ignoredPath(p) {
 			if d.IsDir() {
@@ -168,7 +180,7 @@ func (fw *fsWatcher) addTree(root string, fire bool) error {
 	return addErr
 }
 
-// schedule 对一个文件安排落定检查（Create/Write 都走这里；重复调度=重置计时）。
+// schedule: schedules a settle check for a file (both Create/Write go through here; scheduling again just resets the timer).
 func (fw *fsWatcher) schedule(path string) {
 	var size int64 = -1
 	if st, err := os.Stat(path); err == nil {
@@ -186,7 +198,8 @@ func (fw *fsWatcher) schedule(path string) {
 	fw.pending[path] = p
 }
 
-// settleCheck 落定检查：静默期后 size 仍在变 → 继续等；稳定 → 按 known 与否发 created/changed。
+// settleCheck: the settle check: if size is still changing after the quiet period, keep
+// waiting; once stable, emit created/changed depending on whether it's already known.
 func (fw *fsWatcher) settleCheck(path string) {
 	st, err := os.Stat(path)
 	fw.mu.Lock()
@@ -195,12 +208,12 @@ func (fw *fsWatcher) settleCheck(path string) {
 		fw.mu.Unlock()
 		return
 	}
-	if err != nil { // 落定前被删/移走：丢弃（Remove 分支负责 deleted）
+	if err != nil { // deleted/moved away before settling: discard (the Remove branch handles "deleted")
 		delete(fw.pending, path)
 		fw.mu.Unlock()
 		return
 	}
-	if st.Size() != p.size { // 还在写：记录新 size，再等一轮
+	if st.Size() != p.size { // still being written: record the new size and wait another round
 		p.size = st.Size()
 		p.timer.Reset(fw.cfg.settle)
 		fw.mu.Unlock()
@@ -216,7 +229,7 @@ func (fw *fsWatcher) settleCheck(path string) {
 	fw.emit(kind, path, st)
 }
 
-// removed 处理 Remove/Rename（移出树同删）：文件本体 + 若是目录则其下全部已知文件。
+// removed: handles Remove/Rename (moving out of the tree counts as a delete): the file itself + if it's a directory, all known files beneath it.
 func (fw *fsWatcher) removed(path string) {
 	prefix := path + string(filepath.Separator)
 	fw.mu.Lock()
@@ -225,7 +238,7 @@ func (fw *fsWatcher) removed(path string) {
 		delete(fw.known, path)
 		gone = append(gone, path)
 	}
-	for k := range fw.known { // 目录被移走/删除：内部文件不会逐个报 Remove
+	for k := range fw.known { // a moved/deleted directory doesn't get an individual Remove event for each inner file
 		if strings.HasPrefix(k, prefix) {
 			delete(fw.known, k)
 			gone = append(gone, k)
@@ -243,7 +256,7 @@ func (fw *fsWatcher) removed(path string) {
 	}
 }
 
-// run 主循环。ctx 取消（凭证被移除/变更）即收摊。
+// run: the main loop. Exits as soon as ctx is canceled (credential removed/changed).
 func (fw *fsWatcher) run(ctx context.Context) error {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -252,7 +265,7 @@ func (fw *fsWatcher) run(ctx context.Context) error {
 	fw.w = w
 	defer w.Close()
 	if err := fw.addTree(fw.cfg.root, false); err != nil {
-		return err // 典型：inotify watch 上限（DSM 默认 8192）——调用方把它亮到状态板
+		return err // typically: the inotify watch limit (DSM defaults to 8192) -- the caller surfaces it on the status board
 	}
 	for {
 		select {
@@ -281,10 +294,10 @@ func (fw *fsWatcher) handle(ev fsnotify.Event) {
 	case ev.Op.Has(fsnotify.Create):
 		st, err := os.Stat(path)
 		if err != nil {
-			return // 创建即消失（临时文件）：无视
+			return // created then immediately gone (a temp file): ignore
 		}
 		if st.IsDir() {
-			if aerr := fw.addTree(path, true); aerr != nil { // 新目录补 watch；搬入目录给内部文件补 created
+			if aerr := fw.addTree(path, true); aerr != nil { // add a watch on the new directory; for a directory moved in, backfill created for its inner files
 				log.Printf("[synology] %v", aerr)
 			}
 			return
@@ -297,11 +310,11 @@ func (fw *fsWatcher) handle(ev fsnotify.Event) {
 			fw.schedule(path)
 		}
 	case ev.Op.Has(fsnotify.Remove) || ev.Op.Has(fsnotify.Rename):
-		fw.removed(path) // rename=移出原位；若移进树内别处，那边会收到 Create
+		fw.removed(path) // rename = moved out of its original spot; if moved elsewhere in the tree, that spot gets a Create
 	}
 }
 
-// —— source 入口（SDK per-credential 实例）——
+// —— source entry point (SDK per-credential instance) ——
 
 func runWatchSource(ctx plugin.SourceCtx) error {
 	cfg, err := parseWatchCfg(ctx.Credential())
@@ -320,8 +333,10 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 		name := filepath.Base(path)
 		ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
 		dir := filepath.Dir(path)
-		// 事件名与 payload 字段都由生成的 TriggerXxx 定死——此前是拼字符串 +
-		// 无类型 payload，写错要等运行期（而且是「事件没触发」这种难查的症状）。
+		// Both the event name and the payload fields are pinned down by the generated
+		// TriggerXxx functions -- previously this was a string concatenation + an
+		// untyped payload, where a mistake only surfaced at runtime (and as the
+		// hard-to-diagnose symptom of "the event just doesn't fire").
 		event := "file_" + kind
 		var eventID string
 		var terr error
@@ -349,7 +364,8 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 	done := make(chan error, 1)
 	go func() { done <- fw.run(ctx) }()
 
-	// 起表成功后报 running（带监听规模，面板一眼可读）；失败（典型 inotify 上限）亮 error 指路。
+	// Once startup succeeds, report "running" (with the watch scale, readable at a glance
+	// on the dashboard); on failure (typically the inotify limit), surface "error" pointing to the fix.
 	time.Sleep(300 * time.Millisecond)
 	fw.mu.Lock()
 	dirs := fw.dirs

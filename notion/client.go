@@ -1,10 +1,12 @@
 package main
 
-// 出站：一条请求要过的四道关——认证、代理、限流、错误翻译。
+// Outbound requests pass through four gates: auth, proxy, rate limiting, error translation.
 //
-// 前两道靠凭证，后两道是 Notion 的实况：**每个连接平均 3 次/秒**（超了回 429 带 Retry-After），
-// 以及一套只有 code 没有人话的错误。尤其 object_not_found——它十有八九不是「id 写错了」，
-// 而是「这一页没 share 给这个集成」，而 Notion 的原文一个字都不提这件事。
+// The first two come from the credential; the other two are Notion facts of life: **roughly 3
+// requests/sec per connection** (go over and you get a 429 with Retry-After), plus a set of errors
+// that give you a code but no human-readable explanation. object_not_found in particular is almost
+// never "the id is wrong" — it's "this page hasn't been shared with the integration", and Notion's
+// own message never says so.
 
 import (
 	"bytes"
@@ -26,23 +28,27 @@ import (
 
 const (
 	notionAPI = "https://api.notion.com/v1"
-	// notionVersion：API 版本。**钉死**——Notion 按这个头决定应答形状，不带的话它按最老的版本回，
-	// 数据源（2025-09-03）与 markdown 接口（2026-03-11）全都不存在。
+	// notionVersion: the API version. **Pinned** — Notion shapes its response based on this header;
+	// without it, it falls back to the oldest version, where neither data sources (2025-09-03) nor
+	// the markdown endpoint (2026-03-11) exist.
 	notionVersion = "2026-03-11"
-	// rateInterval：两次请求之间的最小间隔。Notion 是「每连接平均 3 次/秒」，
-	// 取 340ms 略低于上限——撞 429 再退避是能跑，但一条自动翻页的查询会被拖成锯齿。
+	// rateInterval: the minimum gap between two requests. Notion allows roughly 3 requests/sec per
+	// connection; 340ms sits slightly under that ceiling — hitting 429 and backing off would also
+	// work, but it turns an auto-paginating query into a jagged, stop-start mess.
 	rateInterval = 340 * time.Millisecond
 	maxRetries   = 3
 )
 
-// —— 凭证 ——
+// —— Credentials ——
 
-// Cred 见 zz_credential.go（schema 声明生成）。
+// Cred is in zz_credential.go (generated from the schema declaration).
 
-// authToken：内部集成密钥优先，其次是 OAuth 授权注入的 access_token。
+// authToken prefers the internal integration secret, falling back to the access_token injected by
+// OAuth authorization.
 //
-// 两者是同一类东西（「这个集成能看到哪些页面」的凭据），所以不拆成两条凭证行；
-// 都为空就是没配，错误里直接说清两条路。
+// Both are the same kind of thing (the credential that determines "which pages can this integration
+// see"), so they aren't split into two separate credential fields; if both are empty nothing is
+// configured, and the error spells out both paths.
 func authToken(cred Cred) (string, error) {
 	if t := strings.TrimSpace(cred.Token); t != "" {
 		return t, nil
@@ -54,17 +60,18 @@ func authToken(cred Cred) (string, error) {
 		"要么填 Notion 集成设置页的 Internal Integration Secret（ntn_ 开头），要么点凭证行的「授权」")
 }
 
-// —— HTTP 客户端（按代理缓存）——
+// —— HTTP client (cached per proxy) ——
 
 var (
 	clientMu sync.Mutex
 	clients  = map[string]*http.Client{}
 )
 
-// clientFor：按代理地址缓存客户端。
+// clientFor caches an HTTP client per proxy address.
 //
-// 代理按凭证配而不是靠进程级 HTTP_PROXY：后者是全局的，为一个插件让所有出站绕道，
-// 内网调用会跟着遭殃，也没法按工作空间区分（与搜索插件同一条判断）。
+// The proxy is configured per credential rather than via a process-wide HTTP_PROXY: the latter is
+// global, so routing all outbound traffic for one plugin through it would also drag internal-network
+// calls through the proxy, and it can't be scoped per workspace (same reasoning as the search plugin).
 func clientFor(proxy string) *http.Client {
 	proxy = strings.TrimSpace(proxy)
 	clientMu.Lock()
@@ -84,7 +91,7 @@ func clientFor(proxy string) *http.Client {
 	return c
 }
 
-// —— 限流（按 token）——
+// —— Rate limiting (per token) ——
 
 type limiter struct {
 	mu   sync.Mutex
@@ -96,8 +103,9 @@ var (
 	lims  = map[string]*limiter{}
 )
 
-// limiterFor：一个 token 一个闸。Notion 的限流是**按连接**算的，
-// 同一进程服务多个凭证时各算各的，共用一个闸只会让所有人一起变慢。
+// limiterFor: one gate per token. Notion's rate limit is counted **per connection**; when one
+// process serves multiple credentials each counts separately, and sharing a single gate would just
+// slow everyone down together.
 func limiterFor(token string) *limiter {
 	limMu.Lock()
 	defer limMu.Unlock()
@@ -109,7 +117,7 @@ func limiterFor(token string) *limiter {
 	return l
 }
 
-// wait：排到自己那一格再走。
+// wait blocks until it's this call's turn.
 func (l *limiter) wait(ctx context.Context) error {
 	l.mu.Lock()
 	now := time.Now()
@@ -134,9 +142,9 @@ func (l *limiter) wait(ctx context.Context) error {
 	}
 }
 
-// —— 错误 ——
+// —— Errors ——
 
-// apiError：Notion 的错误应答。
+// apiError is Notion's error response.
 type apiError struct {
 	Status  int
 	Code    string
@@ -145,10 +153,10 @@ type apiError struct {
 
 func (e *apiError) Error() string {
 	switch e.Code {
-	// 这两个是同一件事的两种说法，而且**十有八九不是 id 写错了**：
-	// Notion 的集成默认什么都看不到，要在页面右上角「⋯ → 连接 → 添加」把页面交给它。
-	// 原文（"Could not find page with ID ..."）一个字都不提这件事，
-	// 于是所有人第一次都以为是 id 抄错了。
+	// These two are two names for the same thing, and **it's almost never a wrong id**:
+	// a Notion integration can't see anything by default — the page has to be shared with it via
+	// the top-right "... -> Connections -> Add". The raw message ("Could not find page with ID
+	// ...") never mentions this, so everyone's first instinct is to suspect a typo in the id.
 	case "object_not_found", "restricted_resource":
 		return fmt.Sprintf("Notion 找不到或没权限访问该对象：%s\n"+
 			"多半是这一页/这个库还没交给集成——在 Notion 里打开它 → 右上角「⋯」→「连接」→ 添加你的集成（子页面会自动继承）", e.Message)
@@ -163,16 +171,16 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("Notion 报错 %s: %s", e.Code, e.Message)
 }
 
-// —— 请求 ——
+// —— Requests ——
 
 type reqOpts struct {
 	method string
-	path   string // /pages/xxx，不含 /v1
+	path   string // /pages/xxx, without the /v1 prefix
 	query  url.Values
 	body   any
 }
 
-// callAPI：发一次请求并把应答解进 out。
+// callAPI sends one request and decodes the response into out.
 func callAPI(ctx plugin.Ctx, o reqOpts, out any) error {
 	cred := sokel.CredentialAs[Cred](ctx)
 	tok, err := authToken(cred)
@@ -220,14 +228,16 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 		}
 		resp, err := hc.Do(req)
 		if err != nil {
-			// 网络层失败：Notion 在境外，国内部署不配代理就是这一类，说清楚免得被当成 id 写错
+			// Network-level failure: Notion is hosted abroad, so a deployment with no proxy
+			// configured hits exactly this; spell it out so it isn't mistaken for a wrong id.
 			lastErr = fmt.Errorf("连接 Notion 失败（在境外，部署环境可能要在凭证里配出站代理）: %w", err)
 			break
 		}
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 		resp.Body.Close()
 
-		// 429 = 撞限流，529 = 上游过载。两者同样处理：按 Retry-After 等一等再来。
+		// 429 = rate limited, 529 = upstream overloaded. Both are handled the same way: wait
+		// for Retry-After, then try again.
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == 529 {
 			wait := retryAfter(resp.Header.Get("Retry-After"), attempt)
 			lastErr = &apiError{Status: resp.StatusCode, Code: "rate_limited",
@@ -261,7 +271,7 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 	return lastErr
 }
 
-// retryAfter：Retry-After 秒数；没给就按次数退避。
+// retryAfter reads the Retry-After seconds; falls back to exponential backoff by attempt if absent.
 func retryAfter(h string, attempt int) time.Duration {
 	if s, err := strconv.Atoi(strings.TrimSpace(h)); err == nil && s > 0 {
 		return time.Duration(s) * time.Second
@@ -269,19 +279,21 @@ func retryAfter(h string, attempt int) time.Duration {
 	return time.Duration(1<<attempt) * time.Second
 }
 
-// —— 分页 ——
+// —— Pagination ——
 
-// listResponse：Notion 所有列表接口的共同外壳。
+// listResponse is the common envelope for all of Notion's list endpoints.
 type listResponse struct {
 	Results    []json.RawMessage `json:"results"`
 	HasMore    bool              `json:"has_more"`
 	NextCursor string            `json:"next_cursor"`
 }
 
-// paginate：翻到攒够 max 条为止。返回原始条目、是否还有更多、下一页游标。
+// paginate pages through results until max items are collected. Returns the raw items, whether more
+// remain, and the next cursor.
 //
-// 每页 100 是 Notion 的上限；调用方给的 max 决定翻几页。**不自动无限翻**：
-// 一个几万行的库会把工作流拖死，也会把限流吃光。
+// 100 per page is Notion's ceiling; the caller's max decides how many pages to fetch. **It never
+// paginates without bound**: a database with tens of thousands of rows would stall the workflow and
+// burn through the rate limit.
 func paginate(ctx plugin.Ctx, o reqOpts, max int, cursor string) ([]json.RawMessage, bool, string, error) {
 	if max <= 0 {
 		max = 100
@@ -328,41 +340,42 @@ func paginate(ctx plugin.Ctx, o reqOpts, max int, cursor string) ([]json.RawMess
 	}
 }
 
-// —— ID ——
+// —— IDs ——
 
 var hex32 = regexp.MustCompile(`[0-9a-fA-F]{32}`)
 
-// notionID：从「id / 带横线的 uuid / 一条完整 Notion 链接」里取出 32 位 id。
+// notionID extracts a 32-char id from an "id / hyphenated uuid / full Notion URL" input.
 //
-// 平台没有「远程下拉选一个数据库」那种控件，所有 id 只能靠贴。而人手上有的
-// 从来是浏览器地址栏里那条链接，不是 id——不认链接的话，每个字段都要人先学会
-// 「id 是链接结尾那串没有横线的东西，但不要 ?v= 后面那串」。
+// The platform has no "remote dropdown, pick a database" control, so every id has to be pasted in.
+// And what a person has on hand is always the browser address-bar link, never the bare id — if the
+// field doesn't accept links, everyone has to first learn that "the id is the string at the end of
+// the link with the hyphens stripped, but not the part after ?v=".
 //
-// 只看 path 不看 query 是关键：数据库链接的 `?v=<32位>` 是**视图 id**，
-// 拿它去查会得到一个 object_not_found，而错因完全看不出来。
+// Looking only at the path and ignoring the query is the key bit: a database link's `?v=<32 chars>`
+// is the **view id**, and querying with it gets you an object_not_found with no clue why.
 func notionID(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
 	}
-	// 已经是 id：32 位裸 hex，或带横线的 uuid
+	// Already an id: a bare 32-char hex string, or a hyphenated uuid
 	if m := hex32.FindString(strings.ReplaceAll(s, "-", "")); m != "" && len(strings.ReplaceAll(s, "-", "")) == 32 {
 		return m
 	}
 	path := s
 	if u, err := url.Parse(s); err == nil && u.Host != "" {
-		path = u.Path // 丢掉 query：?v= 是视图 id，不是数据库 id
+		path = u.Path // Drop the query: ?v= is the view id, not the database id
 	} else if i := strings.IndexAny(s, "?#"); i >= 0 {
 		path = s[:i]
 	}
 	all := hex32.FindAllString(strings.ReplaceAll(path, "-", ""), -1)
 	if len(all) == 0 {
-		return strings.TrimSpace(s) // 认不出来就原样交给 Notion，让它的错误去说话
+		return strings.TrimSpace(s) // Unrecognized — hand it to Notion as-is and let its error speak
 	}
 	return all[len(all)-1]
 }
 
-// requireID：必填 id 的取值（顺带抠链接）。
+// requireID fetches a required id value (also unwraps links).
 func requireID(field, v string) (string, error) {
 	id := notionID(v)
 	if id == "" {

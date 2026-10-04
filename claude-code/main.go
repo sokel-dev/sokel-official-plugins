@@ -1,11 +1,13 @@
-// claude-code —— Sokel 第一方插件：把本机的 Claude Code 接进工作流。
+// claude-code — a first-party Sokel plugin: wires the local Claude Code CLI into a workflow.
 //
-// 给它一个 GitLab 项目 + 一句任务，它在真实工作树里干活；过程实时回传，
-// 结论/改动清单/成本作为出参进下游节点。设计判断见 schema/schema.go 顶注。
+// Give it a GitLab project and a task description, and it works in a real worktree; progress streams
+// back live, and the conclusion/changed-files list/cost are passed downstream as outputs. See the top
+// comment in schema/schema.go for the design rationale.
 //
-// **部署约束**：这个插件必须跑在「能访问内网 GitLab + 装了 claude + 有磁盘」的机器上。
+// **Deployment constraint**: this plugin must run on a machine that has access to the internal GitLab,
+// has claude installed, and has disk space.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./claude-code
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./claude-code
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

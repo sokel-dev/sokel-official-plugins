@@ -1,7 +1,8 @@
 package main
 
-// 假实例。钉四件事：字数上限**问实例**而不是写死 500、发布带幂等键、
-// 嘟文串整串继承 CW 与可见性、媒体异步处理要等完再发嘟。
+// A fake instance. Pins down four things: the character limit is **asked from the instance**
+// rather than hardcoded to 500, publishing carries an idempotency key, a thread inherits CW and
+// visibility across its whole length, and asynchronous media processing must finish before posting.
 
 import (
 	"context"
@@ -52,7 +53,8 @@ func (c *capture) lastForm() url.Values {
 	return c.forms[len(c.forms)-1]
 }
 
-// fakeInstance：默认实例字数上限 5000（**不是 500**，用来钉「问实例」这件事）。
+// fakeInstance: the default instance has a 5000 character limit (**not 500**, specifically to pin
+// down the "asks the instance" behavior).
 func fakeInstance(t *testing.T, cap *capture, routes map[string]func(http.ResponseWriter, *http.Request)) *httptest.Server {
 	t.Helper()
 	n := 0
@@ -97,12 +99,14 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-// 字数上限**问实例**。写死 500 的话，中文实例上一条本可以发的长文会被自己拦下来。
+// The character limit **is asked from the instance**. Hardcoding 500 would reject a long post on
+// a Chinese-language instance that could otherwise go through.
 func TestCharLimitComesFromInstance(t *testing.T) {
 	cap := &capture{}
 	srv := fakeInstance(t, cap, nil)
 
-	// 800 字：在 500 上限的实例上该被拦，在这个 5000 的实例上必须发得出去
+	// 800 characters: should be rejected on a 500-limit instance, but must go through on this
+	// 5000-limit one
 	out, err := opStatusCreate(ctxTo(t, srv.URL), &MastoStatusCreateIn{Text: strings.Repeat("字", 800)})
 	if err != nil {
 		t.Fatalf("实例上限是 5000，800 字不该被拦: %v", err)
@@ -140,7 +144,7 @@ func TestOverInstanceLimitIsRejectedBeforeSending(t *testing.T) {
 	}
 }
 
-// 幂等键：工作流重试不该在时间线上留两条一样的嘟文。
+// Idempotency key: a workflow retry shouldn't leave two identical posts on the timeline.
 func TestPublishSendsStableIdempotencyKey(t *testing.T) {
 	cap := &capture{}
 	srv := fakeInstance(t, cap, nil)
@@ -169,7 +173,8 @@ func TestPublishSendsStableIdempotencyKey(t *testing.T) {
 	}
 }
 
-// CW 与可见性整串继承：混进两种可见性的话，读者只能看到断断续续的半串。
+// CW and visibility are inherited across a whole thread: mixing in two different visibilities
+// leaves readers seeing only a disjointed half.
 func TestThreadInheritsVisibilityAndCW(t *testing.T) {
 	cap := &capture{}
 	srv := fakeInstance(t, cap, nil)
@@ -208,14 +213,15 @@ func TestThreadInheritsVisibilityAndCW(t *testing.T) {
 	}
 }
 
-// 媒体异步：url 为空表示还在转码，这时发嘟会被 422 拒。要等到处理完。
+// Media is asynchronous: an empty url means it's still transcoding, and posting at that point gets
+// a 422. It has to wait until processing is done.
 func TestAsyncMediaIsAwaited(t *testing.T) {
 	cap := &capture{}
 	polls := 0
 	srv := fakeInstance(t, cap, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /api/v2/media": func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
-			io.WriteString(w, `{"id":"m9","url":null}`) // 202：还在处理
+			io.WriteString(w, `{"id":"m9","url":null}`) // 202: still processing
 		},
 		"GET /api/v1/media/m9": func(w http.ResponseWriter, r *http.Request) {
 			polls++
@@ -244,7 +250,8 @@ func TestAsyncMediaIsAwaited(t *testing.T) {
 	}
 }
 
-// 投票与媒体不能同时给（Mastodon 的限制），要在发出去之前拦下。
+// A poll and media can't be given together (a Mastodon limitation), and must be caught before
+// sending anything.
 func TestPollWithMediaRejected(t *testing.T) {
 	cap := &capture{}
 	srv := fakeInstance(t, cap, nil)
@@ -258,7 +265,8 @@ func TestPollWithMediaRejected(t *testing.T) {
 	}
 }
 
-// 令牌无效是结论不是故障：平台拿 ok=false 去写凭证状态。
+// An invalid token is a conclusion, not a fault: the platform uses ok=false to write the
+// credential's status.
 func TestHealthCheckReportsFailureAsResult(t *testing.T) {
 	cap := &capture{}
 	srv := fakeInstance(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -280,7 +288,7 @@ func TestHealthCheckReportsFailureAsResult(t *testing.T) {
 	}
 }
 
-// 用户粘的可能是嘟文链接而不是 id。
+// A user might paste in a post link instead of an id.
 func TestStatusIDFromLink(t *testing.T) {
 	if got := statusID("https://m.example/@acme/109876543210"); got != "109876543210" {
 		t.Errorf("链接没取出 id: %q", got)

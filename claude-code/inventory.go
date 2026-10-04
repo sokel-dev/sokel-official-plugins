@@ -1,9 +1,10 @@
 package main
 
-// 工作树盘点：这台机器上现在有哪些工作树、各自什么状态。
+// Worktree inventory: which worktrees exist on this machine right now, and what state each is in.
 //
-// 有它之前，「管理」只能是「你说出 project + branch，我删掉」——看不见就等于管不了：
-// 磁盘被谁吃掉、哪些还有没提交的改动删不得、哪个会话还能接管，全靠人记。
+// Before this, "management" could only mean "you tell me the project + branch, I delete it" — if you
+// can't see it, you can't manage it: who's eating the disk, which ones have uncommitted changes that
+// can't be deleted, which session can still be resumed — all of that had to be kept in someone's head.
 
 import (
 	"os"
@@ -14,12 +15,12 @@ import (
 	"github.com/sokel-dev/sokel-official-plugins/claude-code/schema"
 )
 
-// scanWorktrees 扫工作区。project 非空则只看那一个项目。
+// scanWorktrees scans the workspace. If project is non-empty, only that one project is scanned.
 func scanWorktrees(project string) []schema.WorktreeInfo {
 	trees := filepath.Join(workspaceRoot(), "trees")
 	projDirs, err := os.ReadDir(trees)
 	if err != nil {
-		return nil // 工作区还没建 = 一个都没有，不是错误
+		return nil // workspace not created yet = there are none, not an error
 	}
 	want := slug(project)
 	var out []schema.WorktreeInfo
@@ -43,7 +44,8 @@ func scanWorktrees(project string) []schema.WorktreeInfo {
 
 func inspectTree(path, projDir, branchDir string) schema.WorktreeInfo {
 	info := schema.WorktreeInfo{Path: path, Project: projDir, Branch: branchDir}
-	// 分支名从 git 里取真名：目录名是 slug 过的（斜杠换下划线），拿它当分支名会误导。
+	// Get the real branch name from git: the directory name is slugified (slashes become underscores),
+	// so using it as the branch name would be misleading.
 	if out, err := git(path, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		if b := strings.TrimSpace(out); b != "" && b != "HEAD" {
 			info.Branch = b
@@ -59,11 +61,11 @@ func inspectTree(path, projDir, branchDir string) schema.WorktreeInfo {
 	return info
 }
 
-// sessionsFor 这个工作目录下有几个 CC 会话、最近一个是哪个。
+// sessionsFor reports how many CC sessions exist for this working directory, and which one is most recent.
 //
-// CC 把会话按 **cwd** 归档：~/.claude/projects/<路径里的 / 换成 ->/<会话id>.jsonl。
-// 必须先解符号链接：macOS 上 /tmp 实际是 /private/tmp，CC 记的是解开之后的那个，
-// 不解就一个都找不到（实测踩过）。
+// CC files sessions by **cwd**: ~/.claude/projects/<path with / replaced by ->/<session-id>.jsonl.
+// Symlinks must be resolved first: on macOS /tmp is actually /private/tmp, and CC records the resolved
+// path, so skipping this step finds zero sessions (hit this in practice).
 func sessionsFor(treePath string) (int, string) {
 	real, err := filepath.EvalSymlinks(treePath)
 	if err != nil {
@@ -97,12 +99,13 @@ func sessionsFor(treePath string) (int, string) {
 	return n, newestID
 }
 
-// dirSizeMB 目录占用。走一遍文件树而不是调 du：少一个外部依赖，也不必担心平台差异。
+// dirSizeMB computes disk usage of a directory. Walks the file tree instead of shelling out to du: one
+// fewer external dependency, and no need to worry about platform differences.
 func dirSizeMB(path string) int {
 	var total int64
 	_ = filepath.WalkDir(path, func(_ string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
-			return nil // 单个文件读不到就跳过，不因为一个权限问题让整次盘点失败
+			return nil // skip a file we can't read — don't let one permission error fail the whole scan
 		}
 		if fi, err := d.Info(); err == nil {
 			total += fi.Size()

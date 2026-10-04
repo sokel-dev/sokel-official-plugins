@@ -1,25 +1,34 @@
-// Package schema 声明 bluesky 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the bluesky plugin.
 //
-// 这是**第一个发布器插件**，统一 publish 契约的样板（docs/social-publishing-plugins.md §3）：
-// 发布类操作一律回 `id` + `url`，长内容的分段归插件，媒体随发布一起走。
+// This is **the first publisher plugin**, the template for the unified publish contract
+// (docs/social-publishing-plugins.md §3): publish operations always return `id` + `url`,
+// the plugin owns splitting long content, and media travels along with the publish call.
 //
-// 四条判断：
+// Four design decisions:
 //
-//  1. **富文本要在插件里算**。AT Protocol 的链接/话题/提及不是从正文里自动认的，
-//     要显式给 facets——而 facets 的下标是 **UTF-8 字节偏移**。发一条带中文和链接的推，
-//     按字符数算下标会让链接错位甚至发不出去。这件事每个用户都会踩，所以插件包掉。
+//  1. **Rich text has to be computed inside the plugin.** AT Protocol doesn't
+//     auto-detect links/hashtags/mentions in the text — facets must be given explicitly,
+//     and a facet's index is a **UTF-8 byte offset**. Posting text that mixes CJK
+//     characters with a link and indexing by character count would misplace the link or
+//     even fail to post. Every user would hit this, so the plugin handles it.
 //
-//  2. **链接卡片默认要做**。财经内容十条有八条是「一句话 + 一个链接」，没有卡片的链接
-//     在时间线上就是一串裸 URL。所以给了链接就顺手抓一次 OG 信息拼成 external 嵌入；
-//     抓不到就退回纯文本链接，**不让它成为发布失败的理由**。
+//  2. **Link cards are built by default.** Eight times out of ten, financial content is
+//     "one sentence + one link", and a cardless link is just a bare URL on the timeline.
+//     So whenever a link is given, the plugin fetches its OG info once and builds an
+//     external embed from it; if that fails, it falls back to a plain text link —
+//     **that failure must not fail the publish**.
 //
-//  3. **图片随发布一起传**，不单列上传操作。Bluesky 的图片上限 2MB、一条最多 4 张，
-//     一次调用传得完；而 blob 引用是个不透明结构，摆到画布上只会让人不知道拿它干嘛
-//     （X 的视频要分片+转码，那才值得独立成操作）。
+//  3. **Images are sent along with the publish call**, not as a separate upload
+//     operation. Bluesky caps images at 2MB with up to 4 per post, which one call can
+//     handle in full; a blob reference is also an opaque structure that would leave
+//     people confused what to do with it on the canvas (X's video needs chunking +
+//     transcoding, which is what would justify a standalone operation).
 //
-//  4. **会话在插件内自管**。createSession 拿到的 accessJwt 只活几分钟，
-//     refreshJwt 才是长期凭据。让用户在凭证里存 token 等于让他每隔几分钟手动换一次——
-//     所以凭证里存的是「账号 + 应用专用密码」，短期会话由插件缓存与续期。
+//  4. **The session is self-managed inside the plugin.** The accessJwt from
+//     createSession only lives a few minutes, while refreshJwt is the long-lived
+//     credential. Having the user store a token in the credential would mean manually
+//     swapping it out every few minutes — so the credential instead stores "identifier +
+//     app password", and the short-lived session is cached and renewed by the plugin.
 package schema
 
 import (
@@ -27,7 +36,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// PostCreate 发一条帖子。
+// PostCreate sends one post.
 type PostCreate struct{}
 
 func (PostCreate) Meta() contract.Meta {
@@ -60,7 +69,7 @@ func (PostCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostThread 发一串帖子。
+// PostThread sends a thread of posts.
 type PostThread struct{}
 
 func (PostThread) Meta() contract.Meta {
@@ -88,7 +97,7 @@ func (PostThread) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostDelete 删一条帖子。
+// PostDelete deletes one post.
 type PostDelete struct{}
 
 func (PostDelete) Meta() contract.Meta {
@@ -105,7 +114,7 @@ func (PostDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform's standard operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -123,10 +132,12 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 //
-// **不存 token 存密码**：AT Protocol 的 accessJwt 只活几分钟，存进凭证等于让人
-// 每隔几分钟手动换一次。应用专用密码是可随时撤销的长期凭据，短期会话由插件自管。
+// **Stores a password, not a token**: AT Protocol's accessJwt only lives a few minutes,
+// and storing it in the credential would mean manually swapping it out every few minutes.
+// An app password is a revocable long-lived credential, and the short-lived session is
+// self-managed by the plugin.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

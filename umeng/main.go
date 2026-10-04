@@ -1,11 +1,14 @@
-// umeng —— Sokel 第一方插件：友盟推送 U-Push（App 推送双通道里的友盟半边）。
+// umeng is a first-party Sokel plugin: Umeng push (U-Push), the Umeng half of the
+// dual-channel app push setup.
 //
-// 接口细节参照一套已在生产运行的推送服务（只借鉴接口知识，不复制代码）：
-//   - 签名：MD5("POST" + 完整URL + body + master_secret)，拼在 ?sign=
-//   - /api/send（unicast/listcast/broadcast）、/api/status、/api/cancel
-//   - Android 与 iOS payload 形状完全不同（Android 自有格式 / iOS 是 APNs aps）
+// The interface details are modeled on a push service already running in production
+// (only the interface knowledge is borrowed, no code is copied):
+//   - Signature: MD5("POST" + full URL + body + master_secret), appended as ?sign=
+//   - /api/send (unicast/listcast/broadcast), /api/status, /api/cancel
+//   - Android and iOS payload shapes are completely different (Android's own format
+//     vs. iOS's APNs aps structure)
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./umeng
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./umeng
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -27,7 +30,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-var apiBase = "https://msgapi.umeng.com" // 测试替换
+var apiBase = "https://msgapi.umeng.com" // overridden in tests
 
 func main() {
 	token := sokel.Env("TOKEN")
@@ -65,7 +68,8 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// appOf 按平台取那对钥匙（友盟里 Android 与 iOS 是两个 App）。
+// appOf returns the key pair for the given platform (Android and iOS are two separate
+// apps in Umeng).
 func appOf(cred Cred, platform string) (appKey, secret string, err error) {
 	if platform == "ios" {
 		appKey, secret = strings.TrimSpace(cred.IosAppKey), strings.TrimSpace(cred.IosMasterSecret)
@@ -81,14 +85,14 @@ func appOf(cred Cred, platform string) (appKey, secret string, err error) {
 	return appKey, secret, nil
 }
 
-// sign 友盟签名：MD5("POST" + 完整URL + body + master_secret)。
+// sign computes the Umeng signature: MD5("POST" + full URL + body + master_secret).
 func sign(fullURL, body, secret string) string {
 	h := md5.New()
 	_, _ = io.WriteString(h, "POST"+fullURL+body+secret)
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// umResp 友盟统一应答壳。
+// umResp is Umeng's unified response envelope.
 type umResp struct {
 	Ret  string `json:"ret"` // SUCCESS / FAIL
 	Data struct {
@@ -129,7 +133,7 @@ func post(ctx plugin.Ctx, path, secret string, body map[string]any) (*umResp, er
 	return &r, nil
 }
 
-// umErr 高频错误码 → 下一步。
+// umErr maps frequent error codes to actionable next steps.
 func umErr(code, msg string) error {
 	switch code {
 	case "1001", "1002", "1003":
@@ -137,14 +141,15 @@ func umErr(code, msg string) error {
 	case "1007":
 		return fmt.Errorf("device_token 不合法（code %s）——Android 是 44 位，iOS 是 64 位十六进制", code)
 	case "2000":
-		// 2000 是友盟的大杂烩码：任务不存在、应用被禁用、appkey 无效都用它，
-		// **只能靠 error_msg 区分**（实测假 appKey 回 2000+「该应用已被禁用」）。
+		// 2000 is Umeng's catch-all code: task not found, app disabled, and invalid
+		// appkey all return it, so **the only way to tell them apart is error_msg**
+		// (observed in practice: a fake appKey returns 2000 + "该应用已被禁用").
 		return fmt.Errorf("友盟拒绝了请求（code 2000：%s）——task_id 或 appkey/secret 核对；单播消息类没有任务统计", msg)
 	}
 	return fmt.Errorf("友盟返回错误（code %s）：%s", code, msg)
 }
 
-// —— 操作 ——
+// —— Operations ——
 
 func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 	title, body := strings.TrimSpace(in.Title), strings.TrimSpace(in.Body)
@@ -178,12 +183,13 @@ func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 	if len(tokens) > 0 {
 		req["device_tokens"] = strings.Join(tokens, ",")
 	}
-	// payload 两个平台形状完全不同：Android 自有格式，iOS 是 APNs 的 aps 结构。
+	// The payload shape is completely different between the two platforms: Android
+	// uses its own format, iOS uses APNs' aps structure.
 	if platform == "ios" {
 		aps := map[string]any{"alert": map[string]any{"title": title, "body": body}}
 		pl := map[string]any{"aps": aps}
 		for k, v := range in.Extras {
-			pl[k] = v // iOS 自定义键与 aps 平级
+			pl[k] = v // on iOS, custom keys sit alongside aps at the top level
 		}
 		req["payload"] = pl
 	} else {
@@ -258,8 +264,9 @@ func opCancel(ctx plugin.Ctx, in *CancelIn) (*CancelOut, error) {
 	return &CancelOut{OK: true}, nil
 }
 
-// opHealthCheck 拿不存在的任务号问状态：钥匙错回 1002/1003（当场暴露），
-// 钥匙对回「任务不存在」（= 通）。不发真推送。
+// opHealthCheck queries the status of a nonexistent task ID: wrong credentials return
+// 1002/1003 (exposing the problem immediately), correct credentials return "task not
+// found" (= healthy). No real push is sent.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cred := credOf(ctx)
 	var parts []string
@@ -273,10 +280,13 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		r, perr := post(ctx, "/api/status", secret, map[string]any{
 			"appKey": appKey, "timestamp": time.Now().Unix(), "task_id": "healthcheck-nonexistent",
 		})
-		// 2000 是大杂烩码，**必须拿友盟的原始 error_msg 判**——含「任务/task」= 钥匙对
-		// （只是任务号不存在）；「禁用/无效/鉴权」= 钥匙错。两次翻车都在这：
-		// ① 拿 error_code 判，假 appKey 也回 2000 被放行；② 拿翻译后的错误串判，
-		// 翻译文本自带「task_id」字样，照样放行。判据只认上游原文。
+		// 2000 is a catch-all code, so **the judgment must use Umeng's raw error_msg**:
+		// containing "任务"/"task" = credentials are valid (just no such task ID);
+		// "disabled"/"invalid"/"auth" = credentials are wrong. Both past failures
+		// happened here: (1) judging by error_code let a fake appKey through, since it
+		// also returns 2000; (2) judging by a translated error string let it through
+		// too, since the translated text happens to contain "task_id". The judgment
+		// must only trust the upstream's raw text.
 		if perr != nil {
 			raw := ""
 			if r != nil {

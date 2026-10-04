@@ -1,9 +1,11 @@
-// redis —— Sokel 第一方插件：Redis 读写与消息（自建 / 云托管通吃）。
+// redis — a first-party Sokel plugin: Redis reads/writes and messaging (works with both self-hosted and
+// cloud-hosted instances).
 //
-// 22 个操作覆盖 字符串/哈希/列表/集合/有序集合/Stream 六类结构 + call 保底，
-// 外加事件源（Pub/Sub 频道、Stream 消费）。设计判断见 schema/schema.go 顶注。
+// 22 operations cover six data structures (string/hash/list/set/sorted set/Stream) plus a call fallback,
+// alongside event sources (Pub/Sub channels, Stream consumption). See the top comment in
+// schema/schema.go for the design rationale.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./redis
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./redis
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -52,7 +54,8 @@ func main() {
 	OnCall(p, opCall)
 	OnHealthCheck(p, opHealthCheck)
 
-	// 事件源：Pub/Sub 订阅 + Stream 消费（凭证填了 watch_channels / watch_streams 才启动）。
+	// Event sources: Pub/Sub subscription + Stream consumption (only starts when the credential's
+	// watch_channels / watch_streams is set).
 	DeclareEvents(p)
 	sokel.RegisterSource(p, sokel.Source{ID: "consume", Label: "Redis 消息消费"}, runEvents)
 

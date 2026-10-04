@@ -1,9 +1,11 @@
-// wechat-mp —— Sokel 第一方发布器插件：微信公众号（建草稿 / 发布 / 上传图片）。
+// wechat-mp — a Sokel first-party publisher plugin: WeChat Official Accounts (create draft /
+// publish / upload image).
 //
-// 与 bluesky / mastodon / discord 同一套 publish 契约。公众号的四件特殊事见
-// schema/schema.go 顶部：两步发布、封面图必填、正文图必须是微信域名的、IP 要在白名单。
+// Uses the same publish contract as bluesky / mastodon / discord. The four special things about
+// Official Accounts are covered at the top of schema/schema.go: two-step publishing, a mandatory
+// cover image, body images must be on a WeChat domain, and the caller IP must be allowlisted.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./wechat-mp
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./wechat-mp
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

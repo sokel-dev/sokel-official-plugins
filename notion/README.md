@@ -1,41 +1,51 @@
-# notion — 读写 Notion + 数据源变动触发（第一方自部署插件）
+# notion — read/write Notion + data-source-change triggers (first-party self-hosted plugin)
 
-18 个操作（搜索/读页/查表/建页改页/markdown 正文/评论/文件上传…）+ 2 个事件
-（新增行 / 行被修改）。面向用户的说明书是 [docs/notion.md](docs/notion.md)。
+18 operations (search/get page/query database/create & update pages/markdown content/comments/file
+upload...) + 2 events (row created / row updated). The user-facing manual is
+[docs/notion.md](docs/notion.md).
 
-## 三条设计判断（详见 `schema/schema.go` 顶部）
+## Three design decisions (see the top of `schema/schema.go` for details)
 
-1. **按数据源建模，不留 `database_id` 的老形状**。2025-09-03 起 Notion 把 database 拆成
-   「容器 + 数据源」，一个库可以挂多个数据源；查询、建行、关联用的都是 `data_source_id`。
-   按旧形状做出来的契约，用户一给多源库就全线报错，再改就是破坏性迁移（n8n 已经历过一次）。
-2. **正文走 markdown，块树只作兜底**。`GET/PATCH /pages/{id}/markdown` 让「读一页给模型 /
-   让模型改一页」变成一次调用；块级接口仍保留，因为数据库块、嵌入这类东西 markdown 表达不了。
-3. **属性给两份**：`props` 归一化（下游与模型直接可读）、`properties_raw` 原样
-   （rollup/formula 这类归一化必然丢信息的类型有退路）。
+1. **Model around data sources, not the old `database_id` shape.** Since 2025-09-03, Notion split a
+   database into a "container + data sources", and one database can hold multiple data sources;
+   querying, creating rows, and relations all use `data_source_id`. A contract built on the old shape
+   breaks across the board the moment a user hands it a multi-source database, and fixing it later is
+   a breaking migration (n8n has already been through this once).
+2. **Page content goes through markdown, the block tree is only a fallback.** `GET/PATCH
+   /pages/{id}/markdown` turns "read a page for the model" / "let the model edit a page" into a
+   single call; the block-level API is still kept because things like database blocks and embeds
+   can't be expressed in markdown.
+3. **Properties are given both ways**: `props` normalized (directly readable by downstream steps and
+   models) and `properties_raw` as-is (a fallback for types like rollup/formula where normalization
+   inevitably loses information).
 
-## 认证两种并存
+## Two auth methods coexist
 
-内部集成密钥（凭证里填 `ntn_` 开头的 token，自部署最省事）**或** OAuth 授权
-（平台侧 notion provider 代答）。两者是同一类东西——「这个集成能看到哪些页面」的凭据，
-所以不拆成两条凭证行：填了 token 用 token，没填则用授权拿到的 access_token。
+An internal integration secret (paste the `ntn_`-prefixed token into the credential — simplest for
+self-hosting) **or** OAuth authorization (answered on the platform side by the notion provider). Both
+are the same kind of thing — the credential that determines "which pages can this integration see" —
+so they aren't split into two separate credential fields: if a token is set, use it; otherwise fall
+back to the access_token obtained via authorization.
 
-## 事件源为什么是轮询
+## Why the event source polls
 
-Notion 的 webhook 订阅**只能在它的集成设置页手工建**（还要把 verification_token 粘回去验证），
-API 建不了，一个集成也只能挂一个 URL——「插件替用户装好 webhook」这条路它不给。
-要实时就把画布上 webhook 触发节点的地址粘进 Notion（说明书里有）。
+Notion webhook subscriptions can **only be created by hand on its integration settings page** (and
+you have to paste the verification_token back in to verify it); the API can't create them, and one
+integration can only register one URL — "the plugin sets up the webhook for the user" simply isn't
+an option here. For real-time updates, paste the canvas's webhook trigger node address into Notion
+(it's in the manual).
 
-## 文件
+## Files
 
-| 文件 | 干什么 |
+| File | What it does |
 |---|---|
-| `schema/` | 契约（事实源） |
-| `client.go` | 出站：认证、代理、限流（3 次/秒）、错误翻译 |
-| `props.go` | 属性归一化（两份都给的那一半） |
-| `read.go` / `write.go` | 读侧 / 写侧操作 |
-| `watch.go` | 事件源：按 `last_edited_time` 拉增量 |
+| `schema/` | Contract (source of truth) |
+| `client.go` | Outbound: auth, proxy, rate limiting (3 req/sec), error translation |
+| `props.go` | Property normalization (the "normalized" half of giving both) |
+| `read.go` / `write.go` | Read-side / write-side operations |
+| `watch.go` | Event source: pulls incrementally via `last_edited_time` |
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

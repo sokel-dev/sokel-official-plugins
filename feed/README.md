@@ -1,77 +1,95 @@
-# feed — Feed 订阅插件（一个操作，多个来源，产出 JSON）
+# feed — feed subscription plugin (one operation, many sources, produces JSON)
 
-从 RSS/Atom 或站点接口拉新条目，产出**统一形状的 JSON 条目 + 增量游标**。
-面向用户的说明书是 [docs/feed.md](docs/feed.md)。
+Pulls new items from RSS/Atom or site APIs and produces **uniformly-shaped JSON items + an
+incremental cursor**. The user-facing manual is [docs/feed.md](docs/feed.md).
 
-## 借鉴 RSSHub 的什么，不借鉴什么
+## What we borrow from RSSHub, and what we don't
 
-| RSSHub 的东西 | 我们 |
+| RSSHub's thing | Us |
 |---|---|
-| **统一条目形状**（一份契约、多家上游） | **抄**——与搜索插件（五家归一）、发布器（七家同一套 publish）同一条路子 |
-| **一源一适配器** | **抄**——加一家 = 加一个文件，契约不动 |
-| **1000+ 站点的抓取规则** | **不抄**。那是它十年攒的资产，也是它全部的维护成本（每个 route 都会因对方改版而坏，靠社区在补）。我们只借鉴「**它怎么取数**」这件知识 |
-| 输出 RSS(XML) | **不做**。下游是工作流节点，给 XML 等于让每个节点先解一次。要 RSS 的话在画布上加一步转换 |
-| 把它当运行时依赖（自部署一个实例） | **不做**（作者定）——多一个要维护的服务，且它自己也会坏 |
+| **Uniform item shape** (one contract, many upstreams) | **Copied** — same approach as the search plugin (five providers normalized) and the publisher (seven providers behind one publish) |
+| **One adapter per source** | **Copied** — adding a source = adding a file, the contract doesn't change |
+| **1000+ scraping rules for sites** | **Not copied.** That's ten years of accumulated assets for them, and also their entire maintenance cost (every route breaks whenever the target changes its site, and the community keeps patching it). We only borrow the knowledge of "**how it fetches data**" |
+| Emitting RSS (XML) output | **Not done.** Downstream consumers are workflow nodes; handing them XML would mean every node has to parse it first. Add a conversion step on the canvas if you need RSS |
+| Treating it as a runtime dependency (self-hosting an instance) | **Not done** (decided by the author) — one more service to maintain, and it breaks on its own too |
 
-**具体借到了什么**：读它的 `lib/routes/xueqiu/user.ts` 才知道雪球的读接口是
-`api.xueqiu.com/v4/statuses/user_timeline.json`，而且**只要一个匿名令牌**（访问首页即得），
-不需要用户登录——所以取数与发帖是两条完全独立的路。自己摸这一条要花掉半天。
+**What was actually borrowed**: reading its `lib/routes/xueqiu/user.ts` is what revealed that
+Xueqiu's read API is `api.xueqiu.com/v4/statuses/user_timeline.json`, and that it **only needs
+an anonymous token** (obtained just by hitting the homepage) — no user login required — so
+fetching data and posting are two completely separate paths. Figuring this out from scratch
+would have taken half a day.
 
-## 三条设计判断
+## Three design decisions
 
-1. **游标 = 时间戳 + 最近见过的 id**（`cursor.go`）。只按时间戳会漏掉同一秒发的第二条
-   （快讯类源一秒好几条是常态）；只按 id 集合会无限膨胀成几十 KB。两者合起来才既不漏也不重，
-   见过的 id 只留最近 50 个。
-2. **首次拉取不回溯全部历史**：接一个发了十年的源，工作流会被几千条瞬间冲垮
-   （与 x/notion 事件源同一条判断）。
-3. **摘要给纯文本、正文 HTML 另存**：下游「喂给模型/发通知」要的是前者，
-   而 RSS 的 description 常常是一整坨 HTML；两个字段都给，谁也不丢。
+1. **Cursor = timestamp + recently seen ids** (`cursor.go`). Timestamp alone would miss a second
+   item published in the same second (wire-style feeds commonly emit several items per second);
+   an id set alone would grow without bound into tens of KB. Combining both avoids dropping or
+   repeating items, and only the most recent 50 seen ids are kept.
+2. **The first fetch doesn't backfill the entire history**: connecting a feed that's been
+   publishing for ten years would otherwise flood the workflow with thousands of items at once
+   (same reasoning as the x/notion event source).
+3. **The summary is plain text, the HTML body is stored separately**: downstream consumers
+   ("feed to a model" / "send a notification") want the former, while an RSS description is
+   often a blob of raw HTML; both fields are provided so nothing is lost.
 
-## 容错（都是国内源逼出来的）
+## Tolerances (all forced by domestic feeds)
 
-- **GBK/GB2312**：不少站点还是这个编码，按 UTF-8 解是一串乱码（`charset.go`）；
-- **非严格 XML**：非法实体（`&nbsp;` 之类）很常见，严格模式会整份解不动；
-- **RSS 与 Atom 字段名不同**（item/entry、pubDate/updated、description/summary、
-  `<link>` vs `<link href>`）——一个解析器全认，否则「换个源就空了」；
-  ⚠️ 作者字段**不能各写一个**：`encoding/xml` 不允许 `author` 与 `author>name` 并存，
-  会整份解析失败（写测试时抓到的）；
-- **时间认不出就留空，不猜**——猜错会让游标跳过真实的新条目；
-- **雪球的接口路径按名字猜必错**：`/v4/statuses/hots.json` 看着最像热帖但是 404；网页端的
-  `xueqiu.com/statuses/hot/listV2.json` 会撞阿里云 WAF 回一页 HTML；只有
-  `api.xueqiu.com/statuses/hot/listV2.json` 通。匿名令牌同理——**首页只发 WAF 的 `acw_tc`，
-  `/hq` 才发 `xq_a_token`**（RSSHub 为这一步上了 Playwright，其实换个入口就够）。
-- **热帖榜套了一层壳**：外层 `items[].id` 是榜单条目 id，正文/时间/作者在 `original_status` 里；
-  不拆壳拿到的是一堆空标题 + 撞不上的去重 id。
-- **快讯的 `target` 是绝对地址**，帖子的是相对路径。不分开处理会拼出 `https://xueqiu.comhttp://…`。
-- **雪球的 created_at 是毫秒**：当秒用会把 2026 年算成 56000 年，游标一跳到未来就再也收不到新内容。
+- **GBK/GB2312**: plenty of sites still use this encoding, which comes out garbled if parsed as
+  UTF-8 (`charset.go`);
+- **Non-strict XML**: invalid entities (like `&nbsp;`) are common; strict mode would fail to
+  parse the whole document;
+- **RSS and Atom use different field names** (item/entry, pubDate/updated, description/summary,
+  `<link>` vs. `<link href>`) — one parser has to recognize all of them, otherwise "switch feeds
+  and it's empty";
+  warning: the author field **can't have a separate field for each** — `encoding/xml` doesn't
+  allow `author` and `author>name` to coexist, which fails the entire parse (caught while
+  writing tests);
+- **If a timestamp can't be recognized, leave it blank — don't guess**: guessing wrong makes the
+  cursor skip genuinely new items;
+- **Xueqiu's API paths are guaranteed wrong if you guess from the name**:
+  `/v4/statuses/hots.json` looks the most like "hot posts" but 404s; the web-facing
+  `xueqiu.com/statuses/hot/listV2.json` hits Alibaba Cloud's WAF and returns an HTML page; only
+  `api.xueqiu.com/statuses/hot/listV2.json` works. Same for the anonymous token — **the homepage
+  only issues the WAF's `acw_tc`, only `/hq` issues `xq_a_token`** (RSSHub pulled in Playwright
+  for this step, but changing the entry point is actually enough).
+- **The hot-posts list is wrapped in a shell**: the outer `items[].id` is the list-entry id,
+  while the body/time/author live in `original_status`; without unwrapping it you get empty
+  titles and dedup ids that never collide.
+- **A flash-news `target` is an absolute URL**, while a post's is a relative path. Not handling
+  them separately produces `https://xueqiu.comhttp://…`.
+- **Xueqiu's `created_at` is in milliseconds**: treating it as seconds would turn 2026 into the
+  year 56000, jumping the cursor into the future and cutting off all new content.
 
-## 加一个来源要动的地方
+## Where to make changes when adding a source
 
-1. `schema/schema.go` 的 `source` 枚举加一项；
-2. 新建 `<站点>.go`，产出 `[]schema.Item`；
-3. `feed.go` 的 switch 加一个分支。
+1. Add an entry to the `source` enum in `schema/schema.go`;
+2. Create `<site>.go`, producing `[]schema.Item`;
+3. Add a branch to the switch in `feed.go`.
 
-契约、游标、去重、排序都不用碰——那是这个形状的全部意义。
+The contract, cursor, dedup, and sorting don't need to be touched — that's the whole point of
+this shape.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-## 来源分三类，只移植前两类
+## Sources fall into three categories; only the first two are ported
 
-| 类别 | 例子 | 怎么办 |
+| Category | Examples | What to do |
 |---|---|---|
-| **标准 feed** | 各家官网 RSS/Atom | `rss` 来源直接吃 |
-| **站点 JSON 接口** | 雪球（`api.xueqiu.com` 的 user_timeline / hot·listV2 / livenews）、财联社（`/api/cache` + 签名）、东方财富（JSONP，无鉴权）、金十（两个固定请求头） | **移植进来**——这才是这个插件的价值：接口路径、签名算法、时间戳单位这些坑都包掉了 |
-| **只能解析 HTML** | 集思录（列表页 + 详情页两跳）、格隆汇等 | **暂时不做**。画布上「HTTP 请求」+「HTML 提取」两个节点就能拼出来；真要收进插件得引一个 HTML 解析器并为每个站维护选择器——那正是 RSSHub 全部维护成本的来源 |
+| **Standard feeds** | Official RSS/Atom from various sites | Handled directly by the `rss` source |
+| **Site JSON APIs** | Xueqiu (`api.xueqiu.com`'s user_timeline / hot·listV2 / livenews), Cailianpress (`/api/cache` + signature), Eastmoney (JSONP, no auth), Jin10 (two fixed headers) | **Ported** — this is exactly the value of this plugin: the endpoint paths, signing algorithms, and timestamp-unit pitfalls are all handled for you |
+| **HTML-only parsing** | Jisilu (list page + detail page, two hops), Gelonghui, etc. | **Not done for now.** A "HTTP Request" + "HTML Extract" node pair on the canvas can assemble this; actually folding it into the plugin would require pulling in an HTML parser and maintaining selectors per site — which is exactly where RSSHub's entire maintenance cost comes from |
 
-移植一个 JSON 类来源的成本：读一遍它在 RSSHub 里的 route（拿接口路径与签名）+ 写一个 adapter
-文件 + 三行接线，**半小时**。
+Cost of porting one JSON-type source: read through its route in RSSHub once (to get the endpoint
+path and signing algorithm) + write one adapter file + three lines of wiring — **half an hour**.
 
-## 没做的
+## Not done
 
-- **取全文**（RSS 常常只有摘要，按链接抓原文）——作者定了暂时不做，有链接够用；
-- **HTML 类来源**（见上表）；
-- 东财/同花顺——先看它们的 route 是 JSON 还是 HTML，前者可移，后者走节点拼。
+- **Fetching full text** (RSS often only gives a summary; fetching the original via the link) —
+  decided by the author to skip for now, the link is good enough;
+- **HTML-type sources** (see table above);
+- Eastmoney/THS (Tonghuashun) — check whether their routes are JSON or HTML first; the former
+  can be ported, the latter goes through node composition.

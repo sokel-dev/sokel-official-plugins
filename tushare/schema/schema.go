@@ -5,12 +5,14 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// 增量流的签名与其它增量流插件逐字一致（入参给游标、出参回下一个游标），
-// 刻意如此：画布上「取游标 → 拉一批 → 写回游标」那三步应当换个数据源就能照抄，
-// 而不是每个上游一套接法。
+// The incremental-stream signature matches the other incremental-stream plugins verbatim (inputs
+// take a cursor, outputs return the next cursor), deliberately so: the canvas's three-step "read
+// cursor -> pull a batch -> write the cursor back" should carry over unchanged when swapping in a
+// different data source, instead of each upstream getting its own wiring.
 
-// dateCursorInputs 日期型增量流的公共入参。
-// TuShare 的研报接口只能按 trade_date 整天取，没有增量 ID，故游标是日期。
+// dateCursorInputs holds the shared inputs for date-based incremental streams.
+// TuShare's research report endpoints can only be fetched a whole trade_date at a time, with no
+// incremental ID, hence the cursor is a date.
 func dateCursorInputs(startDesc string) []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.String("cursor").Label("游标（日期）").
@@ -33,7 +35,8 @@ func dateCursorOutputs(itemsLabel string) []contract.FieldSpec {
 	}
 }
 
-// SyncBrokerIndustryReports 行业研报增量流（research_report，report_type=行业研报）。
+// SyncBrokerIndustryReports is the industry research report incremental stream (research_report,
+// report_type=行业研报/"industry report").
 type SyncBrokerIndustryReports struct{}
 
 func (SyncBrokerIndustryReports) Meta() contract.Meta {
@@ -52,7 +55,8 @@ func (SyncBrokerIndustryReports) Outputs() []contract.FieldSpec {
 	return dateCursorOutputs("行业研报列表")
 }
 
-// SyncBrokerStockReports 个股研报增量流（research_report，report_type=个股研报）。
+// SyncBrokerStockReports is the individual-stock research report incremental stream
+// (research_report, report_type=个股研报/"stock report").
 type SyncBrokerStockReports struct{}
 
 func (SyncBrokerStockReports) Meta() contract.Meta {
@@ -71,7 +75,7 @@ func (SyncBrokerStockReports) Outputs() []contract.FieldSpec {
 	return dateCursorOutputs("个股研报列表")
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {
@@ -83,13 +87,16 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证体检 ——
+// —— Credential health check ——
 
-// HealthCheck 体检这条凭证：打一次门槛最低的接口，看 token 认不认。
+// HealthCheck checks this credential: hits the lowest-threshold endpoint once to see whether the
+// token is recognized.
 //
-// 操作 id 必须是 health_check——平台凭证页的「检查」按钮据此判断这个插件能不能验活。
-// token 无效时返回 ok=false + message 而不是 error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」，后者才是这里要说的话。
+// The operation id must be health_check — the platform's credential page uses this to decide
+// whether this plugin's "check" button can verify liveness. When the token is invalid, it returns
+// ok=false + message instead of an error: the platform treats an error as "this plugin can't run a
+// health check" and ok=false as "the health check concluded it's unusable" — the latter is what
+// needs to be said here.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {

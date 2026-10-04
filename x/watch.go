@@ -1,16 +1,21 @@
 package main
 
-// 事件源：轮询「提及」与「关键词」，把新推文推成事件。
+// Event source: polls "mentions" and "keywords", emitting new tweets as events.
 //
-// **为什么是轮询**：X 的实时推送（filtered stream / Account Activity API）只在 Enterprise 档，
-// 自助档拿不到——这不是偷懒，是那条路根本不开放。n8n / Make 的 X 节点干脆连触发器都没有。
+// **Why polling**: X's real-time push (filtered stream / Account Activity API) is only available on
+// the Enterprise tier, unreachable on the self-serve plan — this isn't laziness, that path simply
+// isn't open to us. n8n's and Make's X nodes don't even have a trigger at all.
 //
-// 四条按 notion/gmail 那两个源踩出来的规矩：
-//   - **首次启动不推历史**：接上一个用了十年的账号，工作流会被几千条提及瞬间冲垮。
-//     没有游标时只记下当前位置。
-//   - **游标写回凭证**：只放内存的话，插件一重启要么重推全部、要么漏掉停机期间的。
-//   - **推失败就地停下**：游标不前进，下一轮从这一条重来（宁可重复不丢，平台侧有去重）。
-//   - **间隔有下限**：X 的读是按条计费的，一个手滑的 10 秒轮询就是一天几万条的账单。
+// Four rules, learned from the notion/gmail event sources:
+//   - **Never emit history on first start**: connecting a ten-year-old account would instantly
+//     flood the workflow with thousands of mentions. With no cursor yet, just record the current
+//     position.
+//   - **Write the cursor back to the credential**: keeping it only in memory means a restart either
+//     re-emits everything or misses changes made while the process was down.
+//   - **Stop right where a push fails**: the cursor doesn't advance, and the next round retries
+//     from here (prefer duplicates over loss — the platform side deduplicates).
+//   - **The interval has a floor**: X charges per read, and an accidental 10-second poll turns into
+//     a bill for tens of thousands of calls a day.
 
 import (
 	"encoding/json"
@@ -29,16 +34,17 @@ import (
 
 const (
 	defaultPollSeconds = 300
-	// minPollSeconds：比这更快没有意义——提及的延迟本来就不止一分钟，
-	// 而每轮都在花钱（读一条约 $0.005）。
+	// minPollSeconds: going faster than this buys nothing — a mention's own latency is already
+	// well over a minute, and every round costs money (reading one costs roughly $0.005).
 	minPollSeconds   = 60
 	watchCursorField = "watch_cursor"
-	// maxPerRound：一轮最多推多少条。被大 V 转发时提及会瞬间涌进来，
-	// 不封顶会把工作流引擎打满；剩下的下一轮继续。
+	// maxPerRound: the max number of events emitted per round. A retweet from a big account can
+	// cause mentions to surge in all at once; not capping this would flood the workflow engine,
+	// so the rest carries over to the next round.
 	maxPerRound = 25
 )
 
-// cursors：两条流各一个游标（提及 / 关键词），存成一个 JSON。
+// cursors holds one cursor per stream (mentions / keywords), stored together as JSON.
 type cursors struct {
 	Mentions string `json:"mentions"`
 	Query    string `json:"query"`
@@ -49,7 +55,8 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 	watchMentions := strings.EqualFold(strings.TrimSpace(cred.WatchMentions), "on")
 	query := strings.TrimSpace(cred.WatchQuery)
 	if !watchMentions && query == "" {
-		// 不配就是不用事件。安静待着，别每分钟报一次错。
+		// Nothing configured means events aren't used. Sit quietly rather than report an error
+		// every minute.
 		log.Printf("x: 凭证没开监听（提及关闭且无查询式），事件源空转")
 		ctx.ReportStatus("running", "未开启监听")
 		<-ctx.Done()
@@ -64,8 +71,9 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 		}
 		changed := false
 		if watchMentions {
-			// 每轮现取：授权账号是谁由 me() 按 token 缓存，这里拿到的几乎总是缓存值；
-			// 而授权失效时它会报错——那正是应该报出来的东西。
+			// Fetched fresh every round: who the authorized account is gets cached per token by
+			// me(), so what's returned here is almost always the cached value; and when
+			// authorization has expired it errors — which is exactly what should be surfaced.
 			u, err := me(ctx)
 			switch {
 			case err != nil:
@@ -94,7 +102,8 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 			}
 		}
 		if changed {
-			// 写失败只记日志：本轮推出去的事件收不回来，下一轮会从旧游标再来一遍。
+			// A write failure is only logged: events already emitted this round can't be taken
+			// back, and the next round will replay from the old cursor.
 			if err := ctx.UpdateCredential(map[string]string{watchCursorField: dumpCursors(cur)}); err != nil {
 				log.Printf("x: 游标写回凭证失败（重启后可能重推）: %v", err)
 			}
@@ -110,7 +119,7 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 	}
 }
 
-// pollOnce：拉一轮增量并推事件，返回新游标。
+// pollOnce fetches one round of changes and emits events, returning the new cursor.
 func pollOnce(ctx plugin.SourceCtx, path string, extra url.Values, cursor, matched string, mention bool) (string, error) {
 	q := readQuery()
 	for k, vs := range extra {
@@ -125,7 +134,7 @@ func pollOnce(ctx plugin.SourceCtx, path string, extra url.Values, cursor, match
 		return cursor, err
 	}
 	items := toPosts(env)
-	// 首次启动：只记下当前位置，**一条历史都不推**。
+	// First start: just record the current position, **no history is emitted**.
 	if cursor == "" {
 		if env.Meta.NewestID == "" {
 			return "", nil
@@ -133,14 +142,15 @@ func pollOnce(ctx plugin.SourceCtx, path string, extra url.Values, cursor, match
 		log.Printf("x: %s 首次启动，从 %s 开始（不推历史）", path, env.Meta.NewestID)
 		return env.Meta.NewestID, nil
 	}
-	// 倒序拉回来的，按 id 正序推——下游看到的顺序才与发生顺序一致。
+	// Fetched in descending order; emitted in ascending order so downstream sees events in the
+	// same order they actually happened.
 	sort.Slice(items, func(i, j int) bool { return idLess(items[i].ID, items[j].ID) })
 
 	next := cursor
 	for _, p := range items {
 		if err := emit(ctx, p, matched, mention); err != nil {
 			log.Printf("x: 推事件失败 %s: %v", p.ID, err)
-			return next, nil // 就地停下，游标不再前进
+			return next, nil // Stop right here, cursor doesn't advance
 		}
 		if idLess(next, p.ID) {
 			next = p.ID

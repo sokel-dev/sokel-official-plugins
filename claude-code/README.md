@@ -1,59 +1,79 @@
-# claude-code — Claude Code 插件（第一方内置目录）
+# claude-code — Claude Code plugin (first-party built-in directory)
 
-把**本机装的 Claude Code** 接进工作流：4 个操作（执行任务 / 继续任务 / 清理工作树 /
-health_check）。任务操作声明 `Stream: true`，过程实时回传。说明书
-[docs/claude-code.md](docs/claude-code.md)。
+Wires **the locally installed Claude Code** into a workflow: 4 operations (run task / resume task /
+cleanup worktrees / health_check). The task operations declare `Stream: true`, so progress streams back
+live. User docs: [docs/claude-code.md](docs/claude-code.md).
 
-**部署约束**：必须跑在「能访问目标 GitLab + 装了 `claude` + 有磁盘」的机器上。
+**Deployment constraint**: must run on a machine that has access to the target GitLab, has `claude`
+installed, and has disk space.
 
-## 为什么是 CLI 子进程
+## Why a CLI subprocess
 
-Claude Agent SDK（Claude Code 的库形态）只有 Python / TypeScript 绑定，**没有 Go 的**。
-对 Go 宿主，CLI 就是官方路径。CLI 没有 `--cwd`，但 Go 的 `cmd.Dir` 正好补上。
+The Claude Agent SDK (Claude Code's library form) only has Python / TypeScript bindings — **no Go one**.
+For a Go host, the CLI is the official path. The CLI has no `--cwd`, but Go's `cmd.Dir` fills that gap
+nicely.
 
-## 坑（改代码前先读）
+## Gotchas (read before touching the code)
 
-- **开关必须照实装核对，不能照文档抄**：`--bare` 和 `--max-turns` 在 2.1.38 **不存在**
-  （文档里有）；`--allowedTools` 是驼峰；工具过滤是**冒号**语法 `Bash(git:*)` 不是空格。
-  成本上限用 `--max-budget-usd`。测试钉着这几个。
-- **result 行是唯一可信的终态**，退出码只说明「进程怎么没的」：0 正常、2 撞成本上限、
-  130/143 被信号打断——撞上限那次其实有产出，当失败处理就把已经花掉的钱扔了。
-- **用 bufio.Reader 不用 Scanner**：`init` 那行动辄几十 KB（工具/技能/插件清单全在里面），
-  Scanner 默认 64KB 上限会 "token too long" 把整条流判死。
-- **只解三类行**（system/init、assistant、result），其余忽略。CC 还会吐 hook/mcp 噪音行，
-  硬性穷举类型早晚被新版本的新类型打断；非 JSON 的脏行也直接丢，不让一行脏数据断掉整条流。
-- **代理只给 CC，git 一律直连**：典型部署是「内网 GitLab + 需要代理连 Anthropic」，
-  两者出站路径相反。把 `http_proxy` 也塞给 git，clone 内网仓库会卡在代理上超时，
-  而报错长得像网络抖动。`gitEnv()` 负责剥干净——注意别把 `GOPROXY` 一起剥了。
-- **令牌只走命令行不进 .git/config**：clone 后立刻 `remote set-url` 换回干净地址。
-  工作树是 CC 能读的目录，令牌躺在那儿等于交出去了。测试钉着。
-- **同名分支复用工作树且不 reset**：「复用」的语义是接着上次干；reset 会把上一轮的改动
-  悄悄抹掉——没有任何报错，只是活白干了。
-- **清理走 `git worktree remove` 不是 rm -rf**：后者在仓库里留悬空记录，下次同名分支
-  `worktree add` 直接报 already registered。
-- **会话接管的边界是「同机 + 同 OS 用户」**：CC 把会话写在
-  `~/.claude/projects/<cwd 转义>/<id>.jsonl`，权限 0600。插件跑在哪个账号下，
-  就只有那个账号能 `--resume`。所以出参必须给出 worktree 路径——不然人知道会话 id
-  也不知道该 cd 去哪。
-- **接管外部目录的闸在部署环境上**（`SOKEL_CC_ALLOW_EXTERNAL_DIRS`，默认关）：那是唯一一处让工作流
-  入参决定 CC 在哪干活的地方，等于把爆炸半径从工作区扩到整机。默认必须是拒绝，测试钉着。
-  外部目录**不给推送**——远端和分支归人管，插件猜一个推上去太危险。
-- **API Key 是可选的**，且空值**绝不能注入环境**：`ANTHROPIC_API_KEY=` 摆在那儿会盖掉
-  机器上 CC 的登录态，把「用订阅额度」这条合法路径堵死，报错还很难懂。测试钉着。
-- **布尔开关的默认值要靠字面意思成立**：清理用 `include_dirty`（连脏的一起删）而不是
-  `keep_dirty`（跳过脏的）——布尔留空就是 false，前者「没填=保护」天然成立，
-  后者还得去猜作者填没填过。同一个 0/缺省坑的第三次。
-- 会话归 CC 自己管（`~/.claude/projects/`），清理工作树**不动它**——否则会误伤同机手工会话。
-- **凭证只放 API Key，其余全走进程环境变量**（env.go）。GitLab 地址/令牌、工作区、
-  claude 路径、代理曾经都在凭证里——那是把部署配置塞进了凭证：同一个令牌要在 gitlab
-  插件和这里各配一份（轮换必漏一处），换机器部署要改凭证，而且凭证是**工作流作者**选的、
-  机器能碰哪些目录该由**运维**定。分工是一条线：凭证=用谁的额度，环境=这台机器能干什么。
+- **Flags must be checked against the real `--help`, never copied from docs**: `--bare` and
+  `--max-turns` **don't exist** in 2.1.38 (even though the docs mention them); `--allowedTools` is
+  camelCase; the tool-filter syntax uses a **colon**, `Bash(git:*)`, not a space. The cost cap flag is
+  `--max-budget-usd`. Tests pin all of this down.
+- **The result line is the only trustworthy final state**; the exit code only tells you "how the process
+  ended": 0 normal, 2 hit the cost budget, 130/143 killed by a signal — hitting the budget still produced
+  real output, and treating it as a failure throws away money that was already spent.
+- **Use bufio.Reader, not Scanner**: the `init` line alone can be tens of KB (it carries the whole
+  tools/skills/plugins inventory), and Scanner's default 64KB limit would kill the whole stream outright
+  with "token too long".
+- **Only three line kinds are parsed** (system/init, assistant, result), everything else is ignored. CC
+  also emits hook/mcp noise lines, and hard-coding an exhaustive list of types would break on the next
+  version's new types anyway; non-JSON garbage lines are simply dropped so one bad line doesn't break the
+  whole stream.
+- **The proxy goes only to CC, git always connects directly**: the typical deployment is "internal
+  GitLab + a proxy needed to reach Anthropic", and the two have opposite outbound paths. Handing
+  `http_proxy` to git as well would make cloning an internal repo hang until it times out on the proxy,
+  and the error looks exactly like network flakiness. `gitEnv()` strips it clean — just be careful not to
+  strip `GOPROXY` along with it.
+- **The token only ever travels via the command line, never into .git/config**: right after cloning, a
+  `remote set-url` switches back to the clean URL. The worktree is a directory CC can read, and a token
+  sitting there is a token handed over. Tests pin this down.
+- **Reusing a worktree for the same branch name never resets it**: "reuse" means picking up where the
+  last run left off; a reset would silently wipe out the previous run's changes — no error at all, the
+  work just quietly vanishes.
+- **Cleanup uses `git worktree remove`, not rm -rf**: the latter leaves a dangling record in the repo,
+  and the next `worktree add` for the same branch name fails outright with "already registered".
+- **Session takeover is bounded by "same machine + same OS user"**: CC writes sessions to
+  `~/.claude/projects/<escaped cwd>/<id>.jsonl` with 0600 permissions. Whichever account the plugin runs
+  under is the only one that can `--resume`. That's why the outputs must include the worktree path —
+  otherwise knowing the session id alone doesn't tell you where to cd.
+- **The gate for taking over an external directory lives in the deployment environment**
+  (`SOKEL_CC_ALLOW_EXTERNAL_DIRS`, off by default): this is the only place where a workflow input decides
+  where CC operates, which expands the blast radius from the workspace to the whole machine. The default
+  must be to refuse, and tests pin this down. External directories **never get pushed** — the remote and
+  branch belong to a person, and it's too risky for the plugin to guess and push.
+- **The API key is optional**, and an empty value **must never be injected into the environment**:
+  a bare `ANTHROPIC_API_KEY=` would shadow CC's own login state on the machine, blocking the legitimate
+  "use the subscription quota" path with a confusing error. Tests pin this down.
+- **A boolean switch's default must hold true by its plain meaning**: cleanup uses `include_dirty`
+  (delete dirty ones too) rather than `keep_dirty` (skip dirty ones) — a boolean left unset is false, so
+  with the former "not set = protected" holds naturally, while the latter would require guessing whether
+  the author ever set it. The third time hitting this same zero-value/default pitfall.
+- Sessions are CC's own to manage (`~/.claude/projects/`); cleaning up worktrees **never touches them** —
+  otherwise it would accidentally wipe out manual sessions on the same machine.
+- **The credential holds only the API key, everything else lives in process environment variables**
+  (env.go). The GitLab address/token, workspace, claude path, and proxy used to all live in the
+  credential — that stuffed deployment config into the credential: the same token would need configuring
+  twice, once in the gitlab plugin and once here (rotation would inevitably miss one), deploying to a
+  different machine would mean editing the credential, and the credential is picked by the **workflow
+  author** while which directories a machine can touch should be decided by **ops**. The split is a clean
+  line: credential = whose quota to use, environment = what this machine is allowed to do.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试夹具是**实机 2.1.38 的 stream-json 原文**——合成语料在这里会骗人（字段名、嵌套层级、
-哪一行才带 session_id 都猜不准）。
+The test fixtures are **actual stream-json output from a real 2.1.38 run** — synthetic fixtures would be
+misleading here (you can't reliably guess field names, nesting depth, or which line actually carries
+session_id).

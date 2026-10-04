@@ -1,20 +1,23 @@
 package schema
 
-// Projects V2（看板）+ 搜索 + 保底直调 + 健康检查。
+// Package schema: Projects V2 (boards) + search + raw-call fallback + health check.
 //
-// **Projects V2 只有 GraphQL**：经典 Projects 的 REST 接口 GitHub 已下线。这四个操作在
-// client.go 里走 GraphQL，契约上看不出区别（也不该看出——调用方不关心传输）。
+// **Projects V2 is GraphQL-only**: GitHub has retired the REST endpoints for classic Projects.
+// These four operations go through GraphQL in client.go, and the distinction is invisible at
+// the contract level (as it should be — callers don't care about the transport).
 //
-// 看板是「维护项目」最常用的那一半：triage 机器人把新 Issue 丢进看板的 Triage 列，
-// 有人认领后挪到 In Progress，合并后挪到 Done。所以除了增删查，必须有**改字段**
-// （挪列本质上是把 Status 这个单选字段改成另一个值）。
+// Boards are the most commonly used half of "maintaining a project": a triage bot drops new
+// Issues into the board's Triage column, someone claiming one moves it to In Progress, and
+// merging moves it to Done. So besides create/delete/list, there must be a **field-update**
+// operation (moving a card between columns is really just changing the single-select Status
+// field to a different value).
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// ProjectsList 看板列表。
+// ProjectsList lists boards.
 type ProjectsList struct{}
 
 func (ProjectsList) Meta() contract.Meta {
@@ -37,7 +40,7 @@ func (ProjectsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Project 一个看板。
+// Project is a single board.
 type Project struct {
 	Number int    `sokel:"number" label:"编号" desc:"看板地址末尾那个数字，其他看板操作用它"`
 	ID     string `sokel:"id" label:"节点 ID" desc:"GraphQL 的全局 ID（PVT_ 开头）；加卡片要它"`
@@ -47,7 +50,7 @@ type Project struct {
 	Items  int    `sokel:"items" label:"卡片数"`
 }
 
-// ProjectItemsList 看板卡片。
+// ProjectItemsList lists a board's items (cards).
 type ProjectItemsList struct{}
 
 func (ProjectItemsList) Meta() contract.Meta {
@@ -71,7 +74,7 @@ func (ProjectItemsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ProjectItem 看板上的一张卡片。
+// ProjectItem is a single card on a board.
 type ProjectItem struct {
 	ID     string   `sokel:"id" label:"卡片 ID" desc:"PVTI_ 开头；改字段要它"`
 	Type   string   `sokel:"type" label:"类型" desc:"ISSUE / PULL_REQUEST / DRAFT_ISSUE"`
@@ -84,7 +87,7 @@ type ProjectItem struct {
 	URL    string   `sokel:"url" label:"页面地址"`
 }
 
-// ProjectItemAdd 把 Issue/PR 加进看板。
+// ProjectItemAdd adds an Issue/PR to a board.
 type ProjectItemAdd struct{}
 
 func (ProjectItemAdd) Meta() contract.Meta {
@@ -110,7 +113,7 @@ func (ProjectItemAdd) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ProjectItemFieldSet 改卡片字段（挪列）。
+// ProjectItemFieldSet changes a card's field value (i.e. moves it between columns).
 type ProjectItemFieldSet struct{}
 
 func (ProjectItemFieldSet) Meta() contract.Meta {
@@ -139,9 +142,9 @@ func (ProjectItemFieldSet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 搜索与保底 ——
+// —— Search and fallback ——
 
-// Search 搜索。
+// Search runs a search.
 type Search struct{}
 
 func (Search) Meta() contract.Meta {
@@ -172,7 +175,7 @@ func (Search) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SearchHit 一条搜索命中。
+// SearchHit is a single search hit.
 type SearchHit struct {
 	Title   string `sokel:"title" label:"标题"`
 	Repo    string `sokel:"repo" label:"仓库"`
@@ -184,7 +187,7 @@ type SearchHit struct {
 	URL     string `sokel:"url" label:"页面地址"`
 }
 
-// Call 保底直调。
+// Call is the raw-call fallback.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -211,7 +214,8 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 健康检查。平台凭证页那个「测试」按钮调的就是它。
+// HealthCheck is the health check. This is what the "Test" button on the platform's
+// credentials page calls.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {

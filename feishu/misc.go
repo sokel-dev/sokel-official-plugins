@@ -1,6 +1,6 @@
 package main
 
-// 通讯录 / 群管理 / 通用调用 / 健康检查。
+// Contacts / chat management / generic call / health check.
 
 import (
 	"bytes"
@@ -15,8 +15,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// opGetUser 邮箱/手机号 → open_id。batch_get_id 接口一次能查多个，我们只用单个形态——
-// 画布上「查一个人再私信」是主流程，批量留给 call。
+// opGetUser converts an email/mobile number into an open_id. The batch_get_id endpoint can look
+// up several at once, but we only use the single form — "look up one person, then DM them" is
+// the main flow on the canvas; batching is left to `call`.
 func opGetUser(ctx plugin.Ctx, in *GetUserIn) (*GetUserOut, error) {
 	email, mobile := strings.TrimSpace(in.Email), strings.TrimSpace(in.Mobile)
 	if email == "" && mobile == "" {
@@ -124,8 +125,9 @@ func opAddChatMembers(ctx plugin.Ctx, in *AddChatMembersIn) (*AddChatMembersOut,
 	return &AddChatMembersOut{InvalidIDs: r.InvalidIDList}, nil
 }
 
-// opCall 通用保底。**这里不把 code!=0 转成错误**：用 call 的人是在直调飞书文档里的
-// 接口，他要的是原样的 code/msg 来对照文档排错——包装反而碍事。
+// opCall is the generic fallback. **A non-zero code is not turned into an error here**: someone
+// using `call` is directly invoking an endpoint from the Feishu docs, and they want the raw
+// code/msg to troubleshoot against those docs — wrapping it would just get in the way.
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	path := strings.TrimSpace(in.Path)
 	if !strings.HasPrefix(path, "/open-apis/") {
@@ -152,12 +154,16 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	return out, nil
 }
 
-// opHealthCheck：健康 = **能不能用 app_id/app_secret 换出 tenant_access_token**
-// （与 manifest 的口径一致）。两点讲究（issue #13 ③④）：
-//   - 直打 token 端点、绕开 SDK 的 client/token 双层缓存——否则改对密钥后体检
-//     恒红到重启、密钥被吊销后假绿约 2 小时，体检说的都不是现在的事实；
-//   - 不再用 bot/v3/info 当判据：没开「机器人」能力的应用（只读多维表格/云文档
-//     那类）调它必失败，而凭证明明可用。bot 名降级为尽力富化，拿不到不扣分。
+// opHealthCheck: healthy = **can app_id/app_secret be exchanged for a tenant_access_token**
+// (matches the manifest's definition). Two deliberate choices here (issue #13 items 3 and 4):
+//   - Hit the token endpoint directly, bypassing the SDK's two-layer client/token cache —
+//     otherwise the health check would stay red forever after fixing the secret until a
+//     restart, and show a false green for about 2 hours after the secret is revoked; either
+//     way the health check wouldn't be reporting the current truth;
+//   - bot/v3/info is no longer used as the criterion: an app that hasn't enabled the "Bot"
+//     capability (e.g. one that only reads Bitable/docs) would always fail that call even
+//     though the credential is perfectly usable. The bot name is now best-effort enrichment —
+//     failing to get it doesn't count against the result.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cred := credOf(ctx)
 	appID, secret := strings.TrimSpace(cred.AppID), strings.TrimSpace(cred.AppSecret)
@@ -187,7 +193,8 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	if tk.Code != 0 {
 		return &HealthCheckOut{OK: false, Message: fmt.Sprintf("换取 tenant_access_token 失败（code %d）：%s", tk.Code, tk.Msg)}, nil
 	}
-	// 富化：有机器人能力就带上 bot 名；没有也不扣分。
+	// Enrichment: include the bot name if the bot capability is available; not having it
+	// doesn't count against the result.
 	name := ""
 	if data, berr := callRaw(ctx, cred, "GET", "/open-apis/bot/v3/info", nil); berr == nil {
 		var r struct {

@@ -1,20 +1,25 @@
-// synology：NAS 文件变动监听插件（sokel SDK，事件源）。
+// synology: a NAS file-change watching plugin (sokel SDK, event source).
 //
-// 部署形态：Docker 跑在 NAS 本机（Synology Container Manager），把卷目录 bind mount 进容器
-// （如 /volume1/research:/watch）。inotify 不穿网络文件系统——容器必须与文件所在内核同机，
-// 其他电脑经 SMB/AFP 写入时 smbd 在本地落盘，事件照常触发。部署细节（含 Synology 的
-// inotify watch 上限任务计划）见 README.md。
+// Deployment shape: Docker runs on the NAS itself (Synology Container Manager), with the
+// volume directory bind-mounted into the container (e.g. /volume1/research:/watch).
+// inotify doesn't cross network filesystems — the container must share a kernel with
+// wherever the files live; when another computer writes over SMB/AFP, smbd writes to disk
+// locally, so the event still fires as usual. See README.md for deployment details
+// (including Synology's inotify watch limit and the scheduled task for it).
 //
-// 凭证 = 监听配置（一个凭证 = 一个受监听子目录 = 一个 source 实例；多目录=多凭证，
-// 平台按凭证分片下发给实例，复用 per-credential source 架构）：
-//   - path            容器内子目录（挂载点下），如 /watch/研报入库
-//   - include         可选扩展名过滤（逗号分隔，如 pdf,docx；空=全部）
-//   - ignore          可选追加忽略模式（逗号分隔子串；内置 Synology 垃圾目录恒忽略）
-//   - settle_seconds  落定秒数（SMB 临时文件之舞/大文件拷贝：静默 N 秒且 size 稳定才上报，默认 2）
+// Credential = watch config (one credential = one watched subdirectory = one source
+// instance; multiple directories = multiple credentials, with the platform sharding
+// delivery to instances by credential, reusing the per-credential source architecture):
+//   - path            the subdirectory inside the container (under the mount point), e.g. /watch/research-intake
+//   - include         optional extension filter (comma-separated, e.g. pdf,docx; empty = all)
+//   - ignore          optional extra ignore patterns (comma-separated substrings; built-in Synology junk directories are always ignored)
+//   - settle_seconds  settle time in seconds (for the SMB temp-file dance / large file copies: only reported once N seconds of silence pass and size has stabilized; default 2)
 //
-// 事件：file_created / file_changed / file_deleted（各自是画布出口分支；只带元数据不带字节，
-// 下游用 read_file 按需取文件）。操作：read_file / list_dir / move_file / delete_file，
-// 路径一律 jail 在凭证 path 内（防越界读写挂载卷其它位置）。
+// Events: file_created / file_changed / file_deleted (each its own branch on the canvas;
+// carries only metadata, not bytes — downstream uses read_file to fetch the file as
+// needed). Operations: read_file / list_dir / move_file / delete_file, with paths always
+// jailed inside the credential's path (to prevent reading/writing outside the mounted
+// volume).
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -33,9 +38,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// —— 事件契约 ——
+// —— event contract ——
 
-// —— 操作 ——
+// —— operations ——
 
 func readFile(ctx plugin.Ctx, in *ReadFileIn) (*ReadFileOut, error) {
 	p, err := jailPath(ctx, in.Path)
@@ -53,9 +58,11 @@ func readFile(ctx plugin.Ctx, in *ReadFileIn) (*ReadFileOut, error) {
 	if mt == "" {
 		mt = "application/octet-stream"
 	}
-	// 边读边传：NAS 上是视频、压缩包这类东西，先 ReadFile 进内存的话，
-	// 一个 2GB 的文件就等于要 2GB 常驻内存——那不是慢一点，是进程直接被撑爆。
-	// 原先为此设了 200MB 上限；流式之后上限没有意义，去掉。
+	// Stream read-to-upload: NAS files are often videos, archives, that kind of thing — if
+	// ReadFile loaded one into memory first, a 2GB file would mean 2GB resident memory,
+	// which isn't just slower, it blows up the process outright. There used to be a
+	// 200MB cap for this reason; once streaming was in place the cap became meaningless
+	// and was removed.
 	rf, err := os.Open(p)
 	if err != nil {
 		return nil, fmt.Errorf("打开文件失败: %w", err)
@@ -83,7 +90,7 @@ func listDir(ctx plugin.Ctx, in *ListDirIn) (*ListDirOut, error) {
 			continue
 		}
 		info, ierr := e.Info()
-		var size int64 // 契约里 DirEntry.Size 是 int64（schema 声明的类型即事实）
+		var size int64 // DirEntry.Size is int64 in the contract (the type schema declares is the source of truth)
 		mtime := ""
 		if ierr == nil {
 			size = info.Size()
@@ -103,7 +110,7 @@ func moveFile(ctx plugin.Ctx, in *MoveFileIn) (*MoveFileOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 目标是目录（显式 / 结尾，或已存在的目录）→ 拼原文件名。
+	// Target is a directory (explicit trailing /, or an existing directory) → append the original file name.
 	if strings.HasSuffix(in.To, "/") {
 		dst = filepath.Join(dst, filepath.Base(src))
 	} else if st, serr := os.Stat(dst); serr == nil && st.IsDir() {
@@ -136,7 +143,7 @@ func deleteFile(ctx plugin.Ctx, in *DeleteFileIn) (*DeleteFileOut, error) {
 	return &DeleteFileOut{OK: true}, nil
 }
 
-// —— 路径 jail：一切操作路径限制在凭证监听目录内（防越界读写挂载卷其它位置）——
+// —— path jail: every operation path is confined to the credential's watched directory (to prevent reading/writing outside the mounted volume) ——
 
 func orDot(p string) string {
 	if strings.TrimSpace(p) == "" {
@@ -176,15 +183,18 @@ func env(k, def string) string {
 	return def
 }
 
-// —— 凭证体检 ——
+// —— credential health check ——
 
-// healthCheck：看监听目录在不在、读不读得了。
+// healthCheck: checks whether the watched directory exists and is readable.
 //
-// 不可用时返回 ok=false + message 而**不是** error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」——后者才是这里要说的话，且 message 里那句系统原文
-// （no such file / permission denied）直接指向卷没挂上还是容器用户没权限。
+// Returns ok=false + message when unavailable, **not** an error: the platform treats an
+// error as "this plugin's health check itself failed", and ok=false as "the health check's
+// conclusion is unavailable" — the latter is what needs to be said here, and the raw
+// system message in message (no such file / permission denied) points straight at
+// whether the volume isn't mounted or the container user lacks permission.
 //
-// 刻意只读不写：这个目录正被自己的 fswatch 盯着，写个探针文件进去等于凭空触发一次工作流。
+// Deliberately read-only, no writes: this directory is being watched by its own fswatch,
+// so writing a probe file into it would trigger a workflow out of nowhere.
 func healthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cfg, err := parseWatchCfg(ctx.Credential())
 	if err != nil {
@@ -223,8 +233,8 @@ func main() {
 		Token:    token,
 		Name:     "synology",
 	})
-	RegisterCredential(p)  // 凭证契约（schema 声明生成；Cred 在 zz_credential.go）
-	p.SetDoc(usageDoc, "") // 使用说明（docs/*.md）：凭证怎么拿、有什么坑，随握手上报给平台
+	RegisterCredential(p)  // credential contract (generated from the schema declaration; Cred is in zz_credential.go)
+	p.SetDoc(usageDoc, "") // usage doc (docs/*.md): how to get the credential, what the gotchas are; reported to the platform during the handshake
 
 	OnReadFile(p, readFile)
 	OnListDir(p, listDir)

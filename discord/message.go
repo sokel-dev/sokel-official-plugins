@@ -1,10 +1,13 @@
 package main
 
-// 出站与三个操作。Discord Webhook 是这批发布器里最简单的一个：一个 URL 就是全部凭据。
+// Outbound requests and the three operations. The Discord webhook is the simplest of this batch of
+// publishers: one URL is the entire credential.
 //
-// 两个不显然的地方：
-//   - **?wait=true**：不带的话 Discord 回 204 空体，拿不到消息 id，下游想改/删都做不到。
-//   - **附件走 multipart**，且 JSON 载荷要放在名为 payload_json 的字段里（不是普通表单键）。
+// Two non-obvious points:
+//   - **?wait=true**: without it, Discord replies with an empty 204 body and there's no message id,
+//     so downstream edit/delete won't work.
+//   - **Attachments go through multipart**, and the JSON payload must go in a field named
+//     payload_json (not a regular form key).
 
 import (
 	"bytes"
@@ -64,7 +67,7 @@ func hookOf(ctx plugin.Ctx) (string, *http.Client, error) {
 	return u, clientFor(c.Proxy), nil
 }
 
-// —— 请求 ——
+// —— Requests ——
 
 type apiError struct {
 	Status  int
@@ -126,7 +129,7 @@ func do(ctx plugin.Ctx, method, uri string, body io.Reader, ctype string, out an
 	return nil
 }
 
-// —— 发消息 ——
+// —— Send message ——
 
 type embed struct {
 	Title       string       `json:"title,omitempty"`
@@ -178,7 +181,8 @@ func opMessageSend(ctx plugin.Ctx, in *DiscordMessageSendIn) (*DiscordMessageSen
 		return nil, fmt.Errorf("正文、卡片、附件至少要有一样")
 	}
 
-	// wait=true：不带的话 Discord 回 204 空体，拿不到消息 id，下游改/删都做不到。
+	// wait=true: without it, Discord replies with an empty 204 body and there's no message id, so
+	// downstream edit/delete won't work.
 	uri := hook + "?wait=true"
 	if t := strings.TrimSpace(in.ThreadID); t != "" {
 		uri += "&thread_id=" + url.QueryEscape(t)
@@ -230,8 +234,8 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	if err != nil {
 		return &HealthCheckOut{OK: false, Message: err.Error()}, nil
 	}
-	// GET webhook 本身：Webhook 还在就回它的信息，被删了就是 404。
-	// **不发测试消息**——健康检查不该在群里留下痕迹。
+	// GET the webhook itself: if it's still alive, it returns its info; if deleted, 404.
+	// **No test message is sent** — a health check shouldn't leave a trace in the channel.
 	var out struct {
 		ID        string `json:"id"`
 		Name      string `json:"name"`
@@ -246,7 +250,7 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return &HealthCheckOut{OK: true, Channel: out.ChannelID, Message: "Webhook「" + out.Name + "」正常"}, nil
 }
 
-// —— 卡片 ——
+// —— Embed cards ——
 
 func buildEmbed(in *DiscordMessageSendIn) *embed {
 	title, desc := strings.TrimSpace(in.Title), strings.TrimSpace(in.Description)
@@ -258,7 +262,8 @@ func buildEmbed(in *DiscordMessageSendIn) *embed {
 	}
 	e := &embed{Title: title, Description: desc, URL: strings.TrimSpace(in.URL),
 		Color: parseColor(in.Color), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	// 字段按键名排序：map 的遍历顺序是随机的，不排的话同样的输入每次发出来的卡片顺序都不同。
+	// Sort fields by key: map iteration order is random, so without sorting the same input would
+	// produce a differently ordered card each time.
 	for _, k := range sortedKeys(in.Fields) {
 		e.Fields = append(e.Fields, embedField{Name: k, Value: in.Fields[k], Inline: true})
 	}
@@ -275,7 +280,7 @@ func buildEmbed(in *DiscordMessageSendIn) *embed {
 	return e
 }
 
-// parseColor：#2b6cb0 / 2b6cb0 → 十进制。认不出就回 0（Discord 用默认色）。
+// parseColor: #2b6cb0 / 2b6cb0 → decimal. Returns 0 (Discord's default color) if unrecognized.
 func parseColor(s string) int {
 	s = strings.TrimPrefix(strings.TrimSpace(s), "#")
 	if s == "" {
@@ -293,7 +298,7 @@ func sortedKeys(m map[string]string) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	for i := 1; i < len(keys); i++ { // 小 map，插入排序足够
+	for i := 1; i < len(keys); i++ { // small map, insertion sort is enough
 		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
 			keys[j], keys[j-1] = keys[j-1], keys[j]
 		}
@@ -301,7 +306,7 @@ func sortedKeys(m map[string]string) []string {
 	return keys
 }
 
-// multipartPayload：附件 + JSON 载荷。JSON 要放在名为 payload_json 的字段里。
+// multipartPayload: attachments + JSON payload. The JSON must go in a field named payload_json.
 func multipartPayload(ctx plugin.Ctx, payload map[string]any, files []*plugin.File) ([]byte, string, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)

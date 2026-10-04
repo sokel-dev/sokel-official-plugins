@@ -1,23 +1,25 @@
-# discord — 发布器插件（P0 三件套之一）
+# discord — publisher plugin (one of the P0 trio)
 
-与 [bluesky](../bluesky/README.md) 同一套 publish 契约（[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3）：
-发布回 `id` + `url`、长内容分段归插件、媒体随发布走、健康检查用平台约定的 `health_check`。
+Shares the same publish contract as [bluesky](../bluesky/README.md) ([docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3):
+publishing returns `id` + `url`, long content splitting is the plugin's own job, media travels with the publish, and health checks use the platform's conventional `health_check`.
 
-面向用户的说明书是 [docs/discord.md](docs/discord.md)（随握手上报）。设计判断写在 `schema/schema.go` 顶部。
+The user-facing manual is [docs/discord.md](docs/discord.md) (reported during handshake). Design decisions are documented at the top of `schema/schema.go`.
 
-## 定位与三条判断
+## Positioning and three design decisions
 
-**社群分发，不是公开发现渠道**——发进去只有频道成员看得到。研报出来推一条到投研群用它；
-要公开曝光用 bluesky / mastodon / x。
+**Community distribution, not a public discovery channel** — what's posted is only visible to channel members.
+Use it to push a note to the research team's channel once a report is out; use bluesky / mastodon / x for public exposure.
 
-1. **走 Webhook 不做 Bot**。发消息这件事上两者能力一样，而 Webhook 只要频道管理员点几下，
-   Bot 要建应用、配 intents、邀请进服务器、管权限。
-2. **嵌入卡片是主形态**。财经推送是「标题 + 摘要 + 链接 + 几个数字」，裸文本在群里不可读。
-   卡片字段**按键名排序**——map 遍历是随机的，不排的话同样的输入每次排版都不同。
-3. **回执要给消息 id**：Webhook 默认回 204 空体，插件恒定带 `?wait=true`，
-   否则下游想改/删这条消息都做不到。
+1. **Webhook by default, not a bot**. For sending messages, the two are equally capable, but a webhook only takes
+   a channel admin a few clicks to create, while a bot requires creating an application, configuring intents,
+   inviting it into the server, and managing permissions.
+2. **The embed card is the primary form**. Financial pushes are "title + summary + link + a few numbers" — plain
+   text would be unreadable when it floods the channel. Embed fields are **sorted by key** — map iteration is
+   random, so without sorting the same input would produce a different layout each time.
+3. **The receipt must include the message id**: a webhook returns an empty 204 body by default, so the plugin
+   always adds `?wait=true`, otherwise downstream can't edit or delete the message.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

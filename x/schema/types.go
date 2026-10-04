@@ -1,13 +1,16 @@
 package schema
 
-// 出参里的元素形状。
+// Element shapes used in operation outputs.
 //
-// 一条贯穿全篇的判断：**归一化在插件里做完**。X 的应答把作者、媒体、被引用的推文都堆在
-// `includes` 里，靠 `expansions` 与下标关联——画布上引用 `items[0].author_username` 是能用的，
-// 引用 `includes.users[3].username` 不是（下标随每次应答变）。同理正文里的链接一律展开成原地址：
-// t.co 短链下游没法直接用，而展开信息就在同一份应答里。
+// One decision runs through all of it: **normalization is done entirely in the plugin**. X's
+// response dumps authors, media, and quoted tweets into `includes`, linked by `expansions` and
+// index — referencing `items[0].author_username` on the canvas works, but referencing
+// `includes.users[3].username` doesn't (the index shifts with every response). Likewise, links in
+// the body are always expanded to their real addresses: a t.co short link is useless downstream,
+// and the expanded form is already in the same response.
 
-// Post 一条推文（X 现在叫 Post，界面上仍按大家的习惯叫「推文」）。
+// Post is a single tweet (X now calls it a "Post", though the UI still calls it "推文"/tweet, as
+// everyone's used to).
 type Post struct {
 	ID        string `sokel:"id" label:"推文 id"`
 	Text      string `sokel:"text" label:"正文"`
@@ -19,8 +22,9 @@ type Post struct {
 	AuthorName     string `sokel:"author_name,optional" label:"作者昵称"`
 
 	ConversationID string `sokel:"conversation_id,optional" label:"对话 id" desc:"整条回复树/推串的根 id，用它把一串回复归堆"`
-	// Kind：X 不给这个字段，是从 referenced_tweets 推出来的。
-	// 「搜索结果里大半是转推」是所有 X 自动化第一次都会撞上的事，不给判据就只能在下游猜。
+	// Kind: X doesn't give us this field; it's derived from referenced_tweets.
+	// "Most of a search result is retweets" is something every X automation runs into the first
+	// time; without a way to tell them apart, downstream would have no choice but to guess.
 	Kind      string `sokel:"kind,optional" label:"类型" desc:"original 原创 / replied_to 回复 / retweeted 转推 / quoted 引用"`
 	RefPostID string `sokel:"ref_post_id,optional" label:"被引用的推文 id" desc:"类型非 original 时有值"`
 	Lang      string `sokel:"lang,optional" label:"语言"`
@@ -36,7 +40,7 @@ type Post struct {
 	Tags  []string `sokel:"tags,optional" label:"话题标签" desc:"不带 #"`
 }
 
-// Media 推文里的一张图/一段视频。
+// Media is one image/video attached to a tweet.
 type Media struct {
 	MediaKey string `sokel:"media_key" label:"媒体键"`
 	Type     string `sokel:"type,optional" label:"类型" desc:"photo / video / animated_gif"`
@@ -44,7 +48,7 @@ type Media struct {
 	AltText  string `sokel:"alt_text,optional" label:"替代文本"`
 }
 
-// User 一个账号。
+// User is one account.
 type User struct {
 	ID          string `sokel:"id" label:"用户 id"`
 	Username    string `sokel:"username,optional" label:"用户名" desc:"不带 @"`
@@ -60,7 +64,7 @@ type User struct {
 	PostCount      int `sokel:"post_count,optional" label:"推文数"`
 }
 
-// DMEvent 一条私信事件。
+// DMEvent is a single direct-message event.
 type DMEvent struct {
 	ID             string `sokel:"id" label:"事件 id"`
 	Kind           string `sokel:"kind,optional" label:"类型" desc:"MessageCreate 消息 / ParticipantsJoin 加入 / ParticipantsLeave 退出"`

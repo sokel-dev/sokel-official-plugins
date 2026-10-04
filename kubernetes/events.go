@@ -1,20 +1,24 @@
 package main
 
-// 轮询事件源：把集群异常推成工作流触发。
+// Polling event source: turns cluster anomalies into workflow triggers.
 //
-// 为什么是轮询而不是 webhook：**k8s 不会主动往外发 HTTP**。它自己的 watch 是
-// 「你连上来，我把变更流给你」，方向仍是我们去连。所以这里没有「平台代收」那条路。
+// Why polling instead of webhook: k8s never initiates outbound HTTP. Its own watch mechanism
+// is "you connect to me, I stream you the changes" -- the connection direction is still us
+// connecting out. So there's no "platform receives it" path here.
 //
-// 为什么先不上 watch：watch 要处理断线重连、以及 resourceVersion 过期（410 Gone 时必须
-// 重新 list 再 watch，否则会静默漏掉这中间的全部变更）。那是这件事真正的难点，
-// 而轮询能先把「事件契约 + 触发链路」跑通。watch 记在 README「没做的」里。
+// Why not watch yet: watch has to handle reconnects after disconnection, plus resourceVersion
+// expiry (on 410 Gone you must re-list then re-watch, otherwise you silently miss every change
+// in between). That's the real hard part of this feature, while polling lets us get the "event
+// contract + trigger pipeline" working first. watch is recorded under "not done" in the README.
 //
-// 三条纪律与 GitHub 那份事件源同构（那边已经踩过）：
-//   - **首轮不触发**：第一次拉到的是集群当前的一堆历史异常，照发的话插件一启动就把
-//     几十条陈年告警全推进工作流。首轮只记游标。
-//   - **游标按「最近发生」**：k8s 对重复事件不新建条目，而是 count++ 并更新 lastTimestamp。
-//     按首次发生比的话，持续中的故障只会在第一轮报出来。
-//   - **event_id 稳定**：让平台去重兜住重复投递。
+// Three disciplines shared with the GitHub event source's structure (already battle-tested there):
+//   - The first round doesn't trigger: what's fetched the first time is a pile of the cluster's
+//     current historical anomalies, and sending them as-is would flood the workflow with dozens
+//     of stale alerts the moment the plugin starts. The first round only records the cursor.
+//   - The cursor tracks "most recently occurred": k8s doesn't create a new entry for a repeated
+//     event, it increments count and updates lastTimestamp. Comparing by first occurrence would
+//     mean an ongoing failure only gets reported in the first round.
+//   - event_id is stable: lets the platform's own dedup absorb repeated delivery.
 
 import (
 	"log"
@@ -25,17 +29,19 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// pollInterval：k8s 的 Event **默认只保留 1 小时**，所以间隔必须远小于它。
-// 60 秒是「够及时」与「别把 API server 打爆」之间的折中——盯十来个命名空间时
-// 每分钟十来次 list，对 API server 是可以忽略的量。
+// pollInterval: k8s Events are only retained for 1 hour by default, so the interval must be
+// much smaller than that. 60 seconds is the tradeoff between "timely enough" and "don't hammer
+// the API server" -- watching a dozen-ish namespaces means a dozen-ish list calls per minute,
+// a negligible load on the API server.
 const pollInterval = 60 * time.Second
 
 func runEvents(ctx plugin.SourceCtx) error {
 	cred := credOf(ctx)
 	nss := splitList(cred.WatchNamespaces)
 	if len(nss) == 0 {
-		// 没配就报「等配置」而不是静静退出——凭证列表上那一行会亮起来，
-		// 否则用户只看到一个什么都不做的源，无从判断是坏了还是没配。
+		// If unconfigured, report "waiting for config" instead of quietly exiting -- that row
+		// lights up on the credential list; otherwise the user just sees a source doing nothing,
+		// with no way to tell whether it's broken or unconfigured.
 		ctx.ReportStatus("idle", "凭证里没填「盯哪些命名空间」，事件源不启动")
 		return nil
 	}
@@ -45,12 +51,14 @@ func runEvents(ctx plugin.SourceCtx) error {
 	}
 	log.Printf("[k8s] 事件源启动，盯 %d 个命名空间：%s", len(nss), strings.Join(nss, ", "))
 
-	// 游标：命名空间 → 上一轮的截止时刻（RFC3339）。首轮只记不推。
+	// cursor: namespace -> the previous round's cutoff time (RFC3339). The first round only
+	// records it, doesn't push.
 	cursor := map[string]string{}
 	primed := map[string]bool{}
-	// 崩溃去重：pod+结束时间。同一次崩溃在被拉起前会被连着看到好几轮。
+	// Crash dedup: pod+finish time. The same crash gets seen for several rounds in a row before
+	// the container is restarted.
 	crashSeen := map[string]bool{}
-	nodeSeen := map[string]string{} // 节点 → 上次报过的状态，状态没变就不重复报
+	nodeSeen := map[string]string{} // node -> last reported status; don't re-report if unchanged
 
 	for {
 		for _, ns := range nss {
@@ -67,7 +75,7 @@ func runEvents(ctx plugin.SourceCtx) error {
 				log.Printf("[k8s] 轮询 %s 的崩溃失败：%v", ns, err)
 			}
 		}
-		// 节点是集群级的，不按命名空间轮——盯多个命名空间时只查一次。
+		// Nodes are cluster-scoped, not per-namespace -- query once even when watching multiple namespaces.
 		if err := pollNodes(ctx, nss[0], nodeSeen, primed[nss[0]]); err != nil {
 			log.Printf("[k8s] 轮询节点失败：%v", err)
 		}
@@ -94,17 +102,17 @@ func splitList(s string) []string {
 	return out
 }
 
-// pollEvents 拉一个命名空间的 Warning 事件，按 reason 分派。
+// pollEvents fetches a namespace's Warning events and dispatches by reason.
 func pollEvents(ctx plugin.SourceCtx, ns string, cursor map[string]string, primed map[string]bool) error {
 	out, err := opEvents(ctx, &EventsIn{
 		Namespace: ns, OnlyWarning: true, Limit: 200,
-		Since:   cursor[ns], // 首轮为空 = 全量，但下面 primed 拦着不推
+		Since:   cursor[ns], // empty on the first round = everything, but primed below blocks it from being pushed
 		Reasons: []string{"Evicted", "FailedScheduling"},
 	})
 	if err != nil {
 		return err
 	}
-	// 截断说明这一轮的异常比 limit 还多——那本身就值得说一声，否则会静默漏。
+	// Truncation means this round had more anomalies than the limit -- worth reporting on its own, otherwise it would be a silent loss.
 	if out.Truncated {
 		log.Printf("[k8s] %s 的告警超过 200 条，已截断——缩短轮询间隔或分拆命名空间", ns)
 	}
@@ -114,8 +122,9 @@ func pollEvents(ctx plugin.SourceCtx, ns string, cursor map[string]string, prime
 	}
 	for _, e := range out.Events {
 		pod := strings.TrimPrefix(e.Object, "Pod/")
-		// event_id 带上「最近发生」：同一条事件再次发生是**一次新的真事件**，
-		// 只按对象名去重会把第二次吃掉（故障还在持续，却只响了一次）。
+		// event_id includes "most recently occurred": the same event recurring is a genuinely new
+		// event; deduping on object name alone would swallow the second one (the failure is still
+		// ongoing, but it only fired once).
 		id := ns + ":" + e.Object + ":" + e.LastSeen
 		switch e.Reason {
 		case "Evicted":
@@ -133,28 +142,29 @@ func pollEvents(ctx plugin.SourceCtx, ns string, cursor map[string]string, prime
 	return nil
 }
 
-// pollCrashes 从 **Pod 状态**认异常退出。
+// pollCrashes recognizes abnormal exits from Pod status.
 //
-// 不走 Event：OOMKilled 多半不发 Event，容器被杀掉后立刻被拉起，痕迹只在
-// lastState.terminated 里。盯 Event 会把最常见的那一类整个漏掉。
+// Doesn't go through Event: OOMKilled mostly doesn't emit an Event -- the container is
+// restarted immediately after being killed, and the only trace is in lastState.terminated.
+// Watching Events would miss this most common category entirely.
 func pollCrashes(ctx plugin.SourceCtx, ns string, seen map[string]bool, primed bool) error {
 	out, err := opPods(ctx, &PodsIn{Namespace: ns})
 	if err != nil {
 		return err
 	}
 	for _, p := range out.Pods {
-		// Completed 是正常结束（Job 跑完），不是异常。
+		// Completed is a normal finish (a Job ran to completion), not an anomaly.
 		if p.LastTerminatedReason == "" || p.LastTerminatedReason == "Completed" {
 			continue
 		}
-		// pod + 结束时刻 = 一次崩溃。同一次崩溃会被连着好几轮看到，去重靠它。
+		// pod + finish time = one crash. The same crash gets seen for several rounds in a row; this is the dedup key.
 		key := ns + "/" + p.Name + "@" + p.LastTerminatedAt
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
 		if !primed {
-			continue // 首轮只记不推，与事件那条同一条规矩
+			continue // first round only records, doesn't push -- same rule as the events path
 		}
 		_ = TriggerPodCrashed(ctx, "crash:"+key, &PodCrashedEvent{
 			Namespace: ns, Object: "Pod/" + p.Name, Pod: p.Name,
@@ -166,27 +176,29 @@ func pollCrashes(ctx plugin.SourceCtx, ns string, seen map[string]bool, primed b
 	return nil
 }
 
-// pollNodes 节点不健康。**只在状态变化时报**——节点会一直 NotReady 下去，
-// 每轮报一次的话，一个坏了一夜的节点能刷出几百条告警。
+// pollNodes reports unhealthy nodes. Only reports on a status change -- a node can stay
+// NotReady indefinitely, and reporting every round would flood hundreds of alerts for a node
+// that's been down all night.
 func pollNodes(ctx plugin.SourceCtx, ns string, seen map[string]string, primed bool) error {
 	out, err := opNodes(ctx, &NodesIn{})
 	if err != nil {
 		return err
 	}
 	for _, n := range out.Nodes {
-		// 用 Ready 条件的**原值**：False（节点自报不健康）与 Unknown（kubelet 失联）
-		// 在布尔上都是「不就绪」，但一个是去看节点上发生了什么、一个是先确认机器还在不在。
+		// Use the Ready condition's raw value: False (the node reports itself unhealthy) and
+		// Unknown (kubelet lost contact) are both "not ready" as a boolean, but one means go look
+		// at what's happening on the node and the other means first confirm the machine is even there.
 		status := n.ReadyStatus
 		if status == "" {
 			status = boolStatus(n.Ready)
 		}
 		if n.Ready {
-			// 恢复了也要记一笔，否则下次再坏时状态没变化、报不出来。
+			// Record the recovery too, otherwise next time it fails the status looks unchanged and won't be reported.
 			delete(seen, n.Name)
 			continue
 		}
 		if seen[n.Name] == status {
-			continue // 状态没变，不重复报
+			continue // status unchanged, don't re-report
 		}
 		seen[n.Name] = status
 		if !primed {
@@ -199,11 +211,13 @@ func pollNodes(ctx plugin.SourceCtx, ns string, seen map[string]string, primed b
 	return nil
 }
 
-// nodeFromEvictMessage：驱逐原文里通常带节点名。认不出就留空——
-// 猜一个错的节点名比空着更糟（人会去查一台没问题的机器）。
+// nodeFromEvictMessage: the eviction message usually names the node. Leave it blank if it
+// can't be recognized -- guessing a wrong node name is worse than leaving it blank (someone
+// would go check a machine that's actually fine).
 func nodeFromEvictMessage(msg string) string {
-	// kubelet 的原文形如 "The node was low on resource: memory."，多数情况下不含节点名；
-	// 少数版本会写 "Pod was evicted from node xxx"。只认后一种明确的形态。
+	// kubelet's raw message typically looks like "The node was low on resource: memory.", which
+	// usually doesn't name the node; a few versions say "Pod was evicted from node xxx". Only
+	// that explicit form is recognized.
 	const marker = "from node "
 	if i := strings.Index(msg, marker); i >= 0 {
 		rest := msg[i+len(marker):]

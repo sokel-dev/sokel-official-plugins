@@ -1,7 +1,7 @@
 package main
 
-// httptest 假 API server 打穿全部路径。kubeconfig 指向假服务器（无 TLS 校验），
-// 真集群联调走 operation:test。
+// httptest fakes the API server to exercise every path. kubeconfig points at the fake server
+// (no TLS verification); real-cluster integration testing goes through operation:test.
 
 import (
 	"context"
@@ -34,10 +34,11 @@ func (f *fakeCtx) UploadReader(string, string, io.Reader) (*plugin.File, error) 
 }
 func (f *fakeCtx) Fetch(*plugin.File) ([]byte, error) { return nil, nil }
 
-// kubeconfigFor 指向假服务器的最小 kubeconfig。
-// **必须 TLS + insecure-skip-tls-verify**：client-go 对明文 http:// 的 server
-// 会静默丢弃 token（不让凭证走明文），Authorization 头就没了——真集群全是 TLS
-// 不会碰到，但假 server 用 NewServer 的话这条测试静默测不到认证头。
+// kubeconfigFor is a minimal kubeconfig pointing at the fake server.
+// Must be TLS + insecure-skip-tls-verify: client-go silently drops the token for a plain
+// http:// server (it won't send credentials in the clear), so the Authorization header would be
+// missing -- real clusters are always TLS so this never comes up there, but if the fake server
+// used NewServer, this test would silently fail to exercise the auth header at all.
 func kubeconfigFor(srv *httptest.Server) string {
 	return fmt.Sprintf(`apiVersion: v1
 kind: Config
@@ -59,7 +60,7 @@ func fakeAPIServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return httptest.NewTLSServer(handler)
 }
 
-// pods：ready 统计、异常原因提取、only_abnormal 过滤——三件一起验。
+// pods: ready count, abnormal-reason extraction, only_abnormal filtering -- all three verified together.
 func TestPodsAbnormalFilter(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.Path, "/pods") {
@@ -87,7 +88,7 @@ func TestPodsAbnormalFilter(t *testing.T) {
 	}
 }
 
-// rollout restart = 改模板注解的 strategic-merge PATCH；Bearer token 要随请求带上。
+// rollout restart = a strategic-merge PATCH that changes the template annotation; the Bearer token must be sent with the request.
 func TestDeploymentRestartPatch(t *testing.T) {
 	var method, ctype, auth, body string
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +118,7 @@ func TestDeploymentRestartPatch(t *testing.T) {
 	}
 }
 
-// scale：先 GET /scale 读原值再 PATCH；缩到 0 合法（停服务），负数拒绝。
+// scale: GET /scale to read the previous value first, then PATCH; scaling to 0 is valid (stops the service), negative is rejected.
 func TestDeploymentScale(t *testing.T) {
 	var patched string
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +145,7 @@ func TestDeploymentScale(t *testing.T) {
 	}
 }
 
-// 事件倒序（最近在前）+ Warning 过滤下推到 fieldSelector。
+// Events in reverse order (most recent first) + Warning filtering pushed down to fieldSelector.
 func TestEventsRecentFirst(t *testing.T) {
 	var q string
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +169,7 @@ func TestEventsRecentFirst(t *testing.T) {
 	}
 }
 
-// RBAC 403 要翻译成「去加权限」，而不是裸 JSON。
+// An RBAC 403 must be translated into "go add permissions", not raw JSON.
 func TestForbiddenTranslated(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
@@ -182,7 +183,7 @@ func TestForbiddenTranslated(t *testing.T) {
 	}
 }
 
-// nodes：not_ready 计数是告警工作流的直接判据。
+// nodes: the not_ready count is the direct criterion for alerting workflows.
 func TestNodesNotReadyCount(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -201,7 +202,7 @@ func TestNodesNotReadyCount(t *testing.T) {
 	}
 }
 
-// 多容器 pod 不指定容器名时，K8s 的报错要转成人话。
+// When a multi-container pod doesn't specify a container name, K8s's error must be translated into plain language.
 func TestPodLogsMultiContainerHint(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -215,7 +216,7 @@ func TestPodLogsMultiContainerHint(t *testing.T) {
 	}
 }
 
-// 凭证只给 server 地址不给整份 YAML——最常见的粘错，报错要指路。
+// The credential only gives a server address, not the full YAML -- the most common paste mistake; the error must point the way.
 func TestBadKubeconfig(t *testing.T) {
 	_, err := opPods(newFake(map[string]string{"kubeconfig": "https://1.2.3.4:6443"}), &PodsIn{})
 	if err == nil || !strings.Contains(err.Error(), "整份 YAML") {
@@ -230,11 +231,12 @@ func TestBadKubeconfig(t *testing.T) {
 
 var _ = json.Marshal
 
-// —— 异常事件监控：这几条对应用户真正关心的三类（驱逐 / 调度失败 / 异常退出）——
+// -- Anomaly event monitoring: these correspond to the three categories users actually care about (eviction / scheduling failure / abnormal exit) --
 
-// OOMKilled **只在 lastState 里**：容器被杀掉后立刻被拉起，当前 state 已经是 Running，
-// reason 里什么都看不到。只看 restarts 的话，你知道它在反复重启，
-// 却不知道是内存不够、崩了、还是被驱逐——而这三者的处理完全不同。
+// OOMKilled only shows up in lastState: the container is restarted immediately after being
+// killed, so the current state is already Running, with nothing visible in reason. Looking only
+// at restarts tells you it's restarting repeatedly, but not whether it's out of memory, crashed,
+// or evicted -- and these three need completely different handling.
 func TestPodsSurfacesLastTerminated(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -258,13 +260,13 @@ func TestPodsSurfacesLastTerminated(t *testing.T) {
 	if p.LastTerminatedAt == "" {
 		t.Error("要有结束时间——否则分不清是刚刚发生还是上周的历史遗留")
 	}
-	// 当前 state 正常，所以 reason 应当是空的——这正是为什么必须单独看 lastState
+	// The current state is normal, so reason should be empty -- exactly why lastState must be checked separately
 	if p.Reason != "" {
 		t.Errorf("当前 state 是 Running，reason 该为空：%+v", p)
 	}
 }
 
-// 多容器时取**最近结束的那个**：报最早那次会把人指向已经修好的问题。
+// With multiple containers, take the most recently terminated one: reporting the earliest one would point someone at a problem that's already fixed.
 func TestPodsPicksMostRecentTermination(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -281,9 +283,11 @@ func TestPodsPicksMostRecentTermination(t *testing.T) {
 	}
 }
 
-// 轮询的命根子：按「最近发生」比，**不是首次发生**。
-// k8s 对重复事件不新建条目，而是 count++ 且更新 lastTimestamp——按首次发生比的话，
-// 一个持续两小时的故障只会在第一轮报出来，之后永远比游标旧（告警只响一次就没了）。
+// The crux of polling: compare by "most recently occurred", not first occurrence.
+// k8s doesn't create a new entry for a repeated event, it increments count and updates
+// lastTimestamp -- comparing by first occurrence would mean a failure lasting two hours only
+// gets reported in the first round, and forever looks older than the cursor after that (the
+// alert fires once and then never again).
 func TestEventsSinceUsesLastSeen(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -295,7 +299,7 @@ func TestEventsSinceUsesLastSeen(t *testing.T) {
 	defer srv.Close()
 	ctx := newFake(map[string]string{"kubeconfig": kubeconfigFor(srv)})
 
-	// 游标在首次发生之后、最近发生之前 → **必须仍然报出来**（故障还在持续）
+	// Cursor is after the first occurrence but before the most recent one -> it must still be reported (the failure is ongoing)
 	out, err := opEvents(ctx, &EventsIn{Since: "2026-08-28T09:00:00Z"})
 	if err != nil {
 		t.Fatal(err)
@@ -303,19 +307,20 @@ func TestEventsSinceUsesLastSeen(t *testing.T) {
 	if len(out.Events) != 1 {
 		t.Fatalf("持续中的故障必须继续报，否则告警只响一次：%+v", out)
 	}
-	// 游标在最近发生之后 → 不该重复报
+	// Cursor is after the most recent occurrence -> shouldn't be reported again
 	out2, _ := opEvents(ctx, &EventsIn{Since: "2026-08-28T12:00:00Z"})
 	if len(out2.Events) != 0 {
 		t.Errorf("比游标旧的不该再报：%+v", out2.Events)
 	}
-	// checked_at 要能直接当下一轮的游标
+	// checked_at must be directly usable as the next round's cursor
 	if out.CheckedAt == "" {
 		t.Error("要给 checked_at，否则调用方没法接着轮询")
 	}
 }
 
-// 新版 events.k8s.io 的集群不给 lastTimestamp，只给 eventTime。
-// 只认一个字段的话，那一半集群上游标恒为空、过滤恒不生效。
+// Clusters on the newer events.k8s.io don't provide lastTimestamp, only eventTime.
+// Recognizing only one field would make the cursor permanently empty and filtering permanently
+// ineffective on that half of clusters.
 func TestEventsAcceptsEventTimeOnlyClusters(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -334,7 +339,7 @@ func TestEventsAcceptsEventTimeOnlyClusters(t *testing.T) {
 	}
 }
 
-// 截断必须**说出来**。此前静默截断，集群一忙就会悄悄漏掉告警。
+// Truncation must be reported. It used to truncate silently, which would quietly drop alerts whenever the cluster got busy.
 func TestEventsReportsTruncation(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		var b strings.Builder
@@ -363,7 +368,7 @@ func TestEventsReportsTruncation(t *testing.T) {
 	}
 }
 
-// 按原因过滤：关注特定异常时，比拿回来自己筛省一半篇幅。
+// Filtering by reason: when watching for specific anomalies, this saves fetching everything and filtering it yourself.
 func TestEventsFiltersByReason(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -374,7 +379,7 @@ func TestEventsFiltersByReason(t *testing.T) {
 	})
 	defer srv.Close()
 	ctx := newFake(map[string]string{"kubeconfig": kubeconfigFor(srv)})
-	out, _ := opEvents(ctx, &EventsIn{Reasons: []string{"Evicted", "failedscheduling"}}) // 大小写不敏感
+	out, _ := opEvents(ctx, &EventsIn{Reasons: []string{"Evicted", "failedscheduling"}}) // case-insensitive
 	if len(out.Events) != 2 {
 		t.Fatalf("应只留 Evicted 与 FailedScheduling：%+v", out.Events)
 	}
@@ -385,12 +390,12 @@ func TestEventsFiltersByReason(t *testing.T) {
 	}
 }
 
-// —— 事件源：把异常推成触发。这里每条错了都不报错，只是**告警变噪音或整个消失** ——
+// -- Event source: turns anomalies into triggers. Every mistake here fails silently -- the result is just alerts becoming noise or disappearing entirely --
 
 type fakeSource struct {
 	*fakeCtx
-	fired []string       // 事件 id，按顺序
-	byEv  map[string]any // 事件名 → 最后一次的 payload
+	fired []string       // event ids, in order
+	byEv  map[string]any // event name -> the last payload for it
 }
 
 func newSrc(cred map[string]string) *fakeSource {
@@ -413,9 +418,10 @@ func firedNames(f *fakeSource) []string {
 	return out
 }
 
-// **首轮不触发**：插件一启动，集群里那堆历史异常会被全量拉到。
-// 照发的话，装上插件的第一分钟就有几十条陈年告警涌进工作流——
-// 用户的第一印象是「这东西疯了」，然后把触发器关掉。
+// The first round doesn't trigger: the moment the plugin starts, the whole pile of the
+// cluster's historical anomalies gets fetched in full. Sending them as-is would flood the
+// workflow with dozens of stale alerts in the plugin's first minute -- the user's first
+// impression would be "this thing is broken", and they'd turn the trigger off.
 func TestSourceFirstRoundDoesNotFire(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/events") {
@@ -436,7 +442,7 @@ func TestSourceFirstRoundDoesNotFire(t *testing.T) {
 	if len(ctx.fired) != 0 {
 		t.Fatalf("首轮不该推任何东西，实际推了 %v", ctx.fired)
 	}
-	// 第二轮（已 primed）才推
+	// Only pushes on the second round (once primed)
 	primed["prod"] = true
 	if err := pollEvents(ctx, "prod", cursor, primed); err != nil {
 		t.Fatal(err)
@@ -446,8 +452,9 @@ func TestSourceFirstRoundDoesNotFire(t *testing.T) {
 	}
 }
 
-// 按 reason 分派到不同事件：驱逐与调度失败是两类问题，混成一个的话
-// 下游没法分别处理（一个要看节点内存，一个要看集群余量）。
+// Dispatching by reason to different events: eviction and scheduling failure are two different
+// kinds of problem, and merging them into one would leave downstream unable to handle them
+// separately (one needs to look at node memory, the other at cluster capacity).
 func TestSourceRoutesByReason(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/events") {
@@ -471,7 +478,7 @@ func TestSourceRoutesByReason(t *testing.T) {
 	if ev.Pod != "a" {
 		t.Errorf("pod 名应从 Object 里剥出来：%+v", ev)
 	}
-	// 原文里带了节点名就该认出来——它决定人去查哪台机器
+	// If the message names a node, it should be recognized -- it determines which machine someone goes to check
 	if ev.Node != "worker-3" {
 		t.Errorf("原文含 from node worker-3，应认出节点：%+v", ev)
 	}
@@ -484,7 +491,7 @@ func TestSourceRoutesByReason(t *testing.T) {
 	}
 }
 
-// 认不出节点名就**留空**，不能猜。猜错会把人指向一台没问题的机器。
+// Leave it blank if the node name can't be recognized -- don't guess. Guessing wrong points someone at a machine that's actually fine.
 func TestEvictNodeNotGuessed(t *testing.T) {
 	if got := nodeFromEvictMessage("The node was low on resource: memory."); got != "" {
 		t.Errorf("原文里没有节点名时必须留空，实际猜成了 %q", got)
@@ -494,8 +501,8 @@ func TestEvictNodeNotGuessed(t *testing.T) {
 	}
 }
 
-// 崩溃从 **Pod 状态**认，不从 Event 认——OOMKilled 多半不发 Event。
-// 而且同一次崩溃会被连着好几轮看到，必须按「结束时刻」去重。
+// Crashes are recognized from Pod status, not from Event -- OOMKilled mostly doesn't emit an
+// Event. And the same crash gets seen for several rounds in a row, so dedup must be by finish time.
 func TestSourceCrashFromPodStatusAndDedups(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"items":[
@@ -524,7 +531,7 @@ func TestSourceCrashFromPodStatusAndDedups(t *testing.T) {
 	if len(ctx.fired) != 1 {
 		t.Errorf("Completed 是正常结束（Job 跑完），不该报：%v", ctx.fired)
 	}
-	// 再跑一轮：同一次崩溃不该重复推
+	// Run another round: the same crash shouldn't be pushed again
 	before := len(ctx.fired)
 	_ = pollCrashes(ctx, "prod", seen, true)
 	if len(ctx.fired) != before {
@@ -532,8 +539,9 @@ func TestSourceCrashFromPodStatusAndDedups(t *testing.T) {
 	}
 }
 
-// 节点只在**状态变化**时报：一个坏了一夜的节点，每轮报一次能刷出几百条。
-// 而且恢复后要能再报——否则第二次坏掉时静悄悄。
+// Nodes are only reported on a status change: a node that's been down all night would flood
+// hundreds of reports at one per round. And after recovery it must be reportable again --
+// otherwise a second failure goes unnoticed.
 func TestSourceNodeReportsOnChangeOnly(t *testing.T) {
 	state := "Unknown"
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -550,7 +558,7 @@ func TestSourceNodeReportsOnChangeOnly(t *testing.T) {
 	if !ok {
 		t.Fatalf("应推 node_not_ready，实际 %v", firedNames(ctx))
 	}
-	// Unknown（失联）与 False（自报不健康）必须分得开——处理方式完全不同
+	// Unknown (lost contact) and False (self-reported unhealthy) must be distinguishable -- they need completely different handling
 	if ev.Status != "Unknown" {
 		t.Errorf("要带 Ready 条件的原值而不是布尔：%+v", ev)
 	}
@@ -559,7 +567,7 @@ func TestSourceNodeReportsOnChangeOnly(t *testing.T) {
 	if len(ctx.fired) != n {
 		t.Errorf("状态没变不该重复报——坏一夜会刷出几百条：%v", ctx.fired)
 	}
-	// 恢复 → 再坏：必须能再报出来
+	// Recovers -> fails again: must be reportable again
 	state = "True"
 	_ = pollNodes(ctx, "prod", seen, true)
 	state = "False"

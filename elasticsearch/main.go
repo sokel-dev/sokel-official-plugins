@@ -1,9 +1,10 @@
-// elasticsearch —— Sokel 第一方插件：Elasticsearch 检索与写入。
+// elasticsearch — a first-party Sokel plugin: Elasticsearch search and write.
 //
-// 18 个操作覆盖 检索/文档读写/索引管理 三个域 + call 保底。走裸 HTTP，
-// ES 7/8/9 与 OpenSearch 同一套代码。设计判断见 schema/schema.go 顶注。
+// 18 operations cover three domains — search / document read-write / index management —
+// plus a call fallback. Plain HTTP throughout; ES 7/8/9 and OpenSearch share the same
+// code. See the top comment in schema/schema.go for the design rationale.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./elasticsearch
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./elasticsearch
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

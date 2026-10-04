@@ -1,7 +1,7 @@
 package main
 
-// 假 Discord。钉四件事：wait=true（不带就拿不到消息 id）、卡片字段顺序稳定、
-// 超长提前拦下、健康检查不在群里留痕迹。
+// A fake Discord. Pins down four things: wait=true (without it there's no message id), stable embed
+// field ordering, oversized content rejected early, and health checks leaving no trace in the channel.
 
 import (
 	"context"
@@ -59,7 +59,8 @@ func fakeDiscord(t *testing.T, cap *capture, routes map[string]func(http.Respons
 		cred: map[string]string{"webhook_url": srv.URL + "/api/webhooks/wh1/tok"}}
 }
 
-// 不带 wait=true 的话 Discord 回 204 空体，拿不到消息 id，下游改/删都做不到。
+// Without wait=true, Discord replies with an empty 204 body and there's no message id, so downstream
+// edit/delete won't work.
 func TestSendAsksForMessageBack(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -79,7 +80,8 @@ func TestSendAsksForMessageBack(t *testing.T) {
 	}
 }
 
-// 卡片字段按键名排序：map 遍历是随机的，不排的话同样的输入每次排版都不同。
+// Embed fields are sorted by key: map iteration is random, so without sorting the same input would
+// produce a different layout each time.
 func TestEmbedFieldsAreStable(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -123,7 +125,8 @@ func TestEmbedFieldsAreStable(t *testing.T) {
 	}
 }
 
-// 正文超 2000 要提前拦下，并指个出路（长内容放卡片正文，那儿能到 4096）。
+// Content over 2000 chars must be rejected early, with a way out pointed to (put long content in
+// the embed description, which allows up to 4096).
 func TestTooLongContentRejected(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -140,7 +143,7 @@ func TestTooLongContentRejected(t *testing.T) {
 	}
 }
 
-// 什么都没给要当场说清楚，而不是发一条空消息出去。
+// When nothing is given, it must be reported right away instead of sending an empty message.
 func TestEmptyMessageRejected(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -153,7 +156,7 @@ func TestEmptyMessageRejected(t *testing.T) {
 	}
 }
 
-// 健康检查**不发测试消息**——不该在群里留下痕迹。
+// Health check **sends no test message** — it shouldn't leave a trace in the channel.
 func TestHealthCheckLeavesNoTrace(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -172,7 +175,8 @@ func TestHealthCheckLeavesNoTrace(t *testing.T) {
 	}
 }
 
-// Webhook 被删是结论不是故障：平台拿 ok=false 去写凭证状态。
+// A deleted webhook is a conclusion, not a failure: the platform uses ok=false to record the
+// credential's status.
 func TestHealthCheckReportsDeletedWebhook(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -194,7 +198,8 @@ func TestHealthCheckReportsDeletedWebhook(t *testing.T) {
 	}
 }
 
-// 附件走 multipart，JSON 载荷要放在 payload_json 里（不是普通表单键）。
+// Attachments go through multipart, and the JSON payload must go in payload_json (not a regular
+// form key).
 func TestAttachmentsUseMultipart(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -216,7 +221,8 @@ func TestAttachmentsUseMultipart(t *testing.T) {
 	}
 }
 
-// 发进话题时，删除也要带同一个 thread_id，否则 Discord 找不到那条消息。
+// When posted into a thread, delete must carry the same thread_id, otherwise Discord can't find
+// that message.
 func TestThreadIDIsCarried(t *testing.T) {
 	cap := &capture{}
 	ctx := fakeDiscord(t, cap, nil)
@@ -235,7 +241,8 @@ func TestThreadIDIsCarried(t *testing.T) {
 	}
 }
 
-// 凭证里填了个不是 Webhook 的地址，要在发请求前说清楚。
+// If the credential has a URL that isn't a webhook, it must be reported clearly before making the
+// request.
 func TestBadWebhookURLIsExplained(t *testing.T) {
 	ctx := &fakeCtx{Context: context.Background(),
 		cred: map[string]string{"webhook_url": "https://discord.com/channels/1/2"}}

@@ -1,6 +1,6 @@
 package main
 
-// 搜索 / 保底直调 / 健康检查。
+// Search / raw fallback call / health check.
 
 import (
 	"fmt"
@@ -32,8 +32,9 @@ func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	m := digObj(raw)
 	out := &SearchOut{
 		Total: num(m, "total_count"),
-		// incomplete_results = GitHub 搜索超时了，只返回了一部分。
-		// 不透出的话，调用方会把「部分结果」当成「全部结果」——静默的漏。
+		// incomplete_results = GitHub's search timed out and only returned part of the results.
+		// If we don't surface it, the caller will mistake "partial results" for "all results" —
+		// a silent omission.
 		Incomplete: boolean(m, "incomplete_results"),
 	}
 	for _, it := range arr(m, "items") {
@@ -57,8 +58,9 @@ func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	return out, nil
 }
 
-// repoFromIssueURL 从 https://github.com/o/r/issues/1 反推 o/r。
-// Issue 搜索的结果里没有 repository 字段（只有 repository_url），这是最省事的还原。
+// repoFromIssueURL reverse-derives o/r from https://github.com/o/r/issues/1.
+// Issue search results have no repository field (only repository_url), so this is the simplest
+// way to recover it.
 func repoFromIssueURL(u string) string {
 	p, err := url.Parse(u)
 	if err != nil {
@@ -76,7 +78,8 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	// 有人会把完整地址粘进来——截掉前缀比报错友好，且不会有歧义。
+	// People sometimes paste in the full URL — stripping the prefix is friendlier than erroring
+	// out, and there's no ambiguity in doing so.
 	for _, pfx := range []string{"https://api.github.com", "http://api.github.com"} {
 		path = strings.TrimPrefix(path, pfx)
 	}
@@ -118,10 +121,11 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	return out, nil
 }
 
-// opHealthCheck 凭证页那个「测试」按钮调的就是它。
+// opHealthCheck is what the "Test" button on the credential page calls.
 //
-// **凭证不可用要回 ok=false，不能抛错**：抛错的话平台只能说「调用失败」，
-// 分不出是令牌没填、过期，还是网络不通——而这三者的下一步完全不同。
+// **An unusable credential must return ok=false, not raise an error**: raising an error only lets
+// the platform say "call failed", with no way to tell whether the token is missing, expired, or
+// the network is down — and those three call for completely different next steps.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cred := credOf(ctx)
 	if strings.TrimSpace(cred.Token) == "" {
@@ -149,11 +153,12 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	}
 	out.Message = fmt.Sprintf("%s 上以 %s 的身份连通", where, login)
 	if len(out.Scopes) == 0 {
-		// 细粒度令牌不回 X-OAuth-Scopes——不说明的话会被当成「令牌没权限」。
+		// Fine-grained tokens don't return X-OAuth-Scopes — without an explanation this would be
+		// mistaken for "the token has no permissions".
 		out.Message += "（细粒度令牌不回报 scope，这不代表没权限）"
 	}
 	return out, nil
 }
 
-// urlPathEscape 转义单个路径片段。
+// urlPathEscape escapes a single path segment.
 func urlPathEscape(s string) string { return url.PathEscape(s) }

@@ -1,19 +1,24 @@
 package main
 
-// 长文（专栏）：`mp.xueqiu.com` 那套接口。与短帖是两回事：
+// Long-form articles (column posts): the `mp.xueqiu.com` API. A separate thing from short posts:
 //
-//	POST /xq/statuses/draft/save.json   存草稿（title + text(HTML) + is_private）
-//	POST /xq/photo/upload.json          传图，回 {url, filename}
-//	GET  /write/                        写作页，里面有 window.UOM_CURRENTUSER → 登录态 + uid
+//	POST /xq/statuses/draft/save.json   save draft (title + text(HTML) + is_private)
+//	POST /xq/photo/upload.json          upload image, returns {url, filename}
+//	GET  /write/                        the writer page, carries window.UOM_CURRENTUSER → login state + uid
 //
-// **这套不要 session_token，也没见风控参数**——比短帖那条路干净得多，
-// 而长文正是投研内容该去的地方。
+// **This API needs no session_token, and no risk-control param has been observed** — a
+// much cleaner path than short posts, and long-form is exactly where research content
+// belongs.
 //
-// 接口形状参照了 wechatsync/Wechatsync 的 xueqiu driver（一个仍在维护的开源实现，
-// 做法与我们一致：用已有 cookie 调网页端自己在用的接口）。**只借鉴接口知识，没有抄代码。**
+// The endpoint shapes are based on wechatsync/Wechatsync's xueqiu driver (a still
+// maintained open-source implementation that takes the same approach we do: use an
+// existing cookie to call the endpoints the web frontend already uses). **Only the
+// endpoint knowledge was borrowed — no code was copied.**
 //
-// **产出是草稿不是已发布**：save.json 落的是草稿箱，最后一步「发布」留给人在网页上点。
-// 这既是接口本身的语义，也正好是合规上更稳的形态——自动写、人工发。
+// **The output is a draft, not a published post**: save.json lands in the draft box, and
+// the final "publish" step is left to a human clicking it on the website. This matches
+// the endpoint's own semantics, and also happens to be the safer shape from a compliance
+// standpoint — automated drafting, human publishing.
 
 import (
 	"encoding/json"
@@ -68,7 +73,7 @@ func opArticleDraft(ctx plugin.Ctx, in *XqArticleDraftIn) (*XqArticleDraftOut, e
 	return out, nil
 }
 
-// uploadArticleImage：长文的图床接口，回 {url, filename} 两段，要自己拼。
+// uploadArticleImage: the long-form image host endpoint, returning {url, filename} as two parts that must be joined manually.
 func uploadArticleImage(ctx plugin.Ctx, f *plugin.File) (string, error) {
 	data, err := ctx.Fetch(f)
 	if err != nil {
@@ -101,7 +106,7 @@ func uploadArticleImage(ctx plugin.Ctx, f *plugin.File) (string, error) {
 	if u == "" {
 		return "", fmt.Errorf("传上去了但没认出图片地址——雪球可能改了应答形状，请把应答贴给开发者")
 	}
-	// 它回的是两段：url 是目录（//xqimg.imedao.com/xxx），filename 是文件名。
+	// It returns two parts: url is the directory (//xqimg.imedao.com/xxx), filename is the file name.
 	src := strings.TrimRight(u, "/")
 	if fn != "" {
 		src += "/" + fn
@@ -112,10 +117,11 @@ func uploadArticleImage(ctx plugin.Ctx, f *plugin.File) (string, error) {
 	return src, nil
 }
 
-// —— 登录态 ——
+// —— login state ——
 
-// currentUserRe：写作页里塞了 window.UOM_CURRENTUSER = {...}，登录态与 uid 都在里面。
-// 比拿别的接口猜「有没有登录」直接得多。
+// currentUserRe: the writer page embeds window.UOM_CURRENTUSER = {...}, which carries
+// both the login state and the uid — much more direct than guessing "is this logged in"
+// from some other endpoint.
 var currentUserRe = regexp.MustCompile(`(?s)UOM_CURRENTUSER\s*=\s*(\{.*?\})\s*[;<\n]`)
 
 type currentUser struct {
@@ -123,7 +129,7 @@ type currentUser struct {
 	ScreenName string `json:"screen_name"`
 }
 
-// meFromWritePage：读写作页判断登录态。返回 uid 与昵称。
+// meFromWritePage: reads the writer page to determine login state. Returns uid and display name.
 func meFromWritePage(ctx plugin.Ctx) (string, string, error) {
 	cred := credOf(ctx)
 	ck, err := cookieOf(cred)
@@ -145,7 +151,7 @@ func meFromWritePage(ctx plugin.Ctx) (string, string, error) {
 	page, _ := readAllLimited(resp.Body)
 	m := currentUserRe.FindSubmatch(page)
 	if len(m) != 2 {
-		// 没登录时雪球会把写作页 302 到登录页，那上面没有这段脚本。
+		// When not logged in, Xueqiu 302s the writer page to the login page, which doesn't have this script.
 		return "", "", fmt.Errorf("写作页上没有登录信息：Cookie 多半过期了——" +
 			"重新登录一次并更新凭证")
 	}
@@ -176,10 +182,10 @@ func idStr(v any) string {
 	return ""
 }
 
-// —— 正文 → 长文 HTML ——
+// —— text → long-form HTML ——
 
-// toArticleHTML：与短帖同一套转换，但图片用 <p><img> 而不是短帖那个
-// img-single-upload 的壳（长文编辑器认的是普通 img）。
+// toArticleHTML: the same conversion as short posts, but images use <p><img> instead of
+// the short-post img-single-upload wrapper (the long-form editor expects a plain img).
 func toArticleHTML(text string, imgs []string) string {
 	var b strings.Builder
 	if htmlRe.MatchString(text) {

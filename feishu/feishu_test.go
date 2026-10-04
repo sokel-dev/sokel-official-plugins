@@ -1,7 +1,7 @@
 package main
 
-// 契约级测试：纯逻辑 + httptest 假飞书打穿发送链路。
-// 真上游联调走 operation:test（见 docs）。
+// Contract-level tests: pure logic + an httptest fake Feishu driving the send path end to end.
+// Real-upstream integration testing goes through operation:test (see docs).
 
 import (
 	"context"
@@ -34,8 +34,8 @@ func (f *fakeCtx) UploadReader(name, mime string, r io.Reader) (*plugin.File, er
 }
 func (f *fakeCtx) Fetch(*plugin.File) ([]byte, error) { return []byte("img-bytes"), nil }
 
-// fakeFeishu 起一个假开放平台：token 端点 + 收消息端点。
-// 返回 (server, 收到的请求体指针)。
+// fakeFeishu starts a fake Open Platform: a token endpoint + a receive-message endpoint.
+// Returns (server, a pointer to the received request body).
 func fakeFeishu(t *testing.T, handler func(w http.ResponseWriter, r *http.Request) bool) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,8 +50,9 @@ func fakeFeishu(t *testing.T, handler func(w http.ResponseWriter, r *http.Reques
 	}))
 }
 
-// credFor 指向假服务器的凭证。**每个用例独立 app_id**：client 按 app_id 缓存，
-// 撞名会把上一个用例的 baseURL 带过来——那是一类查不出来的串扰。
+// credFor builds a credential pointing at the fake server. **Each test case gets its own
+// app_id**: the client is cached by app_id, and a name collision would carry over the previous
+// test case's baseURL — a kind of cross-talk that's hard to track down.
 var appSeq int
 
 func credFor(srv *httptest.Server) map[string]string {
@@ -59,12 +60,13 @@ func credFor(srv *httptest.Server) map[string]string {
 	return map[string]string{
 		"app_id":     fmt.Sprintf("cli_test_%d", appSeq),
 		"app_secret": "sec",
-		"domain":     srv.URL, // 完整地址透传（baseURL 的第三条分支），请求打进假飞书
+		"domain":     srv.URL, // passed through as a full URL (baseURL's third branch), sending requests to the fake Feishu
 	}
 }
 
-// baseURL 契约：feishu/lark 之外的值原样透传（测试指向 httptest 全靠它；
-// 生产上凭证是下拉框，不会出现第三种值）。
+// baseURL contract: values other than feishu/lark are passed through as-is (tests pointing at
+// httptest rely entirely on this; in production the credential is a dropdown, so a third value
+// never shows up).
 func TestBaseURL(t *testing.T) {
 	if baseURL("feishu") != "https://open.feishu.cn" {
 		t.Error("feishu 域名错了")
@@ -80,8 +82,8 @@ func TestBaseURL(t *testing.T) {
 	}
 }
 
-// 发文本：content 必须是**双重编码**的 JSON 串（飞书铁律），
-// receive_id_type 进 query 而不是 body。
+// Sending text: content must be a **double-encoded** JSON string (a hard Feishu rule), and
+// receive_id_type goes in the query, not the body.
 func TestSendTextWireShape(t *testing.T) {
 	var got struct {
 		ReceiveID string `json:"receive_id"`
@@ -114,7 +116,7 @@ func TestSendTextWireShape(t *testing.T) {
 	if got.MsgType != "text" || got.ReceiveID != "oc_1" {
 		t.Errorf("请求体不对: %+v", got)
 	}
-	// content 是 JSON 串：能再解一层且里面是 text 字段。
+	// content is a JSON string: it should decode one more level and contain a text field.
 	var inner struct {
 		Text string `json:"text"`
 	}
@@ -123,7 +125,8 @@ func TestSendTextWireShape(t *testing.T) {
 	}
 }
 
-// 业务码非 0 必须转成能读懂的错误，并且高频码要带「下一步做什么」。
+// A non-zero business code must be translated into a readable error, and the common codes
+// should carry "what to do next."
 func TestErrorTranslation(t *testing.T) {
 	srv := fakeFeishu(t, func(w http.ResponseWriter, r *http.Request) bool {
 		if strings.HasSuffix(r.URL.Path, "/im/v1/messages") {
@@ -150,7 +153,8 @@ func TestGuessIDType(t *testing.T) {
 	}
 }
 
-// markdown → 卡片：有标题带 header，没标题不带（带个空 header 飞书会渲染出一条空杠）。
+// markdown -> card: a title gets a header, no title gets no header (an empty header would make
+// Feishu render an empty bar).
 func TestMdCard(t *testing.T) {
 	c := mdCard("日报", "green", "**hi**")
 	if c["header"] == nil {
@@ -165,7 +169,8 @@ func TestMdCard(t *testing.T) {
 	}
 }
 
-// Markdown → docx 块：行级转换的每一类都钉一条；未闭合代码块不丢内容。
+// Markdown -> docx blocks: every category of the line-level conversion is pinned down with a
+// case; an unclosed code block doesn't lose content.
 func TestMdToBlocks(t *testing.T) {
 	md := "# 标题\n## 二级\n正文段落\n- 列表项\n1. 有序项\n> 引用\n---\n```\ncode line\n```"
 	blocks := mdToBlocks(md)
@@ -182,14 +187,15 @@ func TestMdToBlocks(t *testing.T) {
 			t.Errorf("第 %d 块类型 = %d, want %d", i, types[i], want[i])
 		}
 	}
-	// 未闭合的代码块不丢
+	// an unclosed code block isn't lost
 	tail := mdToBlocks("```\nabc")
 	if len(tail) != 1 || tail[0]["block_type"].(int) != 14 {
 		t.Errorf("未闭合代码块要保住内容: %+v", tail)
 	}
 }
 
-// docx 追加分批：120 块要打 3 次（50/50/20），不分批飞书直接 invalid param。
+// docx append batching: 120 blocks requires 3 calls (50/50/20); without batching, Feishu
+// responds with invalid param outright.
 func TestAppendBlocksBatches(t *testing.T) {
 	var calls []int
 	srv := fakeFeishu(t, func(w http.ResponseWriter, r *http.Request) bool {
@@ -219,7 +225,7 @@ func TestAppendBlocksBatches(t *testing.T) {
 	}
 }
 
-// 允许粘 URL 的三个入口。
+// The three entry points that allow pasting a URL.
 func TestTokenFromURL(t *testing.T) {
 	if got := docIDFromAny("https://x.feishu.cn/docx/doxcnAbC?from=1"); got != "doxcnAbC" {
 		t.Errorf("docx URL 解析 = %q", got)
@@ -230,7 +236,7 @@ func TestTokenFromURL(t *testing.T) {
 	}
 }
 
-// 缺凭证的报错要指路，不是裸的 unauthorized。
+// A missing-credential error should point the way, not just say bare "unauthorized."
 func TestMissingCredential(t *testing.T) {
 	_, err := opSendText(newFake(map[string]string{}), &SendTextIn{ReceiveID: "oc_1", Text: "hi"})
 	if err == nil || !strings.Contains(err.Error(), "app_id") {
@@ -238,9 +244,11 @@ func TestMissingCredential(t *testing.T) {
 	}
 }
 
-// 健康检查判据（issue #13 ④ 回归钉）：健康 = 能换出 tenant_access_token，
-// **与机器人能力无关**——没开「机器人」的应用（只读多维表格那类）bot/v3/info
-// 必失败，曾被当成凭证坏；现在 bot 名只是尽力富化，拿不到不扣分。
+// The health-check criterion (regression pin for issue #13 item 4): healthy = able to exchange
+// a tenant_access_token, **regardless of bot capability** — an app that hasn't enabled "Bot"
+// (e.g. one that only reads Bitable) would always fail bot/v3/info, and that used to be mistaken
+// for a broken credential; now the bot name is just best-effort enrichment, and failing to get
+// it doesn't count against the result.
 func TestHealthCheckJudgesByTokenNotBot(t *testing.T) {
 	cases := []struct {
 		name    string

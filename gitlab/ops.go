@@ -1,6 +1,6 @@
 package main
 
-// 全部操作实现。列表统一 per_page=50 + page 入参；应答只解契约要的字段。
+// All operation implementations. Lists uniformly take per_page=50 + a page input; responses only parse the fields the contract needs.
 
 import (
 	"encoding/base64"
@@ -21,7 +21,7 @@ func pageOf(p int) string {
 	return strconv.Itoa(p)
 }
 
-// —— 项目 ——
+// -- Projects --
 
 func opProjectsList(ctx plugin.Ctx, in *ProjectsListIn) (*ProjectsListOut, error) {
 	params := map[string]any{"membership": "true", "per_page": 50, "page": pageOf(in.Page),
@@ -46,7 +46,7 @@ func opProjectsList(ctx plugin.Ctx, in *ProjectsListIn) (*ProjectsListOut, error
 	return out, nil
 }
 
-// —— 仓库 ——
+// -- Repository --
 
 func opFileGet(ctx plugin.Ctx, in *FileGetIn) (*FileGetOut, error) {
 	p, err := pid(in.Project)
@@ -61,7 +61,7 @@ func opFileGet(ctx plugin.Ctx, in *FileGetIn) (*FileGetOut, error) {
 	if r := strings.TrimSpace(in.Ref); r != "" {
 		params["ref"] = r
 	} else {
-		// files 接口 ref 必填：先取默认分支。
+		// The files endpoint requires ref: fetch the default branch first.
 		braw, _, berr := glCall(ctx, http.MethodGet, "/projects/"+p, nil)
 		if berr != nil {
 			return nil, berr
@@ -89,7 +89,7 @@ func opFileGet(ctx plugin.Ctx, in *FileGetIn) (*FileGetOut, error) {
 	return &FileGetOut{Content: content, LastCommitID: f.LastCommitID}, nil
 }
 
-// pathEscapeAll 文件路径整体编码（含 /）——GitLab files 接口的约定。
+// pathEscapeAll encodes the whole file path (including /) -- a convention of the GitLab files endpoint.
 func pathEscapeAll(p string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(p, "%", "%25"), "/", "%2F")
 }
@@ -113,14 +113,14 @@ func opFileWrite(ctx plugin.Ctx, in *FileWriteIn) (*FileWriteOut, error) {
 		_ = json.Unmarshal(braw, &proj)
 		branch = str(proj, "default_branch")
 	}
-	// create 还是 update？先探文件在不在（分支上）——commits 接口的 action 必须精确。
+	// create or update? Probe whether the file exists (on the branch) first -- the commits endpoint's action must be exact.
 	action := "update"
 	if _, _, gerr := glCall(ctx, http.MethodGet,
 		"/projects/"+p+"/repository/files/"+pathEscapeAll(path), map[string]any{"ref": branch}); gerr != nil {
 		if strings.Contains(gerr.Error(), "404") {
 			action = "create"
 		}
-		// 其他错误也按 update 试——commits 接口会给出更准的报错。
+		// Other errors are also tried as update -- the commits endpoint will give a more precise error.
 	}
 	body := map[string]any{
 		"branch": branch, "commit_message": msg,
@@ -191,7 +191,7 @@ func opCommitsList(ctx plugin.Ctx, in *CommitsListIn) (*CommitsListOut, error) {
 	return out, nil
 }
 
-// —— MR ——
+// -- MR --
 
 func mrFrom(m map[string]any) schema.Mr {
 	return schema.Mr{
@@ -305,7 +305,7 @@ func opMrNote(ctx plugin.Ctx, in *MrNoteIn) (*MrNoteOut, error) {
 	return &MrNoteOut{NoteID: num(m, "id")}, nil
 }
 
-// —— Issue ——
+// -- Issue --
 
 func opIssuesList(ctx plugin.Ctx, in *IssuesListIn) (*IssuesListOut, error) {
 	p, err := pid(in.Project)
@@ -352,7 +352,7 @@ func opIssueCreate(ctx plugin.Ctx, in *IssueCreateIn) (*IssueCreateOut, error) {
 		body["labels"] = l
 	}
 	if a := strings.TrimSpace(in.Assignee); a != "" {
-		// 指派要 user id，先按用户名查。
+		// Assignment needs a user id; look it up by username first.
 		uraw, _, uerr := glCall(ctx, http.MethodGet, "/users", map[string]any{"username": a})
 		if uerr == nil {
 			if us := digList(uraw); len(us) > 0 {
@@ -387,7 +387,7 @@ func opIssueNote(ctx plugin.Ctx, in *IssueNoteIn) (*IssueNoteOut, error) {
 	return &IssueNoteOut{NoteID: num(m, "id")}, nil
 }
 
-// —— CI/CD ——
+// -- CI/CD --
 
 func opPipelinesList(ctx plugin.Ctx, in *PipelinesListIn) (*PipelinesListOut, error) {
 	p, err := pid(in.Project)
@@ -428,7 +428,7 @@ func opPipelineTrigger(ctx plugin.Ctx, in *PipelineTriggerIn) (*PipelineTriggerO
 	}
 	body := map[string]any{"ref": ref}
 	if len(in.Variables) > 0 {
-		// pipeline 接口的变量形态是 [{key,value}] 数组。
+		// The pipeline endpoint takes variables as a [{key,value}] array.
 		var vars []map[string]any
 		for k, v := range in.Variables {
 			vars = append(vars, map[string]any{"key": k, "value": fmt.Sprintf("%v", v)})
@@ -497,7 +497,7 @@ func opJobLog(ctx plugin.Ctx, in *JobLogIn) (*JobLogOut, error) {
 	return &JobLogOut{Log: log, Lines: len(lines)}, nil
 }
 
-// —— 保底 / 体检 ——
+// -- Catch-all / health check --
 
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	path := strings.TrimSpace(in.Path)
@@ -530,7 +530,7 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return &HealthCheckOut{OK: true, Username: name, Message: "token 可用：@" + name}, nil
 }
 
-// —— 闭环：改 Issue / 改评论 ——
+// -- Closing the loop: edit Issue / edit comment --
 
 func opIssueUpdate(ctx plugin.Ctx, in *IssueUpdateIn) (*IssueUpdateOut, error) {
 	p, err := pid(in.Project)
@@ -541,8 +541,8 @@ func opIssueUpdate(ctx plugin.Ctx, in *IssueUpdateIn) (*IssueUpdateOut, error) {
 		return nil, fmt.Errorf("没给 Issue 编号")
 	}
 	body := map[string]any{}
-	// 只把**真填了的**字段发出去：GitLab 收到 title:"" 会把标题清空，
-	// 而「留空 = 不改」才是这个操作的语义。
+	// Only send fields that were actually filled in: GitLab would clear the title if it got
+	// title:"", and "left blank = no change" is this operation's intended semantics.
 	if v := strings.TrimSpace(in.StateEvent); v != "" {
 		body["state_event"] = v
 	}
@@ -599,7 +599,7 @@ func opNoteUpdate(ctx plugin.Ctx, in *NoteUpdateIn) (*NoteUpdateOut, error) {
 	return &NoteUpdateOut{NoteID: num(digObj(raw), "id")}, nil
 }
 
-// userID 用户名 → 数字 id（指派接口只收 id）。
+// userID resolves a username to a numeric id (the assignment endpoint only accepts ids).
 func userID(ctx plugin.Ctx, username string) (int, error) {
 	raw, _, err := glCall(ctx, http.MethodGet, "/users", map[string]any{"username": username})
 	if err != nil {
@@ -612,7 +612,7 @@ func userID(ctx plugin.Ctx, username string) (int, error) {
 	return num(list[0], "id"), nil
 }
 
-// —— MR review ——
+// -- MR review --
 
 const defaultDiffLimit = 20000
 
@@ -644,8 +644,9 @@ func opMrChanges(ctx plugin.Ctx, in *MrChangesIn) (*MrChangesOut, error) {
 			continue
 		}
 		d := str(c, "diff")
-		// 单文件截断而不是整体截断：一个几万行的迁移 diff 会把下游的上下文占满，
-		// 但**其余文件的改动不该跟着一起没**——那会让 review 漏掉真正要看的地方。
+		// Truncate per file rather than overall: a migration diff with tens of thousands of
+		// lines would fill up downstream context, but the other files' changes shouldn't
+		// disappear along with it -- that would make review miss the parts that actually matter.
 		if len(d) > limit {
 			d = d[:limit] + "\n…（此文件 diff 已截断）"
 			out.Truncated = true
@@ -697,7 +698,7 @@ func opMrUpdate(ctx plugin.Ctx, in *MrUpdateIn) (*MrUpdateOut, error) {
 		return nil, fmt.Errorf("没给 MR 编号")
 	}
 	body := map[string]any{}
-	// 与 issue_update 同一条约定：只发真填了的字段，留空 = 不改。
+	// Same convention as issue_update: only send fields that were actually filled in; blank means no change.
 	if v := strings.TrimSpace(in.StateEvent); v != "" {
 		body["state_event"] = v
 	}
@@ -725,7 +726,7 @@ func opMrUpdate(ctx plugin.Ctx, in *MrUpdateIn) (*MrUpdateOut, error) {
 	return &MrUpdateOut{State: str(m, "state"), Labels: digStrings(m["labels"]), URL: str(m, "web_url")}, nil
 }
 
-// —— 搜索 / 行级评论 ——
+// -- Search / inline comments --
 
 func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	q := strings.TrimSpace(in.Query)
@@ -755,8 +756,9 @@ func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	return out, nil
 }
 
-// searchHit 各 scope 的命中形状差得很远（代码给 path/startline/data，Issue 给 iid/title），
-// 归一成一个结构：画布上不该为「搜的是代码还是 Issue」准备两套下钻路径。
+// searchHit normalizes the very different hit shapes across scopes (code gives
+// path/startline/data, Issue gives iid/title) into one struct: the canvas shouldn't need two
+// separate drill-down paths depending on whether you searched code or an Issue.
 func searchHit(scope string, m map[string]any) schema.SearchHit {
 	h := schema.SearchHit{URL: str(m, "web_url")}
 	switch scope {
@@ -774,7 +776,7 @@ func searchHit(scope string, m map[string]any) schema.SearchHit {
 		h.Snippet = clip(str(m, "description"), 2000)
 	}
 	if p := num(m, "project_id"); p > 0 && h.Project == "" {
-		h.Project = fmt.Sprintf("%d", p) // 全局搜索只回 project_id，路径要另查——先给 id 够用
+		h.Project = fmt.Sprintf("%d", p) // global search only returns project_id; the path would need a separate lookup -- the id is enough for now
 	}
 	return h
 }
@@ -790,8 +792,9 @@ func opMrDiscussion(ctx plugin.Ctx, in *MrDiscussionIn) (*MrDiscussionOut, error
 	if in.Line <= 0 && in.OldLine <= 0 {
 		return nil, fmt.Errorf("行号与原文件行号至少给一个（评论新增/上下文行用「行号」，评论被删除的行用「原文件行号」）")
 	}
-	// 行级评论要三个 sha 定位 diff。它们在 MR 自己身上（diff_refs），
-	// **插件自己去取**：让调用方在画布上填 base/start/head 三个 sha 是不可能用对的。
+	// An inline comment needs three shas to locate the diff. They live on the MR itself
+	// (diff_refs), and the plugin fetches them itself: expecting the caller to fill in three
+	// base/start/head shas on the canvas is never going to work correctly.
 	raw, _, err := glCall(ctx, http.MethodGet, fmt.Sprintf("/projects/%s/merge_requests/%d", p, in.Iid), nil)
 	if err != nil {
 		return nil, err

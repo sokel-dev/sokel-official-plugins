@@ -1,12 +1,14 @@
-// bluesky —— Sokel 第一方发布器插件：发帖 / 帖串 / 删帖。
+// bluesky — a first-party Sokel publisher plugin: post / thread / delete.
 //
-// **统一 publish 契约的第一个样板**（docs/social-publishing-plugins.md）：
-// 发布类操作一律回 id + url，长内容的分段归插件，媒体随发布一起走。
+// **The first template for the unified publish contract**
+// (docs/social-publishing-plugins.md): publish operations always return id + url, the
+// plugin owns splitting long content, and media travels along with the publish call.
 //
-// 四条判断见 schema/schema.go 顶部：facets 按字节偏移算、链接卡片默认做、
-// 图片随发布传、会话（accessJwt 只活几分钟）由插件自管。
+// See the top of schema/schema.go for four design decisions: facets are computed by byte
+// offset, link cards are built by default, images are sent with the publish call, and the
+// session (accessJwt only lives a few minutes) is self-managed by the plugin.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./bluesky
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./bluesky
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -35,7 +37,7 @@ func main() {
 	OnBskyPostCreate(p, opPostCreate)
 	OnBskyPostThread(p, opPostThread)
 	OnBskyPostDelete(p, opPostDelete)
-	OnHealthCheck(p, opHealthCheck) // 平台约定：凭证页「测试」与工作流「检查凭证」都调它
+	OnHealthCheck(p, opHealthCheck) // platform convention: called by both "Test" on the credential page and "Check credential" in workflows
 
 	if err := p.Run(); err != nil {
 		log.Fatal(err)

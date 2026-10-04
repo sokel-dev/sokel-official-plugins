@@ -1,10 +1,11 @@
 package main
 
-// 对着**真** pgvector 跑一遍 8 个操作。
+// Runs all 8 operations against a **real** pgvector.
 //
-// 存储插件的单测如果不连真库，测的就只是自己写的 SQL 字符串长什么样——
-// 而这类插件出错的地方恰恰全在数据库那一侧（维度、算子类、NULL、JSONB、参数位次）。
-// 没有 PGVECTOR_TEST_URL 就跳过，CI 与他人机器上不会因此变红。
+// If a storage plugin's unit tests don't connect to a real database, all they test is what the
+// SQL string you wrote looks like to yourself — and this class of plugin fails precisely on the
+// database side (dimensions, operator classes, NULL, JSONB, parameter positions).
+// Skipped when PGVECTOR_TEST_URL isn't set, so CI and other people's machines don't go red over it.
 //
 //	docker run -d --name sokel-pgvector -e POSTGRES_USER=sokel -e POSTGRES_PASSWORD=sokel \
 //	  -e POSTGRES_DB=kbstore -p 5434:5432 pgvector/pgvector:pg16
@@ -24,8 +25,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// fakeCtx：只提供凭证的最小 sokel.Ctx 替身（本插件的操作实现只用到 Credential()；
-// 文件层那几个方法在存储插件里用不上，直接给零值/报错即可）。
+// fakeCtx is a minimal sokel.Ctx stand-in that only provides the credential (this plugin's
+// operations only use Credential(); the file-layer methods aren't used in a storage plugin, so
+// they can just return a zero value / error).
 type fakeCtx struct {
 	context.Context
 	cred map[string]string
@@ -51,7 +53,8 @@ func liveCtx(t *testing.T) fakeCtx {
 	return fakeCtx{Context: context.Background(), cred: map[string]string{"pg_url": dsn, "namespace": "kbt"}}
 }
 
-// vec：造一个 dims 维的单位向量，第 i 位为 1（互相正交，相似度可预期）。
+// vec builds a dims-dimensional unit vector with a 1 in position i (mutually orthogonal, so
+// similarity is predictable).
 func vec(dims, i int) []float32 {
 	v := make([]float32, dims)
 	v[i%dims] = 1
@@ -66,20 +69,22 @@ func toF64(v []float32) []float64 {
 	return out
 }
 
-// 全链：建库 → 写入 → 向量检索 → 关键词检索 → mget → 浏览 → 删文档 → 删库。
+// Full chain: create kb → write → vector query → keyword query → mget → browse → delete doc →
+// delete kb.
 func TestPgvectorRoundTrip(t *testing.T) {
 	ctx := liveCtx(t)
 	const kb = "rt_case"
 	const dims = 8
 
-	// 收尾先挂上：中途失败也不留表。
+	// Cleanup is registered up front: no leftover table even if a mid-test step fails.
 	t.Cleanup(func() { _, _ = opKBDrop(ctx, &KbDropIn{KbID: kb}) })
-	_, _ = opKBDrop(ctx, &KbDropIn{KbID: kb}) // 上一轮的残留
+	_, _ = opKBDrop(ctx, &KbDropIn{KbID: kb}) // leftover from a previous run
 
 	if _, err := opKBCreate(ctx, &KbCreateIn{KbID: kb, Dims: dims}); err != nil {
 		t.Fatalf("建库失败: %v", err)
 	}
-	// 幂等：契约里 kb_create 会被重复调用（平台侧不保证只建一次）。
+	// Idempotency: kb_create can be called repeatedly per the contract (the platform doesn't
+	// guarantee it's only created once).
 	if _, err := opKBCreate(ctx, &KbCreateIn{KbID: kb, Dims: dims}); err != nil {
 		t.Fatalf("重复建库应幂等: %v", err)
 	}
@@ -111,7 +116,7 @@ func TestPgvectorRoundTrip(t *testing.T) {
 		t.Fatalf("写入第二篇失败: %v", err)
 	}
 
-	// —— 向量检索：查 c1 的向量，c1 必须排第一，且分数接近 1 ——
+	// —— Vector query: query c1's vector, c1 must rank first with a score near 1 ——
 	vq, err := opVectorQuery(ctx, &VectorQueryIn{KbID: kb, Embedding: toF64(vec(dims, 0)), K: 5})
 	if err != nil {
 		t.Fatalf("向量检索失败: %v", err)
@@ -122,18 +127,18 @@ func TestPgvectorRoundTrip(t *testing.T) {
 	if math.Abs(vq.Hits[0].Score-1) > 0.01 {
 		t.Errorf("自身相似度应≈1, got %v", vq.Hits[0].Score)
 	}
-	// 没有向量的父块不该出现在向量检索里（p1 没带 embedding）。
+	// A parent chunk with no vector shouldn't show up in vector query results (p1 has no embedding).
 	for _, h := range vq.Hits {
 		if h.ID == "p1" {
 			t.Error("无向量的块不该被向量检索召回")
 		}
 	}
-	// 读路径不回流向量（几 KB 浮点穿 NATS）。
+	// The read path doesn't send the vector back (that would be a few KB of floats over NATS).
 	if len(vq.Hits[0].Chunk.Embedding) != 0 {
 		t.Error("命中不该带回 embedding")
 	}
 
-	// —— 关键词检索 ——
+	// —— Keyword query ——
 	kq, err := opKeywordQuery(ctx, &KeywordQueryIn{KbID: kb, Query: "光伏组件价格", K: 5})
 	if err != nil {
 		t.Fatalf("关键词检索失败: %v", err)
@@ -142,7 +147,7 @@ func TestPgvectorRoundTrip(t *testing.T) {
 		t.Fatalf("关键词应命中 c3, got %+v", ids(kq.Hits))
 	}
 
-	// —— 过滤：按元数据 + 反选 ——
+	// —— Filtering: by metadata + exclusion ——
 	f1, _ := opVectorQuery(ctx, &VectorQueryIn{KbID: kb, Embedding: toF64(vec(dims, 0)), K: 10,
 		Filters: []schema.Filter{{Field: "industry", Values: []string{"新能源"}}}})
 	if len(f1.Hits) != 1 || f1.Hits[0].ID != "c3" {
@@ -155,7 +160,7 @@ func TestPgvectorRoundTrip(t *testing.T) {
 			t.Error("反选应把 c3 排除")
 		}
 	}
-	// 缺字段过滤：rating 只有 d1 的两条有
+	// Missing-field filter: only d1's two chunks have rating
 	f3, _ := opVectorQuery(ctx, &VectorQueryIn{KbID: kb, Embedding: toF64(vec(dims, 0)), K: 10,
 		Filters: []schema.Filter{{Field: "rating", Missing: true}}})
 	for _, h := range f3.Hits {
@@ -164,7 +169,7 @@ func TestPgvectorRoundTrip(t *testing.T) {
 		}
 	}
 
-	// —— 时间范围 ——
+	// —— Time range ——
 	tq, _ := opVectorQuery(ctx, &VectorQueryIn{KbID: kb, Embedding: toF64(vec(dims, 0)), K: 10,
 		TimeRange: schema.TimeRange{From: "2026-04-01"}})
 	for _, h := range tq.Hits {
@@ -173,9 +178,13 @@ func TestPgvectorRoundTrip(t *testing.T) {
 		}
 	}
 
-	// —— mget：**必须按请求的 id 顺序返回**（平台当真；SQL 的 = ANY 不保证顺序）——
-	// 请求序**故意与写入序相反**(c3 后写、p1 先写):顺着写的话 SQL 会按物理序还给你,
-	// 断言就会因为"恰好一致"而假绿——第一版就是这么写的,验齿时没红才发现。
+	// —— mget: **must return in the order the ids were requested** (the platform takes this
+	// literally; SQL's = ANY makes no ordering guarantee) ——
+	// The request order is **deliberately the reverse of the write order** (c3 written last, p1
+	// written first): writing in the same order would let SQL hand results back in physical order,
+	// and the assertion would pass for the wrong reason — "coincidentally matching" — which is
+	// exactly how the first version was written, and it took a mutation-testing pass that stayed
+	// green to notice.
 	mg, err := opMget(ctx, &MgetIn{KbID: kb, IDs: []string{"c3", "p1", "不存在"}})
 	if err != nil {
 		t.Fatalf("mget 失败: %v", err)
@@ -183,12 +192,13 @@ func TestPgvectorRoundTrip(t *testing.T) {
 	if len(mg.Chunks) != 2 || mg.Chunks[0].ID != "c3" || mg.Chunks[1].ID != "p1" {
 		t.Fatalf("mget 应按请求序返回且跳过不存在的, got %+v", chunkIDs(mg.Chunks))
 	}
-	// 透传字段要原样回来（fields/溯源/资产是 payload，不索引但必须完整）。
+	// Pass-through fields must come back unchanged (fields/provenance/assets are payload — not
+	// indexed, but must stay complete).
 	if mg.Chunks[1].Fields["industry"] != "半导体" {
 		t.Errorf("元数据没原样回来: %+v", mg.Chunks[1].Fields)
 	}
 
-	// —— 浏览 ——
+	// —— Browse ——
 	br, err := opBrowse(ctx, &ChunksBrowseIn{KbID: kb, K: 10})
 	if err != nil {
 		t.Fatalf("浏览失败: %v", err)
@@ -197,17 +207,17 @@ func TestPgvectorRoundTrip(t *testing.T) {
 		t.Errorf("应浏览到 4 个块, got %d", len(br.Chunks))
 	}
 
-	// —— 覆盖写：同一 doc 再写一次(append=false)应替换而不是叠加 ——
+	// —— Overwrite write: writing the same doc again (append=false) should replace, not append ——
 	if _, err := opUpsert(ctx, &ChunksUpsertIn{KbID: kb, DocID: "d1",
 		Chunks: []schema.Chunk{{ID: "c1", DocID: "d1", Content: "改过了", Embedding: vec(dims, 0)}}}); err != nil {
 		t.Fatalf("覆盖写失败: %v", err)
 	}
 	br2, _ := opBrowse(ctx, &ChunksBrowseIn{KbID: kb, K: 10})
-	if len(br2.Chunks) != 2 { // d1 只剩 c1，d2 的 c3 还在
+	if len(br2.Chunks) != 2 { // d1 should be down to just c1; d2's c3 is still there
 		t.Errorf("覆盖写后应剩 2 个块, got %d (%v)", len(br2.Chunks), chunkIDs(br2.Chunks))
 	}
 
-	// —— 删文档 / 删库 ——
+	// —— Delete document / delete knowledge base ——
 	if _, err := opDocDelete(ctx, &DocDeleteIn{KbID: kb, DocID: "d1"}); err != nil {
 		t.Fatalf("删文档失败: %v", err)
 	}
@@ -220,8 +230,9 @@ func TestPgvectorRoundTrip(t *testing.T) {
 	}
 }
 
-// 分批写入：平台按 NATS 帧上限切批，只有第一批 append=false。
-// 每批都当覆盖的话，后一批会把前一批刚写的删掉——ES 版踩过，这里钉住。
+// Batched writes: the platform splits into batches by the NATS frame size limit, and only the
+// first batch has append=false. Treating every batch as an overwrite would make the next batch
+// delete what the previous one just wrote — the ES version hit this, pinned down here.
 func TestPgvectorAppendBatches(t *testing.T) {
 	ctx := liveCtx(t)
 	const kb = "batch_case"
@@ -245,8 +256,9 @@ func TestPgvectorAppendBatches(t *testing.T) {
 	}
 }
 
-// 维度不符必须**报错**，而不是写坏。
-// pgvector 的 vector(N) 会自己拦，这里确认错误确实冒到调用方（而不是被吞成 ok:true）。
+// A dimension mismatch must **error**, not silently corrupt data.
+// pgvector's vector(N) rejects it on its own; this confirms the error actually surfaces to the
+// caller (rather than being swallowed into ok:true).
 func TestPgvectorDimsMismatchFails(t *testing.T) {
 	ctx := liveCtx(t)
 	const kb = "dims_case"
@@ -262,7 +274,8 @@ func TestPgvectorDimsMismatchFails(t *testing.T) {
 	}
 }
 
-// 表名只能由 [a-z0-9_] 组成：kb_id 是外部给的，拼进 SQL 标识符的地方只有这一处。
+// A table name may only consist of [a-z0-9_]: kb_id comes from outside, and this is the only
+// place it gets spliced into a SQL identifier.
 func TestTableNameSanitized(t *testing.T) {
 	s := &store{ns: "kb"}
 	got := s.table(`x"; DROP TABLE users; --`)
@@ -289,9 +302,11 @@ func chunkIDs(cs []schema.Chunk) []string {
 	return out
 }
 
-// 数组字段与反选的语义（主仓开源计划 M3-3.4）：字段可以是标量或标量数组，任一元素相等即命中——平台把
-// 成组的业务标签打平成 tags: ["kind:id"]、权限打平成 readers: ["u_1"] 来过滤；反选时缺这个字段的行要保留
-// （ES 的 must_not 就是这样），此前 NOT (NULL = ANY) 会把它们整行丢掉。
+// Semantics of array fields and exclusion (main-repo open-source plan M3-3.4): a field can be a
+// scalar or an array of scalars, and matching any one element counts as a hit — the platform
+// flattens grouped business tags into tags: ["kind:id"] and permissions into readers: ["u_1"] to
+// filter on them; on exclusion, rows missing the field should be kept (that's how ES's must_not
+// behaves), whereas the earlier NOT (NULL = ANY) dropped those rows entirely.
 func TestPgvectorArrayAndExcludeFilters(t *testing.T) {
 	ctx := liveCtx(t)
 	const kb = "arr_case"

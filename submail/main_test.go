@@ -1,6 +1,6 @@
 package main
 
-// httptest 假 SUBMAIL 打穿表单形状与错误翻译。真发短信要花钱，联调走 operation:test。
+// httptest fakes SUBMAIL to exercise form shapes and error translation. Real SMS sends cost money, so integration testing goes through operation:test.
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func bothApps() map[string]string {
 	return map[string]string{"sms_appid": "10001", "sms_appkey": "key-cn", "intl_appid": "20002", "intl_appkey": "key-intl"}
 }
 
-// 国内发送：路径 / 表单键 / 明文签名 都钉住；国际发送要用国际那对钥匙。
+// Domestic send: the path / form keys / plaintext signature are all pinned; international send must use the international key pair.
 func TestSendWireShape(t *testing.T) {
 	var path string
 	var form map[string][]string
@@ -72,7 +72,7 @@ func TestSendWireShape(t *testing.T) {
 	}
 }
 
-// 模板变量要序列化成 JSON 串放进 vars 表单键。
+// Template variables must be serialized to a JSON string and put in the vars form key.
 func TestXsendVars(t *testing.T) {
 	var form map[string][]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +95,8 @@ func TestXsendVars(t *testing.T) {
 	}
 }
 
-// 提前拦的两类错：国内缺【签名】、国际缺国家码——都不该打到 SUBMAIL 才发现。
+// Two kinds of errors rejected up front: a missing domestic 【signature】 and a missing
+// international country code -- neither should be discovered only after hitting SUBMAIL.
 func TestLocalValidation(t *testing.T) {
 	ctx := newFake(bothApps())
 	if _, err := opSmsSend(ctx, &SmsSendIn{To: "13800138000", Content: "没有签名的内容"}); err == nil || !strings.Contains(err.Error(), "签名") {
@@ -106,7 +107,7 @@ func TestLocalValidation(t *testing.T) {
 	}
 }
 
-// 只配了一组应用时，用另一边的操作要指路，而不是 101。
+// When only one app group is configured, using the other side's operation must point the way, not just return error 101.
 func TestMissingAppGroup(t *testing.T) {
 	cnOnly := map[string]string{"sms_appid": "10001", "sms_appkey": "k"}
 	if _, err := opIntlSend(newFake(cnOnly), &IntlSendIn{To: "+8613800138000", Content: "hi"}); err == nil || !strings.Contains(err.Error(), "国际短信应用") {
@@ -114,7 +115,7 @@ func TestMissingAppGroup(t *testing.T) {
 	}
 }
 
-// 错误码翻译。
+// Error code translation.
 func TestErrTranslation(t *testing.T) {
 	for code, want := range map[int]string{101: "两个应用", 152: "充值", 406: "审核", 254: "已报备签名"} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +132,7 @@ func TestErrTranslation(t *testing.T) {
 	}
 }
 
-// 余额的数字 SUBMAIL 以字符串给（"balance":"12345"），要能解。
+// SUBMAIL gives balance numbers as strings ("balance":"12345"), which must be parseable.
 func TestBalanceStringNumber(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"status":"success","balance":"12345","transactional_balance":"678"}`)
@@ -149,8 +150,9 @@ func TestBalanceStringNumber(t *testing.T) {
 	}
 }
 
-// 余额：国内与国际各打各的端点、各用各的钥匙——国际钥匙打 /balance/sms 会被
-// 误判成坏凭证（修过的 bug，钉住）。国际按金额（小数），国内按条。
+// Balance: domestic and international each hit their own endpoint with their own key --
+// hitting /balance/sms with the international key gets misjudged as a bad credential (a fixed
+// bug, pinned here). International is by amount (decimal), domestic is by message count.
 func TestBalanceBothEndpoints(t *testing.T) {
 	var hits []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +181,7 @@ func TestBalanceBothEndpoints(t *testing.T) {
 		t.Errorf("hits=%v want %v", hits, want)
 	}
 
-	// 只配国际时：不打国内端点，也不报错。
+	// With only international configured: don't hit the domestic endpoint, and don't error.
 	hits = nil
 	intlOnly := map[string]string{"intl_appid": "20002", "intl_appkey": "k"}
 	out, err = opBalance(newFake(intlOnly), &BalanceIn{})
@@ -188,7 +190,7 @@ func TestBalanceBothEndpoints(t *testing.T) {
 	}
 }
 
-// sms_log 走 v4 网关（老网关 Unknown method——实测），send_id/to 至少一个。
+// sms_log goes through the v4 gateway (the old gateway returns "Unknown method" in practice); at least one of send_id/to is required.
 func TestSmsLogV4Gateway(t *testing.T) {
 	var path string
 	var form map[string][]string

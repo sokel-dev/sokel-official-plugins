@@ -1,15 +1,17 @@
 package main
 
-// 属性归一化：Notion 的 25 种属性值 ↔ 平铺的简单值。
+// Property normalization: Notion's 25 property value types <-> flat simple values.
 //
-// 读侧**两份都给**（props 归一化 + properties_raw 原样）：只给原样等于让人和模型对着
-// `{"状态":{"status":{"name":"进行中"}}}` 猜路径；只给归一化，则 rollup/formula 这类
-// 必然丢信息的类型没有退路。
+// The read side **gives both** (normalized props + raw properties_raw): giving only the raw form
+// means people and models have to guess paths against `{"状态":{"status":{"name":"进行中"}}}`;
+// giving only the normalized form leaves no fallback for types like rollup/formula where
+// normalization inevitably loses information.
 //
-// 写侧只收归一化 —— 但它需要**知道每一列是什么类型**（"进行中" 该包成 select 还是 status
-// 还是 rich_text，光看值分辨不出来），所以写之前一定先取一次表结构（带缓存）。
-// 这也是为什么写不了的列（formula/rollup/created_time…）能在发请求前就报出来：
-// 表结构里写着它算出来的。
+// The write side only accepts normalized values — but it needs to **know each column's type**
+// ("进行中" could need wrapping as select, status, or rich_text, and the value alone can't tell you
+// which), so it always fetches the schema first (cached) before writing. This is also why an
+// unwritable column (formula/rollup/created_time...) can be reported before the request is even
+// sent: the schema already says it's computed.
 
 import (
 	"fmt"
@@ -22,9 +24,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// —— 读：Notion 属性值 → 简单值 ——
+// —— Read: Notion property value -> simple value ——
 
-// normalizeProps：整页属性 → 平铺值。
+// normalizeProps converts a whole page's properties to flat values.
 func normalizeProps(raw map[string]any) map[string]any {
 	if raw == nil {
 		return nil
@@ -40,7 +42,8 @@ func normalizeProps(raw map[string]any) map[string]any {
 	return out
 }
 
-// normalizeProp：一个属性值 → 简单值。认不出的类型返回 nil（原样那份里有）。
+// normalizeProp converts one property value to a simple value. Unrecognized types return nil
+// (it's available in the raw copy).
 func normalizeProp(p map[string]any) any {
 	switch str(p["type"]) {
 	case "title":
@@ -56,15 +59,18 @@ func normalizeProp(p map[string]any) any {
 	case "multi_select":
 		return namesOf(p["multi_select"])
 	case "date":
-		// 形状恒定（start/end 两个键，无值即空串）而不是「有 end 才给对象」——
-		// 变形状的字段下游没法写引用，模板里 {{props.截止.start}} 得先猜今天是哪种。
+		// A constant shape (always a start/end pair, empty string if unset) rather than "only
+		// give an object when there's an end" — a field whose shape changes can't be referenced
+		// downstream; a template with {{props.截止.start}} would first have to guess which shape
+		// it is today.
 		return dateOf(p["date"])
 	case "checkbox":
 		return p["checkbox"]
 	case "url", "email", "phone_number":
 		return p[str(p["type"])]
 	case "people":
-		// 给名字不给 id：这一列绝大多数时候是拿去显示的。写回时两种都认（见 peopleValue）。
+		// Gives the name, not the id: this column is used for display the vast majority of the
+		// time. Writing back accepts either form (see peopleValue).
 		return peopleNames(p["people"])
 	case "files":
 		return fileURLs(p["files"])
@@ -105,11 +111,13 @@ func normalizeProp(p map[string]any) any {
 		}
 		return nil
 	}
-	// verification / button 这类：归一化不出有意义的值，去 properties_raw 里取
+	// Types like verification / button: normalization yields nothing meaningful; fetch from
+	// properties_raw instead
 	return nil
 }
 
-// innerValue：formula/rollup 这类「带 type 的单值包装」→ 里面那个值。
+// innerValue unwraps a "type-tagged single-value wrapper" (as used by formula/rollup) to the
+// value inside.
 func innerValue(v any) any {
 	m, ok := v.(map[string]any)
 	if !ok {
@@ -217,7 +225,7 @@ func str(v any) string {
 	return s
 }
 
-// —— 表结构（写入的前提，带缓存）——
+// —— Schema (a prerequisite for writing, cached) ——
 
 type propType struct {
 	Name    string
@@ -225,14 +233,15 @@ type propType struct {
 	Options []string
 }
 
-// writableTypes：能写的类型。不在表里的都是 Notion 算出来的，写了必被拒。
+// writableTypes lists the types that can be written. Anything not in here is computed by Notion,
+// and writing to it is always rejected.
 var writableTypes = map[string]bool{
 	"title": true, "rich_text": true, "number": true, "select": true, "status": true,
 	"multi_select": true, "date": true, "people": true, "files": true, "checkbox": true,
 	"url": true, "email": true, "phone_number": true, "relation": true,
 }
 
-// dsCacheEntry：一个数据源的对象与解析好的列。
+// dsCacheEntry holds one data source's object plus its parsed columns.
 type dsCacheEntry struct {
 	ds    dataSource
 	props map[string]propType
@@ -242,13 +251,15 @@ type dsCacheEntry struct {
 var (
 	schemaMu    sync.Mutex
 	schemaCache = map[string]dsCacheEntry{}
-	// schemaTTL：表结构不常改，但改了要能在一次编辑周期内生效。
-	// 缓存不是为了省钱，是为了别让一次操作里同一个对象被拉三遍（限流只有 3 次/秒）：
-	// 「认出这是不是数据源」「取表结构」「拼属性」问的都是同一个接口。
+	// schemaTTL: a schema doesn't change often, but when it does the change needs to take effect
+	// within one editing cycle. The cache isn't about saving money — it's to avoid fetching the
+	// same object three times within a single operation (the rate limit is only 3 req/sec):
+	// "is this a data source", "get its schema", and "assemble properties" all hit the same
+	// endpoint.
 	schemaTTL = 2 * time.Minute
 )
 
-// getDataSource：取数据源（带缓存）。
+// getDataSource fetches a data source (cached).
 func getDataSource(ctx plugin.Ctx, dsID string) (dataSource, map[string]propType, error) {
 	schemaMu.Lock()
 	if e, ok := schemaCache[dsID]; ok && time.Since(e.at) < schemaTTL {
@@ -268,14 +279,15 @@ func getDataSource(ctx plugin.Ctx, dsID string) (dataSource, map[string]propType
 	return ds, props, nil
 }
 
-// invalidateDataSource：改过表结构后立刻作废，否则接着写入会按旧列报「没有这一列」。
+// invalidateDataSource evicts the cache entry right after a schema change; otherwise a subsequent
+// write would report "no such column" against the stale columns.
 func invalidateDataSource(dsID string) {
 	schemaMu.Lock()
 	delete(schemaCache, dsID)
 	schemaMu.Unlock()
 }
 
-// dataSourceProps：取数据源的列（带缓存）。
+// dataSourceProps fetches a data source's columns (cached).
 func dataSourceProps(ctx plugin.Ctx, dsID string) (map[string]propType, error) {
 	_, props, err := getDataSource(ctx, dsID)
 	return props, err
@@ -304,12 +316,13 @@ func parseProps(raw map[string]any) map[string]propType {
 	return out
 }
 
-// —— 写：简单值 → Notion 属性值 ——
+// —— Write: simple value -> Notion property value ——
 
-// buildProps：平铺属性 → Notion 的属性 JSON。
+// buildProps converts flat properties to Notion's property JSON.
 //
-// 列名不认识就**当场报错并列出有哪些列**——这个错是给模型看的，一句
-// 「property does not exist」它只会再猜一次，给了列名它下一轮就对了。
+// An unrecognized column name **errors immediately and lists the available columns** — this error
+// is meant for the model to read. A bare "property does not exist" would only make it guess again,
+// but given the column names it gets it right on the next try.
 func buildProps(ctx plugin.Ctx, dsID string, in map[string]any) (map[string]any, error) {
 	if len(in) == 0 {
 		return nil, nil
@@ -347,9 +360,9 @@ func columnList(specs map[string]propType) string {
 	return strings.Join(names, "、")
 }
 
-// propValue：一个值 → 该列类型的 Notion 表示。
+// propValue converts one value to that column type's Notion representation.
 func propValue(ctx plugin.Ctx, spec propType, v any) (map[string]any, error) {
-	// 显式 null = 清空这一列。各类型的「空」形状不同，统一在这里给。
+	// Explicit null = clear this column. Each type's "empty" shape differs, given uniformly here.
 	if v == nil {
 		return clearValue(spec.Type), nil
 	}
@@ -376,8 +389,8 @@ func propValue(ctx plugin.Ctx, spec propType, v any) (map[string]any, error) {
 		if name == "" {
 			return clearValue(spec.Type), nil
 		}
-		// 候选值不匹配：select 会被 Notion 自动新建一个选项，而 status **一定报错**。
-		// 与其让它去撞，不如在这里说清有哪些候选。
+		// A value not among the candidates: Notion auto-creates a new option for select, but
+		// status **always errors**. Better to spell out the candidates here than let it hit that wall.
 		if len(spec.Options) > 0 && !contains(spec.Options, name) {
 			return nil, fmt.Errorf("「%s」不在候选值里；可选：%s", name, strings.Join(spec.Options, "、"))
 		}
@@ -410,7 +423,7 @@ func propValue(ctx plugin.Ctx, spec propType, v any) (map[string]any, error) {
 		ids := toStrings(v)
 		items := make([]any, 0, len(ids))
 		for _, id := range ids {
-			items = append(items, map[string]any{"id": notionID(id)}) // 贴链接也认
+			items = append(items, map[string]any{"id": notionID(id)}) // A pasted link is accepted too
 		}
 		return map[string]any{"relation": items}, nil
 	case "files":
@@ -428,7 +441,7 @@ func propValue(ctx plugin.Ctx, spec propType, v any) (map[string]any, error) {
 	return nil, fmt.Errorf("不支持写入 %s 类型", spec.Type)
 }
 
-// clearValue：各类型的「空」。
+// clearValue is each type's "empty" representation.
 func clearValue(t string) map[string]any {
 	switch t {
 	case "title":
@@ -449,8 +462,9 @@ func clearValue(t string) map[string]any {
 	return map[string]any{t: nil}
 }
 
-// richText：切成 2000 字一段。Notion 单个富文本对象上限 2000 字符，超了整条请求被拒——
-// 而「写长文到某一列」恰恰是最常见的用法（模型的产出动辄几千字）。
+// richText splits text into 2000-character chunks. A single rich-text object caps out at 2000
+// characters; go over and the whole request is rejected — and "write long-form text into a column"
+// is exactly the most common use case (model output easily runs to thousands of characters).
 func richText(s string) []any {
 	if s == "" {
 		return []any{}
@@ -465,7 +479,8 @@ func richText(s string) []any {
 	return out
 }
 
-// dateValue：日期。三种写法都认——字符串（"2026-08-20"）、{start,end}、以及读出来的那份原样回写。
+// dateValue handles a date. All three forms are accepted — a string ("2026-08-20"), {start,end},
+// and a previously-read value written straight back.
 func dateValue(v any) (map[string]any, error) {
 	switch t := v.(type) {
 	case string:
@@ -487,7 +502,7 @@ func dateValue(v any) (map[string]any, error) {
 	return nil, fmt.Errorf("日期要写成 \"2026-08-20\"（或带时间的 ISO8601），或 {\"start\":…,\"end\":…}")
 }
 
-// —— 成员：名字 ↔ id ——
+// —— Members: name <-> id ——
 
 var (
 	userMu    sync.Mutex
@@ -499,8 +514,9 @@ type cachedUsers struct {
 	at     time.Time
 }
 
-// peopleValue：people 列的值。**名字和 id 都认**——读出来的是名字（那一列多半拿去显示），
-// 直接把读到的值写回另一页是最自然的用法，不认名字的话这条路就是断的。
+// peopleValue builds a people column's value. **Both name and id are accepted** — what's read back
+// is the name (that column is mostly used for display), and writing a read value straight back to
+// another page is the most natural usage; refusing names would break that path.
 func peopleValue(ctx plugin.Ctx, vals []string) ([]any, error) {
 	items := make([]any, 0, len(vals))
 	var names []string
@@ -528,7 +544,7 @@ func peopleValue(ctx plugin.Ctx, vals []string) ([]any, error) {
 	return items, nil
 }
 
-// usersByName：名字 → id（按 token 缓存 10 分钟）。
+// usersByName maps name -> id (cached per token for 10 minutes).
 func usersByName(ctx plugin.Ctx) (map[string]string, error) {
 	tok, err := authToken(sokel.CredentialAs[Cred](ctx))
 	if err != nil {
@@ -557,7 +573,7 @@ func usersByName(ctx plugin.Ctx) (map[string]string, error) {
 	return byName, nil
 }
 
-// —— 小工具 ——
+// —— Small helpers ——
 
 func contains(ss []string, s string) bool {
 	for _, x := range ss {
@@ -595,8 +611,9 @@ func toStrings(v any) []string {
 		}
 		return out
 	case string:
-		// 单值也认：模型经常给 "A" 而不是 ["A"]，为此报错纯属添堵。
-		// 逗号分隔同理——填表的人就是这么写的。
+		// A single value is accepted too: models often give "A" instead of ["A"], and erroring
+		// over this would just be friction. Same reasoning for comma-separated — that's just how
+		// people fill in forms.
 		var out []string
 		for _, p := range strings.Split(t, ",") {
 			if p = strings.TrimSpace(p); p != "" {

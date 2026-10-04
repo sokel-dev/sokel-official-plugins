@@ -1,6 +1,7 @@
 package main
 
-// Issue 域。注意 GitHub 的 /issues 会连 PR 一起返回（见 schema 包顶注第一条）。
+// Issue domain. Note that GitHub's /issues also returns PRs (see the first note at the top of
+// the schema package).
 
 import (
 	"fmt"
@@ -36,8 +37,10 @@ func opIssuesList(ctx plugin.Ctx, in *IssuesListIn) (*IssuesListOut, error) {
 	list := digList(raw)
 	out := &IssuesListOut{HasMore: hasNext(h)}
 	for _, m := range list {
-		// 默认剔掉 PR。**注意 has_more 仍按上游分页来**：剔掉之后本页可能只剩两条，
-		// 但那不代表没有下一页——所以 count 报的是剔完的条数，has_more 报的是上游的。
+		// PRs are dropped by default. **Note that has_more still follows upstream pagination**:
+		// after dropping PRs this page might have only two items left, but that doesn't mean
+		// there's no next page — so count reports the post-drop count while has_more reports
+		// the upstream value.
 		if isPullRequest(m) && !in.IncludePrs {
 			out.DroppedPrs++
 			continue
@@ -141,8 +144,9 @@ func opIssueUpdate(ctx plugin.Ctx, in *IssueUpdateIn) (*IssueUpdateOut, error) {
 	}, nil
 }
 
-// milestoneNumber 里程碑「编号或标题」→ 编号。
-// 允许填标题是因为画布上写死一个数字编号很脆——里程碑重建一次编号就变了。
+// milestoneNumber resolves a milestone "number or title" to a number.
+// Allowing a title is because hardcoding a numeric milestone number on the canvas is fragile —
+// the number changes whenever the milestone is recreated.
 func milestoneNumber(ctx plugin.Ctx, rp, v string) (int, error) {
 	if n, err := strconv.Atoi(v); err == nil {
 		return n, nil
@@ -191,8 +195,9 @@ func opIssueLabel(ctx plugin.Ctx, in *IssueLabelIn) (*IssueLabelOut, error) {
 		}
 		return &IssueLabelOut{Labels: namesOf(anyOf(raw), "name")}, nil
 	case "remove":
-		// 逐个删——GitHub 没有批量删除接口。删不存在的标签会 404，忽略它：
-		// 「确保这个标签不在」是幂等诉求，本来就不在不算失败。
+		// Delete one by one — GitHub has no bulk-delete endpoint. Deleting a label that doesn't
+		// exist gives a 404, which we ignore: "make sure this label is gone" is an idempotent
+		// request, and it not already being there isn't a failure.
 		for _, l := range in.Labels {
 			_, _, err := ghCall(ctx, http.MethodDelete, base+"/"+urlPathEscape(l), nil)
 			if err != nil && !strings.Contains(err.Error(), "404") {
@@ -230,7 +235,7 @@ func opIssueAssign(ctx plugin.Ctx, in *IssueAssignIn) (*IssueAssignOut, error) {
 	return &IssueAssignOut{Assignees: namesOf(digObj(raw)["assignees"], "login")}, nil
 }
 
-// anyOf 应答可能是数组也可能是对象，统一成 any 交给 namesOf。
+// anyOf normalizes a response that may be either an array or an object into an any for namesOf.
 func anyOf(raw []byte) any {
 	if list := digList(raw); len(list) > 0 {
 		out := make([]any, 0, len(list))

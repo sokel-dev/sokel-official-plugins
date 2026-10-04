@@ -1,10 +1,11 @@
 package main
 
-// kubeconfig → 配好认证的 http.Client + REST 调用。
+// kubeconfig -> an http.Client configured with auth + REST calls.
 //
-// client-go 只用两个底层包：clientcmd（解析 kubeconfig：证书/token/exec 插件）与
-// rest（TransportFor：拿到装好 mTLS/Bearer 的 RoundTripper）。资源读写本身是普通
-// REST，路径自己拼——不引 typed clientset 全家桶（那是几百个生成类型，我们用 7 个路径）。
+// Only two low-level client-go packages are used: clientcmd (parses kubeconfig:
+// certs/token/exec plugins) and rest (TransportFor: gets a RoundTripper already set up with
+// mTLS/Bearer). Resource reads/writes are plain REST with hand-built paths -- the typed
+// clientset family isn't pulled in (that's hundreds of generated types; we use 7 paths).
 
 import (
 	"context"
@@ -33,7 +34,7 @@ func credOf(ctx plugin.Ctx) Cred {
 }
 
 type kubeClient struct {
-	base string // API server 地址（不带尾斜杠）
+	base string // API server address (no trailing slash)
 	hc   *http.Client
 }
 
@@ -42,8 +43,9 @@ var (
 	kcCache = map[string]*kubeClient{}
 )
 
-// clientOf 解析 kubeconfig 并构造 http.Client。按 kubeconfig 哈希缓存——
-// TLS 握手与 exec 凭证插件都不便宜，同一凭证的连续节点复用连接。
+// clientOf parses the kubeconfig and builds an http.Client. Cached by kubeconfig hash -- both
+// the TLS handshake and exec credential plugins are expensive, so consecutive nodes on the same
+// credential reuse the connection.
 func clientOf(cred Cred) (*kubeClient, error) {
 	kc := strings.TrimSpace(cred.Kubeconfig)
 	if kc == "" {
@@ -70,7 +72,7 @@ func clientOf(cred Cred) (*kubeClient, error) {
 	return c, nil
 }
 
-// do 一次 REST 调用。expectJSON=false 用于日志端点（返回纯文本）。
+// do makes one REST call. expectJSON=false is used for log endpoints (which return plain text).
 func (k *kubeClient) do(ctx context.Context, method, path string, query url.Values, body []byte, contentType string) ([]byte, error) {
 	u := k.base + path
 	if len(query) > 0 {
@@ -99,7 +101,7 @@ func (k *kubeClient) do(ctx context.Context, method, path string, query url.Valu
 	return raw, nil
 }
 
-// kubeErr K8s 的错误应答是标准 Status 对象，把常见几类翻译成下一步。
+// kubeErr: K8s error responses are a standard Status object; translate the common cases into next steps.
 func kubeErr(code int, raw []byte, path string) error {
 	var st struct {
 		Message string `json:"message"`
@@ -126,7 +128,7 @@ func firstNonEmpty(vs ...string) string {
 	return ""
 }
 
-// nsOf 操作级 > 凭证默认 > default。
+// nsOf: operation-level override takes priority over the credential default, which takes priority over "default".
 func nsOf(cred Cred, override string) string {
 	if n := strings.TrimSpace(override); n != "" {
 		return n

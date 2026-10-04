@@ -7,14 +7,16 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 )
 
-// 平台发过来的 chunk 长什么样，就得能绑进来。
+// Whatever shape a chunk arrives from the platform in, it has to be bindable.
 //
-// 这条守的是一次真实故障：assets / source_blocks 在契约里被声明成 []string，
-// 而平台发的是**对象数组**（{kind,url,…} / {块 id,type,bbox,页码}）。
-// 症状是 `json: cannot unmarshal object into Go value of type string`，
-// 而且只有带资产或溯源的文档才会踩到——平时看着一切正常，所以更该有条用例钉住。
+// This guards against a real production failure: assets / source_blocks were declared as
+// []string in the contract, while the platform actually sends **arrays of objects**
+// ({kind,url,…} / {block id,type,bbox,page number}). The symptom was
+// `json: cannot unmarshal object into Go value of type string`, and only documents carrying
+// assets or provenance ever hit it — everything looks fine the rest of the time, which is exactly
+// why this needs a test pinning it down.
 func TestChunksUpsertBindsPlatformPayload(t *testing.T) {
-	// 形状取自 server/internal/knowledge/pipeline/wire.go 的 BuildChunks
+	// Shape taken from BuildChunks in server/internal/knowledge/pipeline/wire.go
 	raw := json.RawMessage(`{
 	  "kb_id": "kb_1", "doc_id": "d1", "append": true,
 	  "chunks": [{
@@ -43,8 +45,9 @@ func TestChunksUpsertBindsPlatformPayload(t *testing.T) {
 	if c.Fields["industry"] != "半导体" {
 		t.Errorf("fields 是自由结构: %+v", c.Fields)
 	}
-	// append 决定要不要先清掉该 doc 的既有 chunk——绑错了就是「整篇替换」变成追加，
-	// 重复导入会在库里堆两份
+	// append decides whether to clear the doc's existing chunks first — binding it wrong turns
+	// "whole-document replacement" into "append", and a repeated import piles up two copies in the
+	// store
 	if !in.Append {
 		t.Error("append 没绑上")
 	}

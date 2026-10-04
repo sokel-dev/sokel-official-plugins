@@ -1,10 +1,11 @@
 package main
 
-// 全部操作实现。
+// Implementation of all operations.
 //
-// 一条贯穿始终的约定：**「没有」不是错误**。get 未命中、list_pop 队列空、
-// nx 没抢到——都回一个说明状态的出参（exists/count/ok），让画布用分支处理。
-// 真正的错误只留给「连不上 / 命令用错 / 类型不对」。
+// One convention runs through all of them: **"not found" is not an error**. A get miss, an empty
+// list_pop queue, an nx that didn't win — all of these return a status-describing output field
+// (exists/count/ok) for the canvas to branch on. Real errors are reserved for "can't connect / wrong
+// command / wrong type".
 
 import (
 	"errors"
@@ -17,7 +18,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— 字符串 / 通用键 ——
+// —— String / generic keys ——
 
 func opGet(ctx plugin.Ctx, in *GetIn) (*GetOut, error) {
 	cli, err := clientFor(ctx)
@@ -50,7 +51,7 @@ func opSet(ctx plugin.Ctx, in *SetIn) (*SetOut, error) {
 		mode := strings.ToUpper(strings.TrimSpace(in.Mode))
 		err := cli.SetArgs(ctx, in.Key, in.Value, redis.SetArgs{Mode: mode, TTL: ttl}).Err()
 		if errors.Is(err, redis.Nil) {
-			return &SetOut{}, nil // 条件没命中：不是错误
+			return &SetOut{}, nil // condition not met: not an error
 		}
 		if err != nil {
 			return nil, fmt.Errorf("写入失败: %w", err)
@@ -90,7 +91,8 @@ func opExists(ctx plugin.Ctx, in *ExistsIn) (*ExistsOut, error) {
 
 func opExpire(ctx plugin.Ctx, in *ExpireIn) (*ExpireOut, error) {
 	if in.Seconds <= 0 {
-		// EXPIRE 给非正数会**立刻删键**——把它挡在这儿，要删就明说用 del。
+		// Giving EXPIRE a non-positive number **deletes the key immediately** — block that here; use
+		// del explicitly if deletion is what's wanted.
 		return nil, fmt.Errorf("过期秒数要大于 0（给 0 或负数 Redis 会当场删键，真要删请用「删键」操作）")
 	}
 	cli, err := clientFor(ctx)
@@ -109,8 +111,9 @@ func opTTL(ctx plugin.Ctx, in *TTLIn) (*TTLOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 直接下 TTL 拿原始秒数：go-redis 的 Duration 形态把 -1/-2 表达成负的纳秒，
-	// 换算回来容易出错，这里要的就是那两个哨兵值。
+	// Issue TTL directly to get the raw seconds: go-redis's Duration form expresses -1/-2 as negative
+	// nanoseconds, which is easy to get wrong converting back, and what's actually wanted here is those
+	// two sentinel values.
 	secs, err := cli.Do(ctx, "TTL", in.Key).Int64()
 	if err != nil {
 		return nil, fmt.Errorf("查询剩余时间失败: %w", err)
@@ -132,7 +135,7 @@ func opIncr(ctx plugin.Ctx, in *IncrIn) (*IncrOut, error) {
 	}
 	by := int64(in.By)
 	if by == 0 {
-		by = 1 // 留空即 1；自增 0 没有意义，不必区分「没填」与「填了 0」
+		by = 1 // empty means 1; incrementing by 0 is meaningless, no need to distinguish "unset" from "set to 0"
 	}
 	v, err := cli.IncrBy(ctx, in.Key, by).Result()
 	if err != nil {
@@ -157,7 +160,7 @@ func opScan(ctx plugin.Ctx, in *ScanIn) (*ScanOut, error) {
 	return &ScanOut{Keys: keys, Cursor: int(next), Done: next == 0}, nil
 }
 
-// —— 哈希 ——
+// —— Hash ——
 
 func opHashGetAll(ctx plugin.Ctx, in *HashGetAllIn) (*HashGetAllOut, error) {
 	cli, err := clientFor(ctx)
@@ -201,7 +204,7 @@ func opHashDel(ctx plugin.Ctx, in *HashDelIn) (*HashDelOut, error) {
 	return &HashDelOut{Deleted: int(n)}, nil
 }
 
-// —— 列表 ——
+// —— List ——
 
 func opListPush(ctx plugin.Ctx, in *ListPushIn) (*ListPushOut, error) {
 	if len(in.Values) == 0 {
@@ -243,7 +246,7 @@ func opListPop(ctx plugin.Ctx, in *ListPopIn) (*ListPopOut, error) {
 		vals, err = cli.LPopCount(ctx, in.Key, count).Result()
 	}
 	if errors.Is(err, redis.Nil) {
-		return &ListPopOut{Values: []string{}}, nil // 队列空：正常分支
+		return &ListPopOut{Values: []string{}}, nil // empty queue: a normal branch
 	}
 	if err != nil {
 		return nil, fmt.Errorf("出列表失败: %w", err)
@@ -257,11 +260,11 @@ func opListRange(ctx plugin.Ctx, in *ListRangeIn) (*ListRangeOut, error) {
 		return nil, err
 	}
 	start := int64(in.Start)
-	stop := int64(-1) // count 留空 = 全部
+	stop := int64(-1) // count left empty = everything
 	if in.Count > 0 {
 		stop = start + int64(in.Count) - 1
 		if stop < 0 {
-			stop = -1 // 负数起点取到尾部：如 start=-5 count=5
+			stop = -1 // negative start taken through to the end: e.g. start=-5 count=5
 		}
 	}
 	vals, err := cli.LRange(ctx, in.Key, start, stop).Result()
@@ -271,7 +274,7 @@ func opListRange(ctx plugin.Ctx, in *ListRangeIn) (*ListRangeOut, error) {
 	return &ListRangeOut{Values: vals, Count: len(vals)}, nil
 }
 
-// —— 集合 ——
+// —— Set ——
 
 func opSetAdd(ctx plugin.Ctx, in *SetAddIn) (*SetAddOut, error) {
 	if len(in.Members) == 0 {
@@ -323,7 +326,7 @@ func opSetRemove(ctx plugin.Ctx, in *SetRemoveIn) (*SetRemoveOut, error) {
 	return &SetRemoveOut{Removed: int(n)}, nil
 }
 
-// —— 有序集合 ——
+// —— Sorted set ——
 
 func opZsetAdd(ctx plugin.Ctx, in *ZsetAddIn) (*ZsetAddOut, error) {
 	cli, err := clientFor(ctx)
@@ -366,7 +369,7 @@ func opZsetRange(ctx plugin.Ctx, in *ZsetRangeIn) (*ZsetRangeOut, error) {
 	return out, nil
 }
 
-// —— 消息 ——
+// —— Messaging ——
 
 func opPublish(ctx plugin.Ctx, in *PublishIn) (*PublishOut, error) {
 	cli, err := clientFor(ctx)
@@ -391,7 +394,7 @@ func opStreamAdd(ctx plugin.Ctx, in *StreamAddIn) (*StreamAddOut, error) {
 	args := &redis.XAddArgs{Stream: in.Stream, Values: pairs(in.Fields)}
 	if in.MaxLen > 0 {
 		args.MaxLen = int64(in.MaxLen)
-		args.Approx = true // ~ 裁剪：按节点边界裁，省 CPU，条数是近似值
+		args.Approx = true // ~ trimming: trims at node boundaries, saves CPU, the count is approximate
 	}
 	id, err := cli.XAdd(ctx, args).Result()
 	if err != nil {
@@ -400,7 +403,7 @@ func opStreamAdd(ctx plugin.Ctx, in *StreamAddIn) (*StreamAddOut, error) {
 	return &StreamAddOut{ID: id}, nil
 }
 
-// —— 保底 ——
+// —— Fallback ——
 
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	cmd := strings.TrimSpace(in.Command)
@@ -418,7 +421,7 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	}
 	v, err := cli.Do(ctx, args...).Result()
 	if errors.Is(err, redis.Nil) {
-		return &CallOut{}, nil // 空结果（如 GET 未命中）不是错误
+		return &CallOut{}, nil // an empty result (e.g. a GET miss) is not an error
 	}
 	if err != nil {
 		return nil, fmt.Errorf("命令 %s 执行失败: %w", strings.ToUpper(cmd), err)
@@ -426,7 +429,8 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	return &CallOut{Result: normalize(v)}, nil
 }
 
-// normalize Redis 应答 → JSON 友好形态（[]byte → string，嵌套数组递归）。
+// normalize converts a Redis reply into a JSON-friendly shape ([]byte → string, nested arrays recursed
+// into).
 func normalize(v any) any {
 	switch x := v.(type) {
 	case []byte:
@@ -451,7 +455,8 @@ func normalize(v any) any {
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cli, err := clientFor(ctx)
 	if err != nil {
-		// 凭证本身就配错了（地址空、库号非法）——体检的答案是「不可用」，不是抛错。
+		// The credential itself is misconfigured (empty address, invalid db number) — the health
+		// check's answer is "unavailable", not an error thrown back.
 		return &HealthCheckOut{Message: err.Error()}, nil
 	}
 	start := time.Now()
@@ -459,8 +464,9 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		return &HealthCheckOut{Message: fmt.Sprintf("连不上：%v（检查地址/密码/网络放行）", err)}, nil
 	}
 	out := &HealthCheckOut{OK: true, LatencyMs: int(time.Since(start).Milliseconds())}
-	// 不带 section 取默认全量：`INFO server memory` 这种多 section 形态是 Redis 7.0
-	// 才支持的，6.x 上会直接报错——体检要在老实例上也能用。
+	// No section means the full default output: the multi-section form `INFO server memory` is only
+	// supported from Redis 7.0 onward and errors outright on 6.x — the health check needs to work on
+	// older instances too.
 	if info, err := cli.Info(ctx).Result(); err == nil {
 		out.Version = infoField(info, "redis_version")
 		out.Mode = infoField(info, "redis_mode")
@@ -474,7 +480,7 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return out, nil
 }
 
-// infoField 从 INFO 文本里取一行的值（形如 redis_version:7.2.4）。
+// infoField extracts the value of one line from INFO text (of the form redis_version:7.2.4).
 func infoField(info, key string) string {
 	for _, line := range strings.Split(info, "\n") {
 		line = strings.TrimSpace(line)

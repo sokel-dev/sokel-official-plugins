@@ -1,6 +1,6 @@
 package main
 
-// Actions + 发布 + 仓库家务。
+// Actions + releases + repo housekeeping.
 
 import (
 	"fmt"
@@ -21,8 +21,9 @@ func opWorkflowRunsList(ctx plugin.Ctx, in *WorkflowRunsListIn) (*WorkflowRunsLi
 	q := perPage(in.Page)
 	putIf(q, "branch", in.Branch)
 	putIf(q, "actor", in.Actor)
-	// GitHub 把「状态」与「结论」塞在同一个 status 参数里（success/failure 其实是结论）——
-	// 契约上合成一个枚举是对的，这里原样透传即可。
+	// GitHub packs both "status" and "conclusion" into the same status parameter
+	// (success/failure are actually conclusions) — merging them into one enum at the contract
+	// level is correct, so we just pass it through as-is here.
 	putIf(q, "status", in.Status)
 	path := rp + "/actions/runs"
 	if w := strings.TrimSpace(in.Workflow); w != "" {
@@ -67,7 +68,8 @@ func opWorkflowDispatch(ctx plugin.Ctx, in *WorkflowDispatchIn) (*WorkflowDispat
 	}
 	body := map[string]any{"ref": ref}
 	if len(in.Inputs) > 0 {
-		// GitHub 只收字符串值，传数字/布尔会 422 且报错文字不说是这个原因。
+		// GitHub only accepts string values; passing a number/bool gives a 422 whose error text
+		// won't say that's the reason.
 		conv := map[string]any{}
 		for k, v := range in.Inputs {
 			conv[k] = fmt.Sprintf("%v", v)
@@ -119,7 +121,8 @@ func opRunJobs(ctx plugin.Ctx, in *RunJobsIn) (*RunJobsOut, error) {
 			}
 			concl := str(s, "conclusion")
 			job.Steps = append(job.Steps, str(s, "name")+"="+concl)
-			// 汇总失败步骤：调用方拿它直接发通知，不用自己再遍历一遍。
+			// Aggregate failed steps so the caller can send a notification directly, without
+			// having to iterate again itself.
 			if concl == "failure" {
 				out.FailedSteps = append(out.FailedSteps, job.Name+"/"+str(s, "name"))
 			}
@@ -130,10 +133,11 @@ func opRunJobs(ctx plugin.Ctx, in *RunJobsIn) (*RunJobsOut, error) {
 	return out, nil
 }
 
-// opJobLog 取作业日志。
+// opJobLog fetches a job's log.
 //
-// 这个接口回 302 跳到一个短期有效的存储地址；Go 的 http.Client 默认会跟随重定向，
-// 所以直接读到的就是正文。**但那个地址是带签名的**，不能把它交给下游再取一次。
+// This endpoint responds with a 302 to a short-lived storage URL; Go's http.Client follows
+// redirects by default, so what we read directly is the log body. **But that URL is signed** —
+// it must not be handed to a downstream consumer to fetch again.
 func opJobLog(ctx plugin.Ctx, in *JobLogIn) (*JobLogOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {
@@ -145,7 +149,8 @@ func opJobLog(ctx plugin.Ctx, in *JobLogIn) (*JobLogOut, error) {
 		return nil, err
 	}
 	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
-	// 0 与「没填」在生成的结构体里都是 0，分不开——所以约定 -1 才是全文（契约里写明了）。
+	// 0 and "not set" are both 0 in the generated struct and can't be told apart — so by
+	// convention -1 means the full text (documented in the contract).
 	tail := in.Tail
 	if tail == 0 {
 		tail = 200
@@ -160,7 +165,7 @@ func opJobLog(ctx plugin.Ctx, in *JobLogIn) (*JobLogOut, error) {
 	}, nil
 }
 
-// —— 发布 ——
+// —— releases ——
 
 func opReleasesList(ctx plugin.Ctx, in *ReleasesListIn) (*ReleasesListOut, error) {
 	rp, err := repoPath(in.Repo)
@@ -218,7 +223,7 @@ func opReleaseCreate(ctx plugin.Ctx, in *ReleaseCreateIn) (*ReleaseCreateOut, er
 	}, nil
 }
 
-// —— 仓库家务 ——
+// —— repo housekeeping ——
 
 func opLabelsList(ctx plugin.Ctx, in *LabelsListIn) (*LabelsListOut, error) {
 	rp, err := repoPath(in.Repo)
@@ -239,9 +244,10 @@ func opLabelsList(ctx plugin.Ctx, in *LabelsListIn) (*LabelsListOut, error) {
 	return out, nil
 }
 
-// opLabelCreate 建标签；已存在则改。
-// 幂等是刻意的：labeler 机器人每次跑都想「确保这些标签存在」，
-// 已存在就报错的话调用方得自己先查一遍再判断，白白多一次往返和一段分支。
+// opLabelCreate creates a label; if it already exists, updates it instead.
+// The idempotence is deliberate: a labeler bot wants to "make sure these labels exist" on every
+// run, and if erroring on an existing label were the behavior, the caller would have to check
+// first anyway — a wasted round trip and a branch of its own.
 func opLabelCreate(ctx plugin.Ctx, in *LabelCreateIn) (*LabelCreateOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {
@@ -257,7 +263,7 @@ func opLabelCreate(ctx plugin.Ctx, in *LabelCreateIn) (*LabelCreateOut, error) {
 	if !strings.Contains(err.Error(), "422") {
 		return nil, err
 	}
-	// 422 = 同名已存在 → 改它。
+	// 422 = a label with that name already exists -> update it.
 	delete(body, "name")
 	if len(body) == 0 {
 		return &LabelCreateOut{Name: in.Name}, nil
@@ -315,8 +321,8 @@ func opCollaboratorsList(ctx plugin.Ctx, in *CollaboratorsListIn) (*Collaborator
 	return out, nil
 }
 
-// highestPermission GitHub 回的是一张布尔表（admin/maintain/push/triage/pull 同时为真），
-// 取最高的那一档才是人想看的「他是什么角色」。
+// highestPermission: GitHub returns a boolean table (admin/maintain/push/triage/pull can all be
+// true at once); taking the highest tier is what a human actually wants to see as "their role".
 func highestPermission(p map[string]any) string {
 	for _, k := range []string{"admin", "maintain", "push", "triage", "pull"} {
 		if boolean(p, k) {
@@ -326,10 +332,11 @@ func highestPermission(p map[string]any) string {
 	return ""
 }
 
-// opBranchProtectionGet 查分支保护。
+// opBranchProtectionGet looks up branch protection.
 //
-// 没有保护规则时 GitHub 回 404。翻译成 protected=false 而不是抛错——
-// 「这个分支没保护」是巡检想要的答案之一，不是故障。
+// GitHub returns 404 when there's no protection rule. We translate that to protected=false rather
+// than raising an error — "this branch isn't protected" is one of the valid answers an audit
+// wants, not a failure.
 func opBranchProtectionGet(ctx plugin.Ctx, in *BranchProtectionGetIn) (*BranchProtectionGetOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {

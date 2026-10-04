@@ -1,12 +1,16 @@
 package main
 
-// Projects V2（看板）走 GraphQL——经典 Projects 的 REST 接口 GitHub 已下线。
+// Projects V2 (boards) goes through GraphQL — classic Projects' REST endpoints have been
+// retired by GitHub.
 //
-// 看板 API 的形状与 REST 很不一样，两条约定要记住：
-//   - 什么都要**节点 ID**（PVT_/PVTI_/PVTSSF_ 开头），不是编号。所以每个写操作前
-//     都得先查一次拿 ID；这里把那一趟藏在实现里，契约上只暴露人看得懂的编号与名字。
-//   - **组织与个人是两个不同的查询**（organization{} vs user{}）。认错不会报错，
-//     会返回 null 数据——表现成「这个看板是空的」。所以 is_org 留空时两个都试。
+// The board API's shape is quite different from REST, and there are two conventions worth
+// remembering:
+//   - Everything needs a **node ID** (starting with PVT_/PVTI_/PVTSSF_), not a number. So every
+//     write operation must first look up that ID; we hide that extra round trip inside the
+//     implementation and only expose human-readable numbers and names at the contract level.
+//   - **Organizations and individuals are two different queries** (organization{} vs user{}).
+//     Guessing wrong doesn't error out — it just returns null data, which looks like "this board
+//     is empty". So when is_org is left unset, we try both.
 
 import (
 	"fmt"
@@ -17,8 +21,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// ownerQuery 按 is_org 生成 organization/user 两种查询的外壳。
-// 返回的是「试哪几种」——留空就两种都试，先组织后个人。
+// ownerQuery builds the organization/user query shell based on is_org.
+// The return value is "which kinds to try" — left unset, both are tried, organization first.
 func ownerKinds(isOrg bool, explicit bool) []string {
 	if explicit {
 		if isOrg {
@@ -44,7 +48,7 @@ func opProjectsList(ctx plugin.Ctx, in *ProjectsListIn) (*ProjectsListOut, error
 		}
 		root, _ := data[kind].(map[string]any)
 		if root == nil {
-			continue // 这个身份不存在，试下一种
+			continue // this identity doesn't exist, try the other kind
 		}
 		nodes := arr(obj(root, "projectsV2"), "nodes")
 		out := &ProjectsListOut{Count: len(nodes)}
@@ -68,7 +72,7 @@ func opProjectsList(ctx plugin.Ctx, in *ProjectsListIn) (*ProjectsListOut, error
 		"且令牌有 project 权限", owner)
 }
 
-// projectNodeID 看板编号 → 节点 ID。写操作都要它。
+// projectNodeID resolves a board number to its node ID. Every write operation needs it.
 func projectNodeID(ctx plugin.Ctx, owner string, number int, isOrg bool) (string, error) {
 	var lastErr error
 	for _, kind := range ownerKinds(isOrg, isOrg) {
@@ -94,7 +98,7 @@ func opProjectItemsList(ctx plugin.Ctx, in *ProjectItemsListIn) (*ProjectItemsLi
 		limit = 50
 	}
 	if limit > 100 {
-		limit = 100 // GraphQL 单页上限
+		limit = 100 // GraphQL single-page limit
 	}
 	var lastErr error
 	for _, kind := range ownerKinds(in.IsOrg, in.IsOrg) {
@@ -182,7 +186,8 @@ func opProjectItemAdd(ctx plugin.Ctx, in *ProjectItemAddIn) (*ProjectItemAddOut,
 	if err != nil {
 		return nil, err
 	}
-	// 先拿 Issue/PR 的节点 ID。Issue 与 PR 是不同的 GraphQL 类型，但 issueOrPullRequest 两者都认。
+	// First get the Issue/PR's node ID. Issue and PR are different GraphQL types, but
+	// issueOrPullRequest recognizes both.
 	data, err := ghGraphQL(ctx,
 		`query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issueOrPullRequest(number:$number){... on schema.Issue{id} ... on PullRequest{id}}}}`,
 		map[string]any{"owner": o, "name": r, "number": in.Number})
@@ -193,7 +198,8 @@ func opProjectItemAdd(ctx plugin.Ctx, in *ProjectItemAddIn) (*ProjectItemAddOut,
 	if contentID == "" {
 		return nil, fmt.Errorf("%s 里没有编号 %d 的 Issue 或 PR", in.Repo, in.Number)
 	}
-	// addProjectV2ItemById 对已在看板里的内容返回同一张卡片，天然幂等。
+	// addProjectV2ItemById returns the same card for content already on the board, so it's
+	// naturally idempotent.
 	res, err := ghGraphQL(ctx,
 		`mutation($project:ID!,$content:ID!){addProjectV2ItemById(input:{projectId:$project,contentId:$content}){item{id}}}`,
 		map[string]any{"project": projID, "content": contentID})
@@ -205,10 +211,12 @@ func opProjectItemAdd(ctx plugin.Ctx, in *ProjectItemAddIn) (*ProjectItemAddOut,
 	}, nil
 }
 
-// opProjectItemFieldSet 改卡片字段（挪列）。
+// opProjectItemFieldSet changes a card's field (moves it between columns).
 //
-// 三步：找看板 → 找字段（顺带拿单选项的 ID）→ 改。字段名与选项名都做**大小写不敏感**匹配，
-// 但对不上时会把可选值列出来——看板上的列名是人手填的，靠猜没有意义。
+// Three steps: find the board -> find the field (picking up the single-select option ID along
+// the way) -> update it. Both field name and option name are matched **case-insensitively**, but
+// when nothing matches, the available values are listed — column names on a board are typed by
+// hand, so guessing is pointless.
 func opProjectItemFieldSet(ctx plugin.Ctx, in *ProjectItemFieldSetIn) (*ProjectItemFieldSetOut, error) {
 	owner := strings.TrimSpace(in.Owner)
 	projID, err := projectNodeID(ctx, owner, in.ProjectNumber, in.IsOrg)

@@ -1,14 +1,16 @@
 package main
 
-// 出站与三个操作。
+// Outbound calls and three operations.
 //
-// 三个别处没有的点：
-//   - **两个必带的头**：LinkedIn-Version（YYYYMM）与 X-Restli-Protocol-Version: 2.0.0。
-//     少任何一个，接口回 426 或形状对不上，而错误信息不会告诉你缺的是头。
-//   - **author 必须是账号自己的 URN**（urn:li:person:{sub}），从 /v2/userinfo 拿；
-//     它不会变，所以按 token 缓存。
-//   - **图片是三步**：initializeUpload 拿上传地址与 URN → PUT 二进制 → 把 URN 塞进帖子。
-//     和别家「传完拿 id」不是一个形状。
+// Three things that don't show up elsewhere:
+//   - **Two mandatory headers**: LinkedIn-Version (YYYYMM) and X-Restli-Protocol-Version: 2.0.0.
+//     Miss either one and the endpoint returns 426 or a mismatched shape, and the error message
+//     won't tell you a header is missing.
+//   - **author must be the account's own URN** (urn:li:person:{sub}), fetched from /v2/userinfo;
+//     it never changes, so it's cached by token.
+//   - **Images are a three-step process**: initializeUpload gets an upload URL and a URN → PUT the
+//     binary → splice the URN into the post. Not the same shape as other platforms' "upload, get
+//     an id back".
 
 import (
 	"bytes"
@@ -27,15 +29,16 @@ import (
 
 const (
 	apiBaseDefault = "https://api.linkedin.com"
-	// linkedInVersion：版本头，YYYYMM。LinkedIn 每月发一版、老版本约一年后停用——
-	// 钉一个已知可用的，升级是显式动作，而不是某天线上突然换了形状。
+	// linkedInVersion: the version header, YYYYMM. LinkedIn releases one every month and
+	// deprecates old ones roughly a year later — pin a known-good one; upgrading is a deliberate
+	// action, not something that silently changes shape in production one day.
 	linkedInVersion = "202601"
 	maxTextLen      = 3000
 	maxImages       = 9
 	maxImageBytes   = 10 << 20
 )
 
-// apiBase：**是 var 不是 const**——测试要把它指到假上游上。
+// apiBase is **a var, not a const** — tests need to point it at a fake upstream.
 var apiBase = apiBaseDefault
 
 var (
@@ -72,7 +75,7 @@ func tokenOf(ctx plugin.Ctx) (string, error) {
 		"（LinkedIn 的令牌 60 天到期，过期后再点一次即可）")
 }
 
-// —— 错误 ——
+// —— Errors ——
 
 type apiError struct {
 	Status  int
@@ -99,7 +102,8 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("LinkedIn 返回 HTTP %d", e.Status)
 }
 
-// call：一次 REST 调用。**两个头都要带**，少一个就是 426 或形状对不上。
+// call makes a single REST call. **Both headers must be sent**; missing either one means a 426 or
+// a mismatched shape.
 func call(ctx plugin.Ctx, method, path string, body any, out any) error {
 	tok, err := tokenOf(ctx)
 	if err != nil {
@@ -141,7 +145,8 @@ func call(ctx plugin.Ctx, method, path string, body any, out any) error {
 		e.Code, e.Message = b.Code, b.Message
 		return e
 	}
-	// 发帖成功时正文可能是空的，id 在头里（x-restli-id）——这是 LinkedIn 的老规矩。
+	// On a successful post, the body can be empty — the id is in the header (x-restli-id). This is
+	// an old LinkedIn convention.
 	if id := resp.Header.Get("x-restli-id"); id != "" {
 		if p, ok := out.(*createdPost); ok {
 			p.ID = id
@@ -161,11 +166,11 @@ type createdPost struct {
 	ID string `json:"id"`
 }
 
-// —— 账号 URN ——
+// —— Account URN ——
 
 var (
 	meMu    sync.Mutex
-	meCache = map[string]meInfo{} // access_token → 账号
+	meCache = map[string]meInfo{} // access_token → account
 )
 
 type meInfo struct {
@@ -173,7 +178,8 @@ type meInfo struct {
 	Name string `json:"name"`
 }
 
-// me：授权账号。发帖的 author 必须是它的 URN，而它不会变——按 token 缓存。
+// me is the authorized account. A post's author must be its URN, and that URN never changes —
+// cached by token.
 func me(ctx plugin.Ctx) (meInfo, error) {
 	tok, err := tokenOf(ctx)
 	if err != nil {
@@ -198,7 +204,7 @@ func me(ctx plugin.Ctx) (meInfo, error) {
 	return out, nil
 }
 
-// —— 操作 ——
+// —— Operations ——
 
 func opPostCreate(ctx plugin.Ctx, in *LiPostCreateIn) (*LiPostCreateOut, error) {
 	text := strings.TrimSpace(in.Text)
@@ -225,7 +231,7 @@ func opPostCreate(ctx plugin.Ctx, in *LiPostCreateIn) (*LiPostCreateOut, error) 
 		"author":     author,
 		"commentary": text,
 		"visibility": vis,
-		// 转发与回复的可见性设置：不给的话部分账号会被判成缺字段。
+		// Reshare/reply visibility settings: omitting this gets some accounts flagged as missing a field.
 		"distribution": map[string]any{
 			"feedDistribution":               "MAIN_FEED",
 			"targetEntities":                 []any{},
@@ -266,16 +272,18 @@ func opPostDelete(ctx plugin.Ctx, in *LiPostDeleteIn) (*LiPostDeleteOut, error) 
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	who, err := me(ctx)
 	if err != nil {
-		// 不可用是结论不是故障：平台拿它写凭证状态。
+		// Unavailable is a conclusion, not a fault: the platform uses it to write the credential's
+		// status.
 		return &HealthCheckOut{OK: false, Message: err.Error()}, nil
 	}
 	return &HealthCheckOut{OK: true, Name: who.Name, Message: who.Name}, nil
 }
 
-// —— 图片 ——
+// —— Images ——
 //
-// 三步：initializeUpload 拿上传地址与 URN → PUT 二进制 → 把 URN 塞进帖子。
-// 和别家「传完直接拿 id」不是一个形状，第二步用的还是 LinkedIn 给的临时地址（不是 API 域名）。
+// Three steps: initializeUpload gets an upload URL and a URN → PUT the binary → splice the URN
+// into the post. Not the same shape as other platforms' "upload, get an id back directly" — the
+// second step uses a temporary URL LinkedIn hands back (not the API domain).
 
 func imagesContent(ctx plugin.Ctx, author string, files []*plugin.File, alts []string) (map[string]any, error) {
 	urns := make([]map[string]any, 0, len(files))
@@ -323,7 +331,8 @@ func uploadImage(ctx plugin.Ctx, author string, data []byte) (string, error) {
 	if init.Value.UploadURL == "" || init.Value.Image == "" {
 		return "", fmt.Errorf("LinkedIn 没返回上传地址")
 	}
-	// 第二步 PUT 到 LinkedIn 给的临时地址（不是 API 域名，也不带版本头）。
+	// The second step PUTs to the temporary URL LinkedIn hands back (not the API domain, and no
+	// version header either).
 	tok, err := tokenOf(ctx)
 	if err != nil {
 		return "", err
@@ -345,9 +354,9 @@ func uploadImage(ctx plugin.Ctx, author string, data []byte) (string, error) {
 	return init.Value.Image, nil
 }
 
-// —— 地址 ——
+// —— URLs ——
 
-// postURN：用户可能粘的是动态链接。
+// postURN handles that a user might paste in a post link instead of a URN.
 //
 //	https://www.linkedin.com/feed/update/urn:li:share:7123/ → urn:li:share:7123
 func postURN(raw string) string {

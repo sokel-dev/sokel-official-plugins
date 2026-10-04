@@ -1,4 +1,4 @@
-// Package schema 声明 telegram-bot 的操作与事件契约。
+// Package schema declares telegram-bot's operation and event contracts.
 package schema
 
 import (
@@ -6,7 +6,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// AnswerCallbackQuery （迁移自旧契约）
+// AnswerCallbackQuery (migrated from the legacy contract)
 type AnswerCallbackQuery struct{}
 
 func (AnswerCallbackQuery) Meta() contract.Meta {
@@ -28,7 +28,7 @@ func (AnswerCallbackQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Call （迁移自旧契约）
+// Call (migrated from the legacy contract)
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -49,7 +49,7 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeleteMessage （迁移自旧契约）
+// DeleteMessage (migrated from the legacy contract)
 type DeleteMessage struct{}
 
 func (DeleteMessage) Meta() contract.Meta {
@@ -70,7 +70,7 @@ func (DeleteMessage) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeleteWebhook （迁移自旧契约）
+// DeleteWebhook (migrated from the legacy contract)
 type DeleteWebhook struct{}
 
 func (DeleteWebhook) Meta() contract.Meta {
@@ -90,7 +90,7 @@ func (DeleteWebhook) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DownloadFile （迁移自旧契约）
+// DownloadFile (migrated from the legacy contract)
 type DownloadFile struct{}
 
 func (DownloadFile) Meta() contract.Meta {
@@ -111,7 +111,7 @@ func (DownloadFile) Outputs() []contract.FieldSpec {
 	}
 }
 
-// EditMessageText （迁移自旧契约）
+// EditMessageText (migrated from the legacy contract)
 type EditMessageText struct{}
 
 func (EditMessageText) Meta() contract.Meta {
@@ -136,7 +136,7 @@ func (EditMessageText) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ForwardMessage （迁移自旧契约）
+// ForwardMessage (migrated from the legacy contract)
 type ForwardMessage struct{}
 
 func (ForwardMessage) Meta() contract.Meta {
@@ -159,7 +159,7 @@ func (ForwardMessage) Outputs() []contract.FieldSpec {
 	}
 }
 
-// GetChat （迁移自旧契约）
+// GetChat (migrated from the legacy contract)
 type GetChat struct{}
 
 func (GetChat) Meta() contract.Meta {
@@ -179,7 +179,7 @@ func (GetChat) Outputs() []contract.FieldSpec {
 	}
 }
 
-// GetMe （迁移自旧契约）
+// GetMe (migrated from the legacy contract)
 type GetMe struct{}
 
 func (GetMe) Meta() contract.Meta {
@@ -197,7 +197,7 @@ func (GetMe) Outputs() []contract.FieldSpec {
 	}
 }
 
-// GetWebhookInfo （迁移自旧契约）
+// GetWebhookInfo (migrated from the legacy contract)
 type GetWebhookInfo struct{}
 
 func (GetWebhookInfo) Meta() contract.Meta {
@@ -215,7 +215,7 @@ func (GetWebhookInfo) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SendChatAction （迁移自旧契约）
+// SendChatAction (migrated from the legacy contract)
 type SendChatAction struct{}
 
 func (SendChatAction) Meta() contract.Meta {
@@ -236,7 +236,7 @@ func (SendChatAction) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SendDocument （迁移自旧契约）
+// SendDocument (migrated from the legacy contract)
 type SendDocument struct{}
 
 func (SendDocument) Meta() contract.Meta {
@@ -259,7 +259,7 @@ func (SendDocument) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SendMessage （迁移自旧契约）
+// SendMessage (migrated from the legacy contract)
 type SendMessage struct{}
 
 func (SendMessage) Meta() contract.Meta {
@@ -285,7 +285,7 @@ func (SendMessage) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SendPhoto （迁移自旧契约）
+// SendPhoto (migrated from the legacy contract)
 type SendPhoto struct{}
 
 func (SendPhoto) Meta() contract.Meta {
@@ -309,7 +309,7 @@ func (SendPhoto) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SetMyCommands （迁移自旧契约）
+// SetMyCommands (migrated from the legacy contract)
 type SetMyCommands struct{}
 
 func (SetMyCommands) Meta() contract.Meta {
@@ -329,7 +329,7 @@ func (SetMyCommands) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SetWebhook （迁移自旧契约）
+// SetWebhook (migrated from the legacy contract)
 type SetWebhook struct{}
 
 func (SetWebhook) Meta() contract.Meta {
@@ -352,20 +352,23 @@ func (SetWebhook) Outputs() []contract.FieldSpec {
 	}
 }
 
-// BotCommand 一条 bot 命令。原先声明成无结构 json，其实形状是定的——
-// 反向迁移工具把它标成了「待补理由」，正是要人在这里判断「补结构还是写理由」。
+// BotCommand is a single bot command. It used to be declared as unstructured json, but the shape
+// was actually fixed all along — the reverse-migration tool flagged it as "needs a reason", which
+// is exactly the point: a human has to decide here whether to add structure or write the reason.
 type BotCommand struct {
 	Command     string `sokel:"command" label:"命令" desc:"不带斜杠，如 start"`
 	Description string `sokel:"description" label:"说明"`
 }
 
-// —— 凭证体检 ——
+// —— Credential health check ——
 
-// HealthCheck 体检这条凭证：打一次 getMe。
+// HealthCheck checks this credential: fires a single getMe.
 //
-// 操作 id 必须是 health_check——平台凭证页的「检查」按钮据此判断这个插件能不能验活。
-// token 不对时返回 ok=false + message 而不是 error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」，后者才是这里要说的话。
+// The operation id must be health_check — the "check" button on the platform's credential page
+// relies on it to decide whether this plugin can be health-checked. When the token is wrong, this
+// returns ok=false + message rather than an error: the platform treats an error as "this plugin
+// can't run its health check", and ok=false as "the check concluded the plugin is unavailable" —
+// the latter is what we want to say here.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -378,17 +381,18 @@ func (HealthCheck) Inputs() []contract.FieldSpec { return nil }
 func (HealthCheck) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.Bool("ok").Label("可用"),
-		// bot 用户名是唯一能戳穿「token 复制成了另一个 bot 的」这种错的东西——
-		// 一个人常同时有测试 bot 与正式 bot，两串 token 长得一模一样。
+		// The bot username is the only thing that can catch a "token copied from the wrong bot"
+		// mistake — people often have both a test bot and a production bot whose tokens look identical.
 		field.String("username").Label("bot 用户名").Optional(),
 		field.String("message").Label("说明"),
 	}
 }
 
-// —— 事件 ——
+// —— Events ——
 //
-// 四个事件共享 chat_id（见 Events.CommonFields）：平台把它平铺到触发输入顶层，
-// 各分支共用同一变量——回复节点绑它就行，不必按分支分别取。
+// All four events share chat_id (see Events.CommonFields): the platform flattens it to the top
+// level of the trigger input, so every branch shares the same variable — the reply node just binds
+// it, no need to fetch it separately per branch.
 
 func messageFields() []contract.FieldSpec {
 	return []contract.FieldSpec{
@@ -401,7 +405,7 @@ func messageFields() []contract.FieldSpec {
 	}
 }
 
-// MessageReceived 收到消息。
+// MessageReceived: a message was received.
 type MessageReceived struct{}
 
 func (MessageReceived) EventMeta() contract.EventMeta {
@@ -409,7 +413,7 @@ func (MessageReceived) EventMeta() contract.EventMeta {
 }
 func (MessageReceived) Fields() []contract.FieldSpec { return messageFields() }
 
-// MessageEdited 消息被编辑。
+// MessageEdited: a message was edited.
 type MessageEdited struct{}
 
 func (MessageEdited) EventMeta() contract.EventMeta {
@@ -417,7 +421,7 @@ func (MessageEdited) EventMeta() contract.EventMeta {
 }
 func (MessageEdited) Fields() []contract.FieldSpec { return messageFields() }
 
-// CallbackQuery 按钮点击。
+// CallbackQuery: a button was tapped.
 type CallbackQuery struct{}
 
 func (CallbackQuery) EventMeta() contract.EventMeta {
@@ -434,7 +438,7 @@ func (CallbackQuery) Fields() []contract.FieldSpec {
 	}
 }
 
-// MyChatMember bot 在某对话里的成员状态变化（被拉入/踢出/权限变更）。
+// MyChatMember: the bot's membership status changed in some chat (added/removed/permissions changed).
 type MyChatMember struct{}
 
 func (MyChatMember) EventMeta() contract.EventMeta {
@@ -448,14 +452,14 @@ func (MyChatMember) Fields() []contract.FieldSpec {
 	}
 }
 
-// Events 声明公共字段。
+// Events declares the shared fields.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"chat_id"} }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：Telegram bot 凭证。bot_token 形如 "123456:ABC-DEF..."，是唯一密钥。
+// Credential: the Telegram bot credential. bot_token looks like "123456:ABC-DEF...", the only secret.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

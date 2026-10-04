@@ -1,9 +1,11 @@
-// feed —— Sokel 第一方 Feed 订阅插件：一个操作，多个来源，产出统一的 JSON 条目。
+// feed — Sokel's first-party feed subscription plugin: one operation, many sources, producing
+// uniform JSON items.
 //
-// 借鉴 RSSHub 的两条判断（统一条目形状、一源一适配器），但**不依赖它的服务**，
-// 也**不产出 XML**——详见 schema/schema.go 顶部。
+// Borrows two design decisions from RSSHub (a uniform item shape, one adapter per source), but
+// **does not depend on its service**, and **does not produce XML** — see the top of
+// schema/schema.go for details.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feed
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feed
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

@@ -1,63 +1,76 @@
-# feishu — 飞书自建应用插件（第一方自部署）
+# feishu — Feishu custom app plugin (first-party, self-hosted)
 
-22 个操作（消息/卡片/查人/群管理/云文档/多维表格/网盘 + `call` 保底）+ 3 个事件
-（收到消息 / 卡片按钮点击 / bot 被拉进群）。面向用户的说明书是
-[docs/feishu.md](docs/feishu.md)。群 webhook 机器人是**另一个插件**
-（`../feishu-webhook`）：凭证形态与授权范围不同，不混池。
+22 operations (messages/cards/user lookup/chat management/docs/bitable/drive + a `call`
+fallback) + 3 events (message received / card button clicked / bot added to a chat). The
+user-facing manual is [docs/feishu.md](docs/feishu.md). The group webhook bot is a **separate
+plugin** (`../feishu-webhook`): the credential shape and authorization scope differ, so they
+aren't pooled together.
 
-## 为什么这是全站第一个引厂商 SDK 的插件
+## Why this is the first plugin in the whole codebase to pull in a vendor SDK
 
-此前所有插件都是裸 HTTP。飞书破例引 [larksuite/oapi-sdk-go](https://github.com/larksuite/oapi-sdk-go)
-v3（MIT），理由只有两个，都写在 `client.go` 顶注：
+Every plugin before this one was plain HTTP. Feishu is the exception and pulls in
+[larksuite/oapi-sdk-go](https://github.com/larksuite/oapi-sdk-go) v3 (MIT), for exactly two
+reasons, both documented in the top comment of `client.go`:
 
-1. **长连接事件订阅（larkws）**——事件不走公网 webhook，插件主动向飞书建
-   WebSocket。帧协议是飞书私有的（protobuf），自己实现又脆又不值。
-2. **tenant_access_token 生命周期**——获取/缓存/过期刷新，SDK 内置。
+1. **Long-lived event subscription (larkws)** — events don't arrive over a public webhook; the
+   plugin actively opens a WebSocket to Feishu. The frame protocol is Feishu's own (protobuf),
+   and implementing it ourselves would be both fragile and not worth it.
+2. **tenant_access_token lifecycle** — obtaining/caching/refreshing on expiry, built into the SDK.
 
-用法上仍然克制：REST 一律走 raw `client.Do`（路径/请求体自己拼，与其他插件
-风格一致）；typed 模块只用在 multipart 上传（im 图片/文件、drive）。
+Usage is still kept minimal: REST calls always go through raw `client.Do` (paths/bodies built by
+hand, matching the style of the other plugins); the typed modules are only used for multipart
+uploads (im images/files, drive).
 
-## 踩过/防住的坑（改代码前先读）
+## Pitfalls hit/guarded against (read before touching the code)
 
-- **content 是「JSON 串」不是 JSON**：`/im/v1/messages` 的 content 字段要双重编码
-  （`jsonStr()`），拼错的表现是 invalid content。
-- **发送带 uuid 幂等键**（`sendUUID`）：从平台 Trace（run_id+node_id）派生，工作流
-  重试不双发。**没有 Trace 时必须不带 uuid**——试调用拿恒定键会把第二次试调用
-  静默去重成「不发」。
-- **业务码非 0 大多是 HTTP 200**：`callRaw` 统一拦下转错误；`call` 保底操作例外
-  （用户要原样 code/msg 对照文档），走 `callRawFull`。
-- **高频错误码翻译**（`feishuErr`）：230002=拉 bot 进群、99991672=开权限并**重新发布
-  版本**、1254050=把表格分享给应用。飞书的 msg 是给开发者的英文，看到报错的是
-  画布上的用户。
-- **docx 单次追加上限 50 块**：`appendBlocks` 分批，长报告一次几百块是常态。
-- **Markdown→docx 是行级保守转换**：行内加粗/链接原样留为文本。docx 的行内 style
-  模型复杂一个数量级，精排版走 `call` 直调 blocks API。
-- **client 按 app_id 缓存**（`clientOf`）：每次新建=每次重新换 token，白吃频控。
-  测试里每个用例独立 app_id，否则 baseURL 会串。
-- **baseURL 第三分支透传完整地址**：httptest 假飞书与将来的私有化部署都靠它。
-  测试打到真 open.feishu.cn 的症状是 `code:10003`。
+- **content is a "JSON string," not JSON**: the content field of `/im/v1/messages` must be
+  double-encoded (`jsonStr()`); getting this wrong shows up as invalid content.
+- **Sending carries a uuid idempotency key** (`sendUUID`): derived from the platform's trace
+  (run_id+node_id), so a workflow retry doesn't send twice. **It must not carry a uuid when
+  there's no trace** — a constant key on test calls would silently dedup a second test call away
+  into "not sent."
+- **A non-zero business code is mostly HTTP 200**: `callRaw` catches this uniformly and turns it
+  into an error; the `call` fallback operation is the exception (the user wants the raw code/msg
+  to check against the docs) and goes through `callRawFull` instead.
+- **Translation of common error codes** (`feishuErr`): 230002 = add the bot to the chat,
+  99991672 = grant the permission and **republish the version**, 1254050 = share the table with
+  the app. Feishu's msg is English aimed at developers, but whoever sees the error is a user on
+  the canvas.
+- **docx appends are capped at 50 blocks per call**: `appendBlocks` batches, since a long report
+  with a few hundred blocks at once is routine.
+- **Markdown-to-docx is a conservative line-level conversion**: inline bold/links are kept as
+  plain text. docx's inline style model is an order of magnitude more complex; precise
+  formatting goes through `call` directly against the blocks API.
+- **The client is cached by app_id** (`clientOf`): creating a new one every time means
+  re-exchanging the token every time, for free, against the rate limiter. Each test case gets
+  its own app_id, otherwise the baseURL would cross over between tests.
+- **baseURL's third branch passes a full URL through as-is**: both the httptest fake Feishu and
+  a future private deployment rely on this. A test accidentally hitting the real
+  open.feishu.cn shows up as `code:10003`.
 
-## 事件源（events.go）
+## Event source (events.go)
 
-per-credential：一条凭证（=一个应用）一条长连接，多应用单实例由 SDK 的 source
-supervisor 管（telegram 多 bot 同款）。去重靠飞书的 event_id 交平台按
-(pluginId, event, eventID) 处理，插件内不自建去重表。
+Per-credential: one credential (= one app) gets one long-lived connection; multiple apps in a
+single instance are managed by the SDK's source supervisor (the same mechanism as Telegram's
+multi-bot setup). Dedup relies on Feishu's event_id, handed to the platform to process by
+(pluginId, event, eventID) — the plugin doesn't build its own dedup table.
 
-用户侧前置（写在 docs）：开放平台「事件与回调」订阅方式选**长连接**，勾选
-`im.message.receive_v1` / `im.chat.member.bot.added_v1`；卡片回调同样选长连接。
+User-side prerequisite (documented in the docs): in the Open Platform's "Events & Callbacks,"
+set the subscription method to **long connection**, and check `im.message.receive_v1` /
+`im.chat.member.bot.added_v1`; card callbacks need the same long-connection setting.
 
-## 文件
+## Files
 
-| 文件 | 干什么 |
+| File | What it does |
 |---|---|
-| `schema/` | 契约（事实源），`go generate` 出 `zz_*.go` |
-| `client.go` | SDK client 缓存 + raw 调用 + 错误码翻译 |
-| `im.go` | 消息（发/回/撤/上传），uuid 幂等 |
-| `misc.go` | 查人/群管理/`call`/health_check |
-| `content.go` | docx（含 Markdown 转块）/ bitable / drive |
-| `events.go` | larkws 长连接 → 三类事件 |
+| `schema/` | Contracts (source of truth); `go generate` produces `zz_*.go` |
+| `client.go` | SDK client cache + raw calls + error code translation |
+| `im.go` | Messages (send/reply/recall/upload), uuid idempotency |
+| `misc.go` | User lookup/chat management/`call`/health_check |
+| `content.go` | docx (including Markdown-to-blocks) / bitable / drive |
+| `events.go` | larkws long connection -> three kinds of events |
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

@@ -1,18 +1,24 @@
-// Package schema 声明 redis 插件的操作、事件与凭证契约。
+// Package schema declares the operation, event, and credential contract for the redis plugin.
 //
-// 定位：把 Redis 当**工作流的共享内存**用——跨运行的计数器、去重集合、状态标记、
-// 队列与排行榜，以及和外部系统之间的一条实时消息通道（Pub/Sub 与 Stream）。
+// Positioning: treat Redis as **a workflow's shared memory** — counters across runs, dedup sets, status
+// flags, queues and leaderboards, plus a real-time messaging channel to and from external systems
+// (Pub/Sub and Stream).
 //
-// 四条约定，操作设计围着它们转：
+// Four commitments that the operation design revolves around:
 //
-//   - **「不存在」不是错误**：get 命中不到回 exists=false 而不是报错——画布上那是一条
-//     正常分支（缓存未命中就去算），当成异常会把整条流程判失败。
-//   - **扫 key 只给 scan**：KEYS 会阻塞整个实例（单线程），线上库上跑一次就是事故。
-//     scan 带游标增量扫，翻页把上一轮的 cursor 传回来，cursor=0 表示扫完。
-//   - **按数据结构分组而不是按命令**：Redis 有 240 多个命令，全搬上画布没人挑得动。
-//     这里只出常用的那层（字符串/哈希/列表/集合/有序集合/Stream），其余走 call 直接下命令。
-//   - **写入尽量带上限**：stream_add 的 max_len、set 的 ttl_seconds 都在契约里显式给位置——
-//     没有上限的 Redis 写入迟早把内存吃满，让人在配置时就看见这件事。
+//   - **"Not found" is not an error**: a get miss returns exists=false rather than an error — on the
+//     canvas that's a normal branch (recompute when the cache misses), and treating it as an exception
+//     would fail the whole run.
+//   - **Scanning keys only offers scan**: KEYS blocks the entire instance (it's single-threaded), and
+//     running it on a production database is an incident. scan pages incrementally via a cursor; pass
+//     the previous round's cursor back in, and cursor=0 means the scan is done.
+//   - **Grouped by data structure rather than by command**: Redis has 240-plus commands, and putting
+//     them all on the canvas would leave nobody able to pick one. Only the commonly used layer is
+//     exposed here (string/hash/list/set/sorted set/Stream); everything else goes through call to issue
+//     the command directly.
+//   - **Writes should carry a cap wherever possible**: stream_add's max_len and set's ttl_seconds both
+//     have an explicit place in the contract — an unbounded Redis write eventually fills up memory, and
+//     this makes that visible at configuration time.
 package schema
 
 import (
@@ -24,9 +30,9 @@ func keyField() contract.FieldSpec {
 	return field.String("key").Label("键").Desc("Redis 键名，如 wf:daily:count")
 }
 
-// —— 字符串 / 通用键 ——
+// —— String / generic keys ——
 
-// Get 取值。
+// Get retrieves a value.
 type Get struct{}
 
 func (Get) Meta() contract.Meta {
@@ -42,7 +48,7 @@ func (Get) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Set 存值。
+// Set stores a value.
 type Set struct{}
 
 func (Set) Meta() contract.Meta {
@@ -70,7 +76,7 @@ func (Set) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Del 删键。
+// Del deletes keys.
 type Del struct{}
 
 func (Del) Meta() contract.Meta {
@@ -87,7 +93,7 @@ func (Del) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("deleted").Label("删除个数")}
 }
 
-// Exists 键是否存在。
+// Exists checks whether a key exists.
 type Exists struct{}
 
 func (Exists) Meta() contract.Meta {
@@ -100,7 +106,7 @@ func (Exists) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("exists").Label("存在")}
 }
 
-// Expire 设过期。
+// Expire sets an expiration.
 type Expire struct{}
 
 func (Expire) Meta() contract.Meta {
@@ -118,7 +124,7 @@ func (Expire) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("已设置")}
 }
 
-// TTL 剩余时间。
+// TTL returns the remaining time to live.
 type TTL struct{}
 
 func (TTL) Meta() contract.Meta {
@@ -134,7 +140,7 @@ func (TTL) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Incr 自增。
+// Incr increments atomically.
 type Incr struct{}
 
 func (Incr) Meta() contract.Meta {
@@ -152,7 +158,7 @@ func (Incr) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("value").Label("自增后的值")}
 }
 
-// Scan 扫键。
+// Scan scans keys.
 type Scan struct{}
 
 func (Scan) Meta() contract.Meta {
@@ -175,9 +181,9 @@ func (Scan) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 哈希 ——
+// —— Hash ——
 
-// HashGetAll 取整个哈希。
+// HashGetAll retrieves an entire hash.
 type HashGetAll struct{}
 
 func (HashGetAll) Meta() contract.Meta {
@@ -193,7 +199,7 @@ func (HashGetAll) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HashSet 写哈希字段。
+// HashSet writes hash fields.
 type HashSet struct{}
 
 func (HashSet) Meta() contract.Meta {
@@ -211,7 +217,7 @@ func (HashSet) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("added").Label("新增字段数").Desc("覆盖已有字段不计入")}
 }
 
-// HashDel 删哈希字段。
+// HashDel deletes hash fields.
 type HashDel struct{}
 
 func (HashDel) Meta() contract.Meta {
@@ -229,9 +235,9 @@ func (HashDel) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("deleted").Label("删除字段数")}
 }
 
-// —— 列表（队列）——
+// —— List (queue) ——
 
-// ListPush 入列表。
+// ListPush pushes onto a list.
 type ListPush struct{}
 
 func (ListPush) Meta() contract.Meta {
@@ -251,7 +257,7 @@ func (ListPush) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("length").Label("入队后长度")}
 }
 
-// ListPop 出列表。
+// ListPop pops from a list.
 type ListPop struct{}
 
 func (ListPop) Meta() contract.Meta {
@@ -274,7 +280,7 @@ func (ListPop) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ListRange 看列表。
+// ListRange reads a list without removing anything.
 type ListRange struct{}
 
 func (ListRange) Meta() contract.Meta {
@@ -285,9 +291,10 @@ func (ListRange) Inputs() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		keyField(),
 		field.Int("start").Label("起始下标").Desc("默认 0（第一条）；负数从尾部算，如 -5 = 倒数第五条").Optional(),
-		// 刻意用「取几条」而不是 Redis 原生的「结束下标」：留空的数字字段到手就是 0，
-		// 而 stop=0 在 Redis 里是「只要第一条」——空与 0 分不开，就会悄悄只回一条。
-		// count=0 没有歧义（取 0 条无意义），拿它当「不限」是安全的。
+		// Deliberately uses "how many to take" rather than Redis's native "end index": an empty numeric
+		// field arrives as 0, and stop=0 in Redis means "just the first one" — if empty can't be told
+		// apart from 0, it would quietly return only one item. count=0 has no ambiguity (taking 0 items
+		// is meaningless), so treating it as "unlimited" is safe.
 		field.Int("count").Label("取几条").Desc("默认 0 = 全部").Optional(),
 	}
 }
@@ -299,9 +306,9 @@ func (ListRange) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 集合 ——
+// —— Set ——
 
-// SetAdd 集合添加。
+// SetAdd adds to a set.
 type SetAdd struct{}
 
 func (SetAdd) Meta() contract.Meta {
@@ -320,7 +327,7 @@ func (SetAdd) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("added").Label("新增个数").Desc("已存在的成员不计入")}
 }
 
-// SetMembers 集合成员。
+// SetMembers lists a set's members.
 type SetMembers struct{}
 
 func (SetMembers) Meta() contract.Meta {
@@ -336,7 +343,7 @@ func (SetMembers) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SetRemove 集合移除。
+// SetRemove removes from a set.
 type SetRemove struct{}
 
 func (SetRemove) Meta() contract.Meta {
@@ -354,15 +361,15 @@ func (SetRemove) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("removed").Label("移除个数")}
 }
 
-// —— 有序集合 ——
+// —— Sorted set ——
 
-// ZItem 一个有序集合成员。
+// ZItem is one sorted-set member.
 type ZItem struct {
 	Member string  `sokel:"member" label:"成员"`
 	Score  float64 `sokel:"score" label:"分数"`
 }
 
-// ZsetAdd 有序集合添加。
+// ZsetAdd adds to a sorted set.
 type ZsetAdd struct{}
 
 func (ZsetAdd) Meta() contract.Meta {
@@ -384,7 +391,7 @@ func (ZsetAdd) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ZsetRange 有序集合取段。
+// ZsetRange reads a range from a sorted set.
 type ZsetRange struct{}
 
 func (ZsetRange) Meta() contract.Meta {
@@ -407,9 +414,9 @@ func (ZsetRange) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 消息 ——
+// —— Messaging ——
 
-// Publish 发布消息。
+// Publish publishes a message.
 type Publish struct{}
 
 func (Publish) Meta() contract.Meta {
@@ -428,7 +435,7 @@ func (Publish) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("receivers").Label("收到的订阅者数")}
 }
 
-// StreamAdd 写入 Stream。
+// StreamAdd appends to a Stream.
 type StreamAdd struct{}
 
 func (StreamAdd) Meta() contract.Meta {
@@ -449,9 +456,9 @@ func (StreamAdd) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("id").Label("消息 ID").Desc("Redis 生成的 <毫秒>-<序号>")}
 }
 
-// —— 保底 ——
+// —— Fallback ——
 
-// Call 通用命令。
+// Call issues a generic command.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -472,7 +479,7 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform-mandated credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -494,25 +501,29 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 事件（事件源，起工作流）——
+// —— Events (event source, triggers a workflow) ——
 //
-// 两条消费路，凭证里填了哪个就起哪个（都不填不起源，普通操作照用）：
+// Two consumption paths; whichever the credential fills in is the one that starts (neither filled in
+// means no event source, while normal operations keep working as usual):
 //
-//   - **Pub/Sub**（watch_channels）：实时、不留存。插件没连着的那段时间的消息**收不到**，
-//     且没有消息 id——event_id 只能按「本进程第几条」生成，重启后重新编号。
-//     用它当实时信号，别用它传不能丢的东西。
-//   - **Stream**（watch_streams）：留存、可回溯、消息 id 天然唯一，重启后按 id 去重不会重放。
-//     从「接上的那一刻」开始读（不回溯历史），与其它插件的首轮约定一致。
+//   - **Pub/Sub** (watch_channels): real-time, not retained. Messages sent while the plugin was
+//     disconnected **are simply not received**, and there's no message id — event_id can only be
+//     generated as "the Nth message in this process", resetting on restart. Use it as a real-time
+//     signal, never for anything that can't be lost.
+//   - **Stream** (watch_streams): retained, can be replayed, message ids are naturally unique, and a
+//     restart won't cause a replay thanks to id-based dedup. Reading starts from "the moment it
+//     connects" (no history replay), matching the same first-run convention as other plugins.
 type Events struct{}
 
-// CommonFields 事件公共字段：两类事件都带 key（频道名 / Stream 名）。
+// CommonFields are the fields shared by all events: both event kinds carry key (channel name / Stream
+// name).
 func (Events) CommonFields() []string { return []string{"key"} }
 
 func eventKeyField() contract.FieldSpec {
 	return field.String("key").Label("来源").Desc("Pub/Sub 是频道名，Stream 是 Stream 名")
 }
 
-// MessageReceived 收到频道消息。
+// MessageReceived is received for a channel message.
 type MessageReceived struct{}
 
 func (MessageReceived) EventMeta() contract.EventMeta {
@@ -527,7 +538,7 @@ func (MessageReceived) Fields() []contract.FieldSpec {
 	}
 }
 
-// StreamMessage 收到 Stream 消息。
+// StreamMessage is received for a Stream message.
 type StreamMessage struct{}
 
 func (StreamMessage) EventMeta() contract.EventMeta {
@@ -542,7 +553,7 @@ func (StreamMessage) Fields() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
 type Credential struct{}
 

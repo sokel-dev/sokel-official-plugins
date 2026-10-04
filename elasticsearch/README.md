@@ -1,42 +1,56 @@
-# elasticsearch — Elasticsearch 插件（第一方内置目录）
+# elasticsearch — Elasticsearch plugin (first-party built-in directory)
 
-18 个操作覆盖三个域：检索（搜索/统计/聚合）、文档读写（单篇 CRUD + 批量 + 按查询删）、
-索引管理（列表/建删/mapping/别名/重建）+ `call` 保底 + `health_check`。
-说明书 [docs/elasticsearch.md](docs/elasticsearch.md)。
+18 operations cover three domains: search (search/count/aggregate), document read/write
+(single-document CRUD + bulk + delete-by-query), index management
+(list/create-delete/mapping/alias/reindex) + a `call` fallback + `health_check`.
+User guide: [docs/elasticsearch.md](docs/elasticsearch.md).
 
-**走裸 HTTP 而不是官方 SDK**：ES 的 REST 接口在 7/8/9 之间基本没动，裸 HTTP 一套代码
-通吃三个大版本，连 **OpenSearch**（ES 7 的分叉）也能用；官方 SDK 反过来会把大版本
-锁死在客户端库上。同一判断见 `../kbstore-es`。
+**Uses plain HTTP instead of the official SDK**: ES's REST interface has barely changed
+across 7/8/9, so plain HTTP lets one codebase cover all three major versions, and it even
+works with **OpenSearch** (a fork of ES 7); the official SDK, on the other hand, locks the
+major version to the client library. Same reasoning as `../kbstore-es`.
 
-## 坑（改代码前先读）
+## Gotchas (read before touching the code)
 
-- **`_bulk` 是 NDJSON 不是 JSON**：一行动作、一行文档，**末尾必须有换行**，
-  Content-Type 得是 `application/x-ndjson`（发成 JSON 数组 ES 回 400/406）。测试钉着。
-- **404 有两种**：文档不存在（应答无 `error` 体）是正常分支，索引不存在（有 `error` 体）
-  是配置错必须报出来。混为一谈的话「查不到东西」会被当成「没数据」。测试钉着。
-- **切别名必须一次 `_aliases` 请求里 remove+add**：分两次调用中间那一瞬别名指向空
-  或同时指向两个索引，查询方撞上就读到错的数据。测试钉着调用次数。
-- **`total` 默认是下界**：ES 只精确统计到 10000 条，`relation=gte` 时出参
-  `total_is_lower_bound=true`。不透出这件事，「一共 10000 条」会一路传进报表。
-- **size 的 0 是有意义的**（只要聚合不要文档），而留空的数字字段到手也是 0——
-  用「有没有给 aggs」断意图：显式 size>0 用它，否则有 aggs 就 size=0，都没有走 ES 默认 10。
-- **危险操作在插件侧挡**：`_delete_by_query` 不给 query = 删光索引；`DELETE /*` = 删光集群。
-  两处都在发请求前拒绝并指向正确的操作。测试钉着「不该发出请求」。
-- **`resource_already_exists` 是幂等结果不是错误**：建索引的流程会重跑。
-- 认证：API Key（`Authorization: ApiKey`）优先于 basic；两个都不填也允许
-  （自建集群关安全模块 / OpenSearch demo 配置是常见形态）。
-- `InsecureSkipVerify` 换的是 Transport，**两种形态各留一个 http.Client**，
-  别每次调用新建——那样连接池不复用，每次请求都重新握 TLS。
+- **`_bulk` is NDJSON, not JSON**: one action line, one document line, with a
+  **required trailing newline**, and Content-Type must be `application/x-ndjson`
+  (sending a JSON array gets a 400/406 from ES). Pinned by tests.
+- **There are two kinds of 404**: a missing document (response has no `error` body) is a
+  normal branch; a missing index (has an `error` body) is a config error that must be
+  reported. Conflating them makes "couldn't find it" look like "no data". Pinned by tests.
+- **Switching an alias must be remove+add inside a single `_aliases` request**: in the
+  instant between two separate calls the alias would point to nothing or to both indices,
+  and a query that lands right then reads the wrong data. Pinned by a test on call count.
+- **`total` is a lower bound by default**: ES only counts exactly up to 10000; when
+  `relation=gte`, the output sets `total_is_lower_bound=true`. Without surfacing this,
+  "there are 10000 in total" would propagate straight into reports.
+- **size=0 is meaningful** (want aggregations but not documents), while an empty numeric
+  field also arrives as 0 — intent is inferred from "was aggs given": an explicit size>0
+  wins, otherwise size=0 if aggs are present, and ES's default of 10 if neither is given.
+- **Dangerous operations are blocked on the plugin side**: `_delete_by_query` with no
+  query = wipe the whole index; `DELETE /*` = wipe the whole cluster. Both are rejected
+  before the request is sent, pointing to the correct operation instead. Pinned by a
+  "must not send the request" test.
+- **`resource_already_exists` is an idempotent result, not an error**: index-create flows
+  get rerun.
+- Auth: API Key (`Authorization: ApiKey`) takes priority over basic; leaving both empty is
+  also allowed (common when a self-hosted cluster has security disabled, or with
+  OpenSearch's demo config).
+- `InsecureSkipVerify` swaps out the Transport; **keep one http.Client for each of the two
+  modes**, don't build a new one on every call — that would stop the connection pool from
+  being reused and force a fresh TLS handshake on every request.
 
-## 没做事件源
+## No event source
 
-ES 没有推送机制，「有新文档」只能轮询查询。要事件驱动的话上游多半有更合适的出口
-（消息队列 / Redis Stream / Webhook）。真需要轮询再加，别默认塞一个。
+ES has no push mechanism, so "is there a new document" can only be polled. If an
+event-driven flow is needed, the upstream usually has a better-suited channel (a message
+queue / Redis Stream / webhook). Add polling only if it's genuinely needed — don't bake
+one in by default.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试用 httptest 假 ES，不依赖外部集群。
+Tests use an httptest fake ES and don't depend on an external cluster.

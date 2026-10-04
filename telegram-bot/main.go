@@ -1,14 +1,20 @@
-// telegram-bot —— Sokel 第一方可部署插件：Telegram Bot API 的「发送/操作」侧。
+// telegram-bot — a Sokel first-party deployable plugin: the "send/operate" side of the Telegram
+// Bot API.
 //
-// 定位（见 docs/telegram-integration.md）：一个「全功能」TG bot 分两半——
-//   - 发送/操作（本插件）：sendMessage/sendPhoto/answerCallbackQuery/getFile… 纯出站调 api.telegram.org，
-//     无需平台新 feature，做成 SDK 插件即可（与 http-egress 同构，出站接入 broker，可跑公网服务器）。
-//   - 接收/触发（不在本插件）：收到消息→起工作流，需平台「事件触发」运行时或公网 webhook，见文档 §3 待对齐。
+// Scope (see docs/telegram-integration.md): a "full-featured" TG bot splits into two halves:
+//   - Send/operate (this plugin): sendMessage/sendPhoto/answerCallbackQuery/getFile… are pure
+//     outbound calls to api.telegram.org, need no new platform feature, and can be built as an SDK
+//     plugin (same shape as http-egress — outbound goes through the broker, can run on a public
+//     server).
+//   - Receive/trigger (not in this plugin): receiving a message → kicking off a workflow needs the
+//     platform's "event trigger" runtime or a publicly reachable webhook; see doc §3, still pending.
 //
-// 设计：一个通用 call 覆盖【整个】Bot API（method + params，新方法零改代码）+ 一组 typed 便捷操作（画布字段友好）。
-// 凭证 = bot_token（secret）；token 只在插件内部拼进 URL 路径，绝不进节点入参/输出（避免泄漏到画布与日志）。
+// Design: one generic call covers the [entire] Bot API (method + params, zero code change for new
+// methods) plus a set of typed convenience operations (friendly for canvas fields).
+// Credential = bot_token (secret); the token is only spliced into the URL path inside the plugin,
+// never into any node input/output (to avoid leaking it into the canvas or logs).
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx SOKEL_NATS_TOKEN=xxx ./telegram-bot
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx SOKEL_NATS_TOKEN=xxx ./telegram-bot
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -41,13 +47,13 @@ func main() {
 		Token:    token,
 		Name:     "telegram-bot",
 	})
-	RegisterCredential(p)  // 凭证契约（schema 声明生成；Cred 在 zz_credential.go）
-	p.SetDoc(usageDoc, "") // 使用说明（docs/*.md）：凭证怎么拿、有什么坑，随握手上报给平台
+	RegisterCredential(p)  // credential contract (generated from the schema declaration; Cred lives in zz_credential.go)
+	p.SetDoc(usageDoc, "") // usage doc (docs/*.md): how to get credentials, what the gotchas are; reported to the platform with the handshake
 
-	// 通用兜底：覆盖整个 Bot API（method 任意 + params 任意 JSON）。
+	// Generic catch-all: covers the entire Bot API (any method + any JSON params).
 	OnCall(p, opCall)
 
-	// —— 高频 typed 便捷操作（画布字段友好；内部都走同一 callAPI）——
+	// —— High-frequency typed convenience operations (friendly for canvas fields; all go through the same callAPI internally) ——
 	OnSendMessage(p, opSendMessage)
 	OnSendPhoto(p, opSendPhoto)
 	OnSendDocument(p, opSendDocument)
@@ -58,22 +64,26 @@ func main() {
 	OnAnswerCallbackQuery(p, opAnswerCallback)
 	OnGetChat(p, opGetChat)
 	OnGetMe(p, opGetMe)
-	OnHealthCheck(p, opHealthCheck) // 凭证页「检查」按钮调它（id 必须是 health_check）
+	OnHealthCheck(p, opHealthCheck) // the "check" button on the credential page calls this (id must be health_check)
 	OnDownloadFile(p, opDownloadFile)
 
-	// —— bot 配置类（webhook 模式铺路 + 菜单命令）——
+	// —— Bot configuration operations (paving the way for webhook mode + command menu) ——
 	OnSetWebhook(p, opSetWebhook)
 	OnDeleteWebhook(p, opDeleteWebhook)
 	OnGetWebhookInfo(p, opGetWebhookInfo)
 	OnSetMyCommands(p, opSetMyCommands)
 
-	// —— 事件契约（接收侧）：声明本 bot 产的事件类型 + 各自 payload（前端 trigger_event 节点据此派生出口 handle）——
+	// —— Event contracts (receiving side): declares the event types this bot produces + each one's payload (the frontend's trigger_event node derives its outgoing handles from this) ——
 	DeclareEvents(p)
-	// 公共字段：所有事件 payload 都有 chat_id → 平台触发时平铺到输入顶层（{{节点.chat_id}}），
-	// 各事件分支共享同一变量，不必按分支从各自事件 payload 下钻。SDK 强校验（缺字段/类型不一致即报错）。
+	// Shared field: every event payload has chat_id → flattened to the top level of the input when
+	// the platform triggers ({{node.chat_id}}), so every event branch shares the same variable
+	// instead of having to drill into its own event payload. The SDK validates strictly (a missing
+	// field or type mismatch is an error).
 
-	// 常驻事件源：长轮询 getUpdates → 每条 update 按类型 Trigger 推给平台（见 updates.go）。
-	// 长轮询无需 setWebhook、不要求平台公网可达（适配 NAT）；建议单副本运行（平台按 update_id 去重兜底）。
+	// Standing event source: long-polls getUpdates → pushes each update to the platform via Trigger,
+	// by type (see updates.go). Long polling needs no setWebhook and doesn't require the platform to
+	// be publicly reachable (works behind NAT); recommended to run a single replica (the platform
+	// dedupes by update_id as a backstop).
 	sokel.RegisterSource(p, sokel.Source{ID: "updates", Label: "TG 更新长轮询"}, runUpdatesSource)
 
 	if err := p.Run(); err != nil {
@@ -81,7 +91,7 @@ func main() {
 	}
 }
 
-// —— 通用调用 ——
+// —— Generic call ——
 
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	res, err := callAPI(ctx, in.Method, in.Params)
@@ -91,7 +101,7 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	return remap[CallOut](map[string]any{"ok": true, "result": res})
 }
 
-// —— typed 便捷操作 ——
+// —— Typed convenience operations ——
 
 func opSendMessage(ctx plugin.Ctx, in *SendMessageIn) (*SendMessageOut, error) {
 	return messageOut[SendMessageOut](ctx, "sendMessage", compact(map[string]any{
@@ -158,14 +168,16 @@ func opGetMe(ctx plugin.Ctx, in *GetMeIn) (*GetMeOut, error) {
 	return remap[GetMeOut](map[string]any{"ok": true, "result": res})
 }
 
-// opHealthCheck：凭证体检 —— 打一次 getMe。
+// opHealthCheck checks the credential — fires a single getMe.
 //
-// getMe 不发消息、不碰任何对话，是 Bot API 里唯一「只验 token」的调用；
-// 它回的 username 还能戳穿「token 复制成了另一个 bot 的」——测试 bot 与正式 bot
-// 的两串 token 长得一模一样，只报「通了」看不出配错了哪一个。
+// getMe sends no message and touches no conversation; it's the only call in the Bot API that
+// "only verifies the token". The username it returns can also catch a "token copied from the
+// wrong bot" mistake — a test bot's token and a production bot's token look identical, and just
+// reporting "reachable" wouldn't reveal which one is misconfigured.
 //
-// token 不对时返回 ok=false + message 而**不是** error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」，而 Telegram 那句 401 Unauthorized 得让人看见。
+// When the token is wrong, this returns ok=false + message, **not** an error: the platform treats
+// an error as "this plugin can't run its health check" and ok=false as "the check concluded the
+// plugin is unavailable" — and Telegram's 401 Unauthorized needs to actually be visible.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	res, err := callAPI(ctx, "getMe", nil)
 	if err != nil {
@@ -206,11 +218,12 @@ func opDownloadFile(ctx plugin.Ctx, in *DownloadFileIn) (*DownloadFileOut, error
 	return remap[DownloadFileOut](map[string]any{"file_path": filePath, "size": int64(len(body)), "base64": base64.StdEncoding.EncodeToString(body)})
 }
 
-// —— 共用 ——
+// —— Shared ——
 
-// messageOut / okOut：几个操作的出参形状相同，但**生成物是每操作一个类型**
-// （契约名相同不等于 Go 类型相同）。所以 helper 回一个 map，各 handler 再 remap 到
-// 自己的类型——比给每种出参写一遍 helper 省事，也不必引入泛型。
+// messageOut / okOut: several operations share the same output shape, but **the generated code
+// gives each operation its own type** (same contract name doesn't mean same Go type). So the
+// helper returns a map, and each handler remaps it to its own type — cheaper than writing a
+// per-output-type helper, and no need to bring in generics either.
 func messageOut[T any](ctx plugin.Ctx, method string, params map[string]any) (*T, error) {
 	res, err := callAPI(ctx, method, params)
 	if err != nil {
@@ -233,8 +246,9 @@ func okOut[T any](ctx plugin.Ctx, method string, params map[string]any) (*T, err
 	return remap[T](map[string]any{"ok": true, "result": res})
 }
 
-// remap：map → 生成的 typed 出参。用 contract.BindInput 而非 json.Unmarshal——
-// 后者只认 json tag，契约名不是 snake_case 时会静默绑空。
+// remap: map → the generated typed output. Uses contract.BindInput rather than json.Unmarshal —
+// the latter only honors json tags, and silently binds nothing when the contract name isn't
+// snake_case.
 func remap[T any](m map[string]any) (*T, error) {
 	raw, err := json.Marshal(m)
 	if err != nil {
@@ -247,8 +261,9 @@ func remap[T any](m map[string]any) (*T, error) {
 	return &out, nil
 }
 
-// botToken：操作侧取 bot token——优先平台注入的凭证（可多 bot：每个工作流配不同凭证），
-// 缺省回退环境变量 TELEGRAM_BOT_TOKEN（单 bot 部署 / 与事件源同一个）。
+// botToken fetches the bot token on the operation side — first the credential injected by the
+// platform (supports multiple bots: configure a different credential per workflow), falling back
+// to the TELEGRAM_BOT_TOKEN environment variable (single-bot deployment / shared with the event source).
 func botToken(ctx sokel.Ctx) string {
 	if c := sokel.CredentialAs[Cred](ctx); c.BotToken != "" {
 		return c.BotToken
@@ -256,7 +271,7 @@ func botToken(ctx sokel.Ctx) string {
 	return os.Getenv("TELEGRAM_BOT_TOKEN")
 }
 
-// callAPI：操作侧调用（token 从凭证/env 取）。
+// callAPI is the operation-side call (token taken from the credential / env).
 func callAPI(ctx sokel.Ctx, method string, params map[string]any) (any, error) {
 	tok := botToken(ctx)
 	if tok == "" {
@@ -265,15 +280,16 @@ func callAPI(ctx sokel.Ctx, method string, params map[string]any) (any, error) {
 	return callTelegram(ctx, tok, method, params)
 }
 
-// callTelegram：POST https://api.telegram.org/bot<token>/<method>，JSON body=params，解析 {ok,result,description}。
-// token 只进 URL 路径，不出现在任何返回值里。事件源与操作共用此底层。
+// callTelegram: POST https://api.telegram.org/bot<token>/<method>, JSON body=params, parses
+// {ok,result,description}. The token only ever goes into the URL path, never into any return
+// value. Shared low-level plumbing for both the event source and the operations.
 func callTelegram(ctx context.Context, token, method string, params map[string]any) (any, error) {
 	if params == nil {
 		params = map[string]any{}
 	}
 	buf, _ := json.Marshal(params)
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/%s", token, method)
-	reqCtx, cancel := context.WithTimeout(ctx, 40*time.Second) // getUpdates 长轮询 timeout=25s，留余量
+	reqCtx, cancel := context.WithTimeout(ctx, 40*time.Second) // getUpdates long-polls with timeout=25s, leave headroom
 	defer cancel()
 	req, _ := http.NewRequestWithContext(reqCtx, http.MethodPost, url, bytes.NewReader(buf))
 	req.Header.Set("Content-Type", "application/json")
@@ -300,7 +316,8 @@ func callTelegram(ctx context.Context, token, method string, params map[string]a
 	return result, nil
 }
 
-// compact：去掉零值键（Telegram 对空串 parse_mode / 0 reply_to 等敏感，不传即用默认）。
+// compact drops zero-value keys (Telegram is picky about empty-string parse_mode / 0 reply_to and
+// the like; omitting them falls back to the default).
 func compact(m map[string]any) map[string]any {
 	out := map[string]any{}
 	for k, v := range m {
@@ -320,8 +337,8 @@ func compact(m map[string]any) map[string]any {
 				continue
 			}
 		default:
-			// typed nil（如未填的 map[string]any 字段）不命中 case nil——
-			// 保留会 marshal 成 null，Telegram 报 "object expected as reply markup"。
+			// A typed nil (e.g. an unfilled map[string]any field) doesn't match case nil —
+			// keeping it would marshal to null, and Telegram reports "object expected as reply markup".
 			if rv := reflect.ValueOf(v); (rv.Kind() == reflect.Map || rv.Kind() == reflect.Slice ||
 				rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface) && rv.IsNil() {
 				continue

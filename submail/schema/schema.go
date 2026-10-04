@@ -1,16 +1,20 @@
-// Package schema 声明 submail（赛邮）插件的操作与凭证契约。
+// Package schema declares the submail plugin's operation and credential contracts.
 //
-// 定位：短信出口——**国内短信 + 国际短信**（SUBMAIL/赛邮云通信）。告警通知、
-// 验证码、运营触达都走它。纯 HTTP 表单接口，无需 SDK。
+// Scope: an SMS gateway -- domestic SMS + international SMS (SUBMAIL cloud communications).
+// Alert notifications, verification codes, and marketing outreach all go through it. A plain
+// HTTP form API, no SDK needed.
 //
-// SUBMAIL 的两个平台约定决定了契约形状：
+// Two of SUBMAIL's own platform conventions shape the contract:
 //
-//   - **应用是分类型的**：国内短信应用与国际短信应用在控制台里是两个应用、
-//     两对 appid/appkey。所以凭证有两组字段，都选填——只用国内的不必配国际，
-//     反之亦然；调用时缺哪组会得到指路的报错。
-//   - **发送分「全文」与「模板」两条路**：send 直接给内容（国内要求带已报备的
-//     【签名】），xsend 给模板 id + 变量（模板先在控制台审核）。验证码类模板
-//     审核快、到达率稳，运营内容全文发居多——两条都做。
+//   - Apps are typed: the domestic SMS app and the international SMS app are two separate apps
+//     in the console, with two separate appid/appkey pairs. So the credential has two groups of
+//     fields, both optional -- using only domestic doesn't require configuring international,
+//     and vice versa; a call missing the needed group gets a pointed error.
+//   - Sending splits into "full text" and "template" paths: send gives the content directly
+//     (domestic requires a registered 【signature】), xsend gives a template id + variables (the
+//     template must be reviewed in the console first). Verification-code templates get
+//     reviewed quickly with a stable delivery rate; marketing content is mostly sent as full
+//     text -- both paths are supported.
 package schema
 
 import (
@@ -18,7 +22,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// SmsSend 国内短信·全文。
+// SmsSend sends domestic SMS as full text.
 type SmsSend struct{}
 
 func (SmsSend) Meta() contract.Meta {
@@ -40,7 +44,7 @@ func (SmsSend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SmsXsend 国内短信·模板。
+// SmsXsend sends domestic SMS from a template.
 type SmsXsend struct{}
 
 func (SmsXsend) Meta() contract.Meta {
@@ -64,7 +68,7 @@ func (SmsXsend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IntlSend 国际短信·全文。
+// IntlSend sends international SMS as full text.
 type IntlSend struct{}
 
 func (IntlSend) Meta() contract.Meta {
@@ -86,7 +90,7 @@ func (IntlSend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IntlXsend 国际短信·模板。
+// IntlXsend sends international SMS from a template.
 type IntlXsend struct{}
 
 func (IntlXsend) Meta() contract.Meta {
@@ -110,8 +114,9 @@ func (IntlXsend) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Balance 查余额。国内与国际是两个端点两种计量（国内按条、国际按金额），
-// 配了哪组应用就查哪边，一次给全。
+// Balance checks the balance. Domestic and international are two endpoints with two different
+// units (domestic by message count, international by amount); whichever app group is
+// configured gets queried, and everything is returned at once.
 type Balance struct{}
 
 func (Balance) Meta() contract.Meta {
@@ -130,9 +135,11 @@ func (Balance) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SmsLog 查国内短信的发送状态——「为什么没收到」的自助排查入口。
-// SUBMAIL 收单成功只代表进了队列；到没到手机要看这里的下发状态。
-// 国际短信没有对应的查询接口（实测 Unknown Method），到达状态只能在控制台看。
+// SmsLog checks a domestic SMS's delivery status -- the self-service troubleshooting entry
+// point for "why didn't it arrive". SUBMAIL accepting the submission only means it entered the
+// queue; whether it reached the phone requires checking the delivery status here.
+// International SMS has no corresponding query endpoint (returns Unknown Method in practice);
+// delivery status there can only be viewed in the console.
 type SmsLog struct{}
 
 func (SmsLog) Meta() contract.Meta {
@@ -157,7 +164,7 @@ func (SmsLog) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform's standard credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -174,8 +181,9 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential：国内与国际是**两个应用两对钥匙**（SUBMAIL 控制台里分开建），
-// 都选填——只用一边就只配一边，调用缺哪组会得到指路的报错。
+// Credential: domestic and international are two separate apps with two separate key pairs
+// (created separately in the SUBMAIL console), both optional -- configure only the side you
+// use; a call missing the needed group gets a pointed error.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

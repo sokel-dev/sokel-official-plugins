@@ -1,4 +1,4 @@
-// Package schema 声明 wechat-claw 的操作与事件契约。
+// Package schema declares wechat-claw's operation and event contracts.
 package schema
 
 import (
@@ -7,13 +7,13 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// —— 发送类操作 ——
+// —— Send operations ——
 
 func okOutput() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("是否成功")}
 }
 
-// SendText 向指定 wxid 发送文本消息。
+// SendText sends a text message to a given wxid.
 type SendText struct{}
 
 func (SendText) Meta() contract.Meta {
@@ -27,7 +27,7 @@ func (SendText) Inputs() []contract.FieldSpec {
 }
 func (SendText) Outputs() []contract.FieldSpec { return okOutput() }
 
-// SendImage 上传并发送图片。
+// SendImage uploads and sends an image.
 type SendImage struct{}
 
 func (SendImage) Meta() contract.Meta {
@@ -42,7 +42,7 @@ func (SendImage) Inputs() []contract.FieldSpec {
 }
 func (SendImage) Outputs() []contract.FieldSpec { return okOutput() }
 
-// SendFile 上传并发送文件附件。
+// SendFile uploads and sends a file attachment.
 type SendFile struct{}
 
 func (SendFile) Meta() contract.Meta {
@@ -58,13 +58,14 @@ func (SendFile) Inputs() []contract.FieldSpec {
 }
 func (SendFile) Outputs() []contract.FieldSpec { return okOutput() }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential 本插件的凭证契约与获取方式。
+// Credential is this plugin's credential contract and how it's obtained.
 type Credential struct{}
 
-// AuthMeta 会话靠**扫码**拿：登录流由插件出题（生成二维码、轮询状态），
-// 平台只做转发，confirmed 时把会话写进凭证行（明文不回前端）。
+// AuthMeta: the session is obtained by **scanning a QR code** — the login flow is driven by the
+// plugin (generating the QR code, polling the status), and the platform just relays it, writing
+// the session into the credential row once confirmed (never sent back to the frontend in plaintext).
 func (Credential) AuthMeta() contract.AuthMeta {
 	return auth.QR()
 }
@@ -76,9 +77,9 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	}
 }
 
-// —— 事件 ——
+// —— Events ——
 
-// MessageReceived 收到微信消息。
+// MessageReceived: a WeChat message was received.
 type MessageReceived struct{}
 
 func (MessageReceived) EventMeta() contract.EventMeta {
@@ -97,7 +98,7 @@ func (MessageReceived) Fields() []contract.FieldSpec {
 	}
 }
 
-// Events 声明公共字段。
+// Events declares the shared fields.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"chat_id"} }

@@ -1,21 +1,25 @@
-# kbstore-es — Elasticsearch 知识库存储插件
+# kbstore-es — Elasticsearch knowledge-base storage plugin
 
-把知识库的向量/全文存储接到自建 Elasticsearch 上。面向用户的说明书是
-[docs/kbstore-es.md](docs/kbstore-es.md)。
+Connects knowledge-base vector/full-text storage to a self-hosted Elasticsearch. The user-facing
+manual is [docs/kbstore-es.md](docs/kbstore-es.md).
 
-## 定位
+## Scope
 
-知识库的**第二存储**：平台默认用内置存储，接了这个插件之后，某个知识库可以改用 ES
-（`plugin-builtin/kbstore-*` 与 `dev-plugins/kbstore-pgvector` 是同一类东西，
-契约一致，换一个 = 换一份凭证，画布与检索链路不用改）。
+The knowledge base's **second storage backend**: the platform defaults to built-in storage, and
+once this plugin is attached, a given knowledge base can switch to ES instead
+(`plugin-builtin/kbstore-*` and `dev-plugins/kbstore-pgvector` are the same kind of thing —
+same contract, so switching one for another just means switching a credential; the canvas and
+the retrieval pipeline don't need to change).
 
-## 部署上的一条要点
+## One deployment gotcha
 
-容器里跑时，凭证的 `es_url` 要填**服务名**（如 `http://elasticsearch:9200`）而不是
-`localhost`——插件与 ES 在同一个 compose 网络里；用 host 进程方式跑时反过来。
-这一条踩过：改成服务名后忘了把 host 方式那份凭证改回去，表现是「插件在线但检索全空」。
+When running in a container, the credential's `es_url` should be a **service name** (e.g.
+`http://elasticsearch:9200`), not `localhost` — the plugin and ES share the same compose network;
+running as a host process, it's the other way around.
+This has bitten us before: after switching to a service name, forgetting to switch the host-process
+credential back, with the symptom being "the plugin is online but retrieval returns nothing".
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

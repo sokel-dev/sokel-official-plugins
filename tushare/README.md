@@ -1,117 +1,136 @@
-# tushare —— TuShare Pro 数据获取（第一方内置目录）
+# tushare — TuShare Pro data retrieval (first-party built-in catalog)
 
-把一套内容同步服务里两条常驻同步任务（行业研报 / 个股研报）搬成平台插件，
-外加 TuShare 文档站上的**全部接口**（契约全生成，默认全部激活，可用 `TUSHARE_APIS` 收窄）。**只负责取数**：不落库、不去重、不加工。
+Ports two always-on sync jobs from a content-sync service (industry research reports / individual
+stock research reports) into a platform plugin, plus **every endpoint** on the TuShare doc site
+(contracts are all generated, all activated by default, narrowable with `TUSHARE_APIS`). **Fetching
+data only**: no storing to a database, no dedup, no transformation.
 
-## 职责边界
+## Scope of responsibility
 
 ```
-[定时触发] → [数据表·取游标] → [本插件·增量拉取] → [随便你接下游] → [数据表·写回游标]
+[scheduled trigger] → [data table · read cursor] → [this plugin · incremental pull] → [whatever downstream you wire up] → [data table · write cursor back]
 ```
 
-画布上的三步（拉列表 → 去重 → 入库）是通用写法，换个数据源就能照抄。
-游标表也是同一个约定（`stream` / `cursor` / `last_ok_at` / `last_error`），不是平台机制。
+The three steps on the canvas (pull the list → dedup → store) are a generic pattern that carries
+over unchanged when swapping in a different data source. The cursor table follows the same
+convention (`stream` / `cursor` / `last_ok_at` / `last_error`); it's not a platform mechanism.
 
-## 增量流
+## Incremental streams
 
-| 操作 | 上游 | 游标 | 说明 |
+| Operation | Upstream | Cursor | Notes |
 |---|---|---|---|
-| `sync_broker_industry_reports` | `research_report`（report_type=行业研报） | 日期 | 一次拉一天，支持 `lookback_days` 回补 |
-| `sync_broker_stock_reports` | `research_report`（report_type=个股研报） | 日期 | 同上 |
+| `sync_broker_industry_reports` | `research_report` (report_type=行业研报/"industry report") | date | Pulls one day at a time; supports `lookback_days` backfill |
+| `sync_broker_stock_reports` | `research_report` (report_type=个股研报/"stock report") | date | Same as above |
 
-出参：`items` / `synced_date` / `next_cursor` / `has_more` / `count`。
-追平昨天后 `next_cursor` 停在当天不再前进——当天的研报还在陆续入库，反复拉同一天是对的。
+Outputs: `items` / `synced_date` / `next_cursor` / `has_more` / `count`.
+Once caught up to yesterday, `next_cursor` stops at today and doesn't advance further — today's
+reports are still trickling in, so repeatedly pulling the same day is correct.
 
-`lookback_days` 是**追平之后退一次**：追平昨天后 `next_cursor` 退回「昨天 − 回补天数」，
-下一次定时触发从那儿重扫一轮，捞回晚几天补录的研报。它不从游标上减——
-「拉取日 = 游标 − 回补」配上「下一个游标 = 拉取日 + 1」会让游标每轮净退 (回补 − 1) 天，
-填 1 原地打转（`has_more` 恒真，循环停不下来）、填 3 越同步越旧。
+`lookback_days` **only kicks in once caught up**: after catching up to yesterday, `next_cursor`
+rewinds to "yesterday - lookback days", and the next scheduled trigger rescans from there to pick
+up reports that were backfilled a few days late. It is not subtracted from the cursor directly —
+pairing "fetch day = cursor - lookback" with "next cursor = fetch day + 1" would make the cursor
+net retreat (lookback - 1) days every round: setting it to 1 would spin in place (`has_more` stays
+permanently true and the loop never stops), and setting it to 3 would drift further back over time.
 
-每条记录带 `dedup_key`。**上游没有主键**，故取「交易日期+股票代码+机构+标题」的摘要：
-回补重跑同一天必须得到同一个键，否则回补一次就多一份。
+Every record carries a `dedup_key`. **The upstream has no primary key**, so it's a hash of "trade
+date + stock code + institution + title": re-running the same day during a backfill must get the
+same key, otherwise every backfill adds a duplicate.
 
-## 全部加上，不全部激活
+## Everything generated, not everything activated
 
-文档站 255 个页面 → **221 个接口契约全部生成**，默认全部注册（2026-09-17 起；此前默认一个不开）。
+255 pages on the doc site → **221 endpoint contracts, all generated**, all registered by default
+(since 2026-09-17; before that, none were on by default).
 
 ```
-catalog/tushare-apis.json     cmd/catalog 从文档站抓的规格（进版本库）
+catalog/tushare-apis.json     spec scraped from the doc site by cmd/catalog (checked into the repo)
   ↓ go run ./cmd/gen-schema
-schema/gen_apis_NN.go         221 个契约声明 + 记录类型
-gen_catalog.go                接口名 → 注册函数
+schema/gen_apis_NN.go         221 contract declarations + record types
+gen_catalog.go                endpoint name -> registration function
   ↓ go generate ./...
-zz_types.go / zz_register.go  223 个操作的 In/Out 与 OnXxx
+zz_types.go / zz_register.go  In/Out and OnXxx for 223 operations
 ```
 
-255 → 221 的去处：33 个是分类页（没有参数表），1 个是 `pro_bar`（SDK 侧的封装函数，
-不是 HTTP 接口），抓取日志里逐个列名。
+Where the 255 → 221 went: 33 are category pages (no parameter table), 1 is `pro_bar` (an SDK-side
+wrapper function, not an HTTP endpoint); the scrape log lists each one by name.
 
 ```bash
-TUSHARE_APIS=                     # 默认：全开（与 '*' 同义）
-TUSHARE_APIS=daily,trade_cal      # 只开这几个（按接口名）
-TUSHARE_APIS=行情数据,债券专题      # 只开这几段（按目录）
-TUSHARE_APIS=none                 # 一个都不开
+TUSHARE_APIS=                     # default: everything on (same as '*')
+TUSHARE_APIS=daily,trade_cal      # only turn on these (by endpoint name)
+TUSHARE_APIS=行情数据,债券专题      # only turn on these groups (by category: "Quotes data", "Bond topics")
+TUSHARE_APIS=none                 # nothing on
 ```
 
-两条增量流走另一个开关 `TUSHARE_OPS`（默认全开）。
+The two incremental streams are controlled by a separate switch, `TUSHARE_OPS` (everything on by
+default).
 
-### 为什么不用 reportify 那份现成的 JSON
+### Why not use reportify's existing JSON
 
-`reportify/core/tools/tushare/scraper` 已经抓过一份 232 接口的规格，但**不能用**。
-它按表头猜表格类型（见「必选」当入参、见「默认显示」当出参），遇到出参表少一列
-或页面多一张示例表就分错。实测：
+`reportify/core/tools/tushare/scraper` already scraped a 232-endpoint spec, but it **can't be
+used**. It guesses the table type from the column headers (seeing "必选"/"required" it treats the
+table as inputs, seeing "默认显示"/"default shown" it treats it as outputs), and misclassifies
+whenever an outputs table is missing a column or a page has an extra sample table. In practice:
 
-- **25 个接口的出参整段丢失**——`daily` / `daily_basic` / `margin` / `top10_holders` /
-  `forecast` / `express` / `fina_mainbz` … 出参表被当成入参吞掉，`required` 列里
-  躺着「开盘价」「交易日期」这种描述文本
-- 26 个接口入参被污染，4 个接口的入参名直接是中文（`hm_list` 把游资名字当成了参数名）
-- 目录也漂了：本地 `index.json` 快照与线上差 27 个新接口 / 40 个已下线，
-  还有 `fund_factor_pro描述` 这种正则抓歪的接口名
+- **25 endpoints lost their entire outputs section** — `daily` / `daily_basic` / `margin` /
+  `top10_holders` / `forecast` / `express` / `fina_mainbz`, … had their outputs table swallowed as
+  inputs, with descriptive text like "opening price" or "trade date" sitting in the `required`
+  column
+- 26 endpoints had their inputs contaminated, and 4 endpoints had input names that were literally
+  Chinese text (`hm_list` mistook "hot money" names for parameter names)
+- The category list also drifted: the local `index.json` snapshot differed from the live site by
+  27 new endpoints / 40 decommissioned ones, plus endpoint names mangled by a stray regex match like
+  `fund_factor_pro描述`
 
-拿它去 codegen，结果是 25 个操作在画布上没有任何输出字段，**而且不报错**。
+Feeding that into codegen left 25 operations with zero output fields on the canvas, **and no
+error**.
 
-本目录的抓取器改成**按段落标记切**：页面结构是 `<p>输入参数</p><table>`、
-`<p>输出参数</p><table>`，标记明确无歧义；这两个标记之外的表一律不看。
-`daily` 现在是 4 入参 / 13 出参，与官方页面逐字一致。
+This repo's scraper instead **splits by paragraph marker**: the page structure is
+`<p>输入参数</p><table>` (input parameters), `<p>输出参数</p><table>` (output parameters) — the
+markers are explicit and unambiguous, and any table outside these two markers is simply ignored.
+`daily` now comes out as 4 inputs / 13 outputs, matching the official page verbatim.
 
-### 重抓
+### Re-scraping
 
 ```bash
-go run ./cmd/catalog          # 约 2 分钟，并发 3
+go run ./cmd/catalog          # ~2 minutes, concurrency 3
 go run ./cmd/gen-schema
 go generate ./...
 ```
 
-同名接口出现在多个文档页时（`stk_mins` 挂在股票与 ETF 两页）合并成一个操作；
-**合并前对比字段集**，不一致会打印出来让人看见，不会悄悄取其一。
+When the same endpoint name appears on multiple doc pages (`stk_mins` is listed under both the
+stock and ETF pages), they're merged into one operation; **the field sets are compared before
+merging**, and a mismatch is printed for a human to see rather than silently picking one.
 
-::: tip 两个刻意的取舍
-**入参一律 string**：生成的入参结构里数值是值类型，「没填」与「填了 0」是同一个 Go 零值，
-而那对上游是两种不同的请求。原始类型写在字段说明里。出参保持类型。
+::: tip Two deliberate tradeoffs
+**Inputs are always strings**: in a generated input struct, a numeric value type gives "not filled
+in" and "filled in as 0" the same Go zero value, even though they're two different requests to the
+upstream. The original type is written into the field description. Outputs keep their real type.
 
-**fields 显式要全列**：TuShare 不传 `fields` 只回默认列（实测 15% 的列不在默认集里），
-而契约声明了全部列——不显式要，画布上就有一批字段永远是空的。生成期把全列清单算好写进代码。
+**fields explicitly requests every column**: TuShare only returns the default columns unless
+`fields` is passed (in practice, 15% of columns aren't in the default set), while the contract
+declares every column — without asking for them explicitly, a batch of fields on the canvas would
+always be empty. The full column list is computed at generation time and baked into the code.
 :::
 
-## 凭证
+## Credential
 
-| 字段 | 说明 |
+| Field | Notes |
 |---|---|
-| `token` | tushare.pro 个人主页的接口 token。**能调哪些接口取决于账号积分** |
-| `base_url` | 留空用官方端点 |
+| `token` | The API token from your tushare.pro personal homepage. **Which endpoints you can call depends on your account's points** |
+| `base_url` | Leave empty to use the official endpoint |
 
-积分不够时上游回的是 `code=40203` 加一句中文说明，插件原样带给用户——
-换成自己的措辞只会丢信息。
+When points run out, the upstream returns `code=40203` plus a Chinese explanation, which the plugin
+passes along to the user verbatim — rewording it in our own words would only lose information.
 
-## 跑起来
+## Running it
 
 ```bash
 SOKEL_ENDPOINT=http://localhost:8088 SOKEL_TOKEN=skp_xxx go run .
 ```
 
-## 测试
+## Testing
 
 ```bash
-go test ./...                              # 假上游，离线可跑
-TUSHARE_TOKEN=xxx go test -run Live ./...  # 打真 TuShare，验鉴权与列式还原
+go test ./...                              # fake upstream, runs offline
+TUSHARE_TOKEN=xxx go test -run Live ./...  # hits real TuShare, verifies auth and columnar restoration
 ```

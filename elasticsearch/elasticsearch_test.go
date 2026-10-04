@@ -1,9 +1,11 @@
 package main
 
-// httptest 假 ES 打穿关键路径。真集群联调走 operation:test。
+// httptest-based fake ES exercises the critical paths. Live-cluster integration goes
+// through operation:test.
 //
-// 盯的是几个**不看请求原文就发现不了**的地方：_bulk 的 NDJSON 形态、
-// 删除类操作的闸、切别名的原子性、以及 total 的下界语义。
+// What's being watched here are a few things **you can't catch without looking at the
+// raw request**: _bulk's NDJSON shape, the gate on delete-type operations, the atomicity
+// of alias switching, and total's lower-bound semantics.
 
 import (
 	"context"
@@ -35,8 +37,10 @@ func ctxFor(srv *httptest.Server) *fakeCtx {
 	return &fakeCtx{Context: context.Background(), cred: map[string]string{"base_url": srv.URL}}
 }
 
-// _bulk 的请求体是 **NDJSON**（一行动作一行文档、末尾必须换行），不是 JSON 数组——
-// 按数组发过去 ES 回 400。id_field 要落到动作行的 _id 上，那是「重跑不写重复」的根。
+// _bulk's request body is **NDJSON** (one action line, one document line, trailing
+// newline required), not a JSON array — sending an array gets a 400 from ES. id_field
+// must land on the action line's _id, which is the basis for "a rerun doesn't write
+// duplicates".
 func TestBulkIsNDJSONWithIDs(t *testing.T) {
 	var gotBody, gotType string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +80,7 @@ func TestBulkIsNDJSONWithIDs(t *testing.T) {
 	if idx["_id"] != "a" || idx["_index"] != "logs" {
 		t.Errorf("动作行该带 _id=a/_index=logs，got %+v", idx)
 	}
-	// 批量是**部分成功**的：一条失败不影响另一条，两个计数都要对。
+	// Bulk is **partial success**: one failure doesn't affect the other, both counters must be correct.
 	if out.Indexed != 1 || out.Failed != 1 {
 		t.Errorf("该是成功 1 失败 1，got indexed=%d failed=%d", out.Indexed, out.Failed)
 	}
@@ -85,7 +89,8 @@ func TestBulkIsNDJSONWithIDs(t *testing.T) {
 	}
 }
 
-// id_field 指的字段缺了要**当场报错**，不能悄悄写成随机 ID——那样重跑就写出重复数据。
+// Missing the field named by id_field must **error out immediately**, not silently fall
+// back to a random ID — that would make a rerun write duplicate data.
 func TestBulkMissingIDFieldFails(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("不该发出请求")
@@ -99,8 +104,8 @@ func TestBulkMissingIDFieldFails(t *testing.T) {
 	}
 }
 
-// 两道闸：按查询删除不给查询 = 删光索引；删索引带通配 = 删一大片。
-// 都必须在**发请求之前**拦住。
+// Two gates: delete-by-query with no query = wipe the whole index; delete-index with a
+// wildcard = wipe a large chunk. Both must be blocked **before the request is sent**.
 func TestDangerousOpsAreGated(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("危险操作不该发出请求: %s %s", r.Method, r.URL.Path)
@@ -118,9 +123,10 @@ func TestDangerousOpsAreGated(t *testing.T) {
 	}
 }
 
-// 搜索：total 的 relation=gte 意思是「至少这么多」（ES 默认只精确到 10000），
-// 这件事必须出到契约里——否则「一共就 10000 条」会一路传进报表。
-// 顺带钉住排序转换与「给了聚合、取几条留空 → size=0」的互动。
+// Search: relation=gte on total means "at least this many" (ES only counts exactly up
+// to 10000 by default), and this must be surfaced in the contract — otherwise "there are
+// only 10000 in total" would propagate straight into reports. Also pins down the sort
+// conversion and the "aggs given, size left empty → size=0" interaction.
 func TestSearchTotalLowerBoundAndBody(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +153,7 @@ func TestSearchTotalLowerBoundAndBody(t *testing.T) {
 	if out.Aggregations == nil {
 		t.Error("聚合结果该透出来")
 	}
-	// 给了聚合、取几条留空 → 只回聚合（size=0）
+	// aggs given, size left empty → return only the aggregations (size=0)
 	if size, ok := body["size"].(float64); !ok || size != 0 {
 		t.Errorf("给了聚合且取几条留空时该发 size=0，got %v", body["size"])
 	}
@@ -160,14 +166,14 @@ func TestSearchTotalLowerBoundAndBody(t *testing.T) {
 	if ts["order"] != "desc" {
 		t.Errorf(`"@timestamp:desc" 该转成 {"@timestamp":{"order":"desc"}}，got %v`, sorts[0])
 	}
-	// 简式查询要包成 query_string，不能原样塞进 query
+	// the shorthand query must be wrapped as query_string, not stuffed into query as-is
 	q := body["query"].(map[string]any)
 	if _, ok := q["query_string"]; !ok {
 		t.Errorf("简式查询该包成 query_string，got %v", q)
 	}
 }
 
-// 取几条给了具体值时以它为准（别被聚合那条规则盖掉）。
+// When size is given an explicit value, that value wins (don't let the aggs rule override it).
 func TestSearchExplicitSizeWins(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,8 +191,9 @@ func TestSearchExplicitSizeWins(t *testing.T) {
 	}
 }
 
-// 文档不存在（404 无 error 体）是正常分支；**索引不存在**（404 带 error 体）是配置错，
-// 必须报出来——两者都回 404，混为一谈的话查不到东西还以为是没数据。
+// A missing document (404 with no error body) is a normal branch; a **missing index**
+// (404 with an error body) is a config error and must be reported — both return 404, and
+// conflating them makes "couldn't find it" look like "no data".
 func TestDocGetMissVsIndexMissing(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -211,8 +218,9 @@ func TestDocGetMissVsIndexMissing(t *testing.T) {
 	}
 }
 
-// 切别名必须是**一次 _aliases 请求里 remove+add**：分两次调用中间那一瞬，
-// 别名会指向空或同时指向两个索引，查询方正好撞上就读到错的数据。
+// Switching an alias must be **remove+add inside a single _aliases request**: in the
+// instant between two separate calls, the alias would point to nothing or to both
+// indices, and a query that lands right then reads the wrong data.
 func TestAliasSwitchIsAtomic(t *testing.T) {
 	var actionsBody map[string]any
 	calls := 0
@@ -248,7 +256,7 @@ func TestAliasSwitchIsAtomic(t *testing.T) {
 	}
 }
 
-// 建索引遇到「已存在」是幂等结果不是错误（重跑建索引的流程很常见）。
+// Index-create hitting "already exists" is an idempotent result, not an error (rerunning an index-create flow is common).
 func TestIndexCreateAlreadyExists(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -264,8 +272,8 @@ func TestIndexCreateAlreadyExists(t *testing.T) {
 	}
 }
 
-// ES 的报错原文（error.reason）必须原样带出来——它往往直接说明了问题，
-// 翻译一遍反而丢信息。
+// ES's own error text (error.reason) must be passed through verbatim — it usually
+// states the problem directly, and paraphrasing it would only lose information.
 func TestErrorSurfacesESReason(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -278,7 +286,7 @@ func TestErrorSurfacesESReason(t *testing.T) {
 	}
 }
 
-// 认证：API Key 优先于用户名密码（两个都填时不能发 basic）。
+// Auth: API Key takes priority over username/password (must not send basic auth when both are filled in).
 func TestAuthPrefersAPIKey(t *testing.T) {
 	var auth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -297,7 +305,8 @@ func TestAuthPrefersAPIKey(t *testing.T) {
 	}
 }
 
-// 体检：连不上回 ok=false + 说明，**不是** error（抛错在界面上只剩一个红叉）。
+// Health check: a failed connection returns ok=false + a message, **not** an error
+// (an error return would leave nothing but a red X in the UI).
 func TestHealthCheckReportsInsteadOfErroring(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -326,7 +335,7 @@ func TestHealthCheckReportsInsteadOfErroring(t *testing.T) {
 	}
 }
 
-// 索引列表跳过系统索引（.kibana 那些不该摆到画布上），并解出 _cat 的字符串数字。
+// The index list skips system indices (.kibana and the like don't belong on the canvas), and parses _cat's stringified numbers.
 func TestIndicesListSkipsSystem(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `[

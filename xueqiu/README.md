@@ -1,71 +1,95 @@
-# xueqiu — 雪球发帖插件（**非官方接口**）
+# xueqiu — Xueqiu posting plugin (**unofficial interface**)
 
-雪球没有官方发布 API（它的开放平台只有行情，见
-[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §4）。
-本插件调的是**网页端自己在用的私有接口**——纯 HTTP，不跑浏览器。
+Xueqiu has no official publish API (its open platform only covers market data, see
+[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §4).
+This plugin calls **the private endpoints the web frontend uses itself** — plain HTTP, no
+browser involved.
 
-面向用户的说明书是 [docs/xueqiu.md](docs/xueqiu.md)。
+The user-facing guide is [docs/xueqiu.md](docs/xueqiu.md).
 
-## 两套接口，两个子站
+## Two APIs, two subdomains
 
-**短帖走 `xueqiu.com`，长文走 `mp.xueqiu.com`——同一份 cookie，接口完全不同。**
+**Short posts go through `xueqiu.com`, long-form articles go through
+`mp.xueqiu.com`** — same cookie, completely different endpoints.
 
-| 用途 | 请求 | 来源 |
+| Purpose | Request | Source |
 |---|---|---|
-| 发短帖 | `POST xueqiu.com/statuses/update.json`，表单 `status`(HTML) / **`session_token`** / `ai_disclose` / `allow_reward` | 用户抓包 |
-| 短帖传图 | `POST xueqiu.com/photo/upload.json`，multipart `file` | 用户抓包 |
-| **写长文（存草稿）** | `POST mp.xueqiu.com/xq/statuses/draft/save.json`，表单 `title` / `text`(HTML) / `is_private`——**不要 session_token、没见风控参数** | 参照 wechatsync 的 xueqiu driver |
-| 长文传图 | `POST mp.xueqiu.com/xq/photo/upload.json` → 回 `{url, filename}` 两段，要自己拼 | 同上 |
-| 登录态 | `GET mp.xueqiu.com/write/`，页面里有 `window.UOM_CURRENTUSER` → 登录态 + uid + 昵称 | 同上 |
+| Post a short status | `POST xueqiu.com/statuses/update.json`, form fields `status`(HTML) / **`session_token`** / `ai_disclose` / `allow_reward` | captured from the browser |
+| Upload image for a short post | `POST xueqiu.com/photo/upload.json`, multipart `file` | captured from the browser |
+| **Write a long-form article (save as draft)** | `POST mp.xueqiu.com/xq/statuses/draft/save.json`, form fields `title` / `text`(HTML) / `is_private` — **no session_token needed, no risk-control param observed** | based on wechatsync's xueqiu driver |
+| Upload image for a long-form article | `POST mp.xueqiu.com/xq/photo/upload.json` → returns `{url, filename}` as two parts that must be joined | same as above |
+| Login state | `GET mp.xueqiu.com/write/`, the page embeds `window.UOM_CURRENTUSER` → login state + uid + display name | same as above |
 
-> 用户最早给的 `GET /etc/private_fund/state.json` 也能当登录态探测，但写作页那条**语义更直接**
-> （它就是「你能不能写」这件事本身），还顺带给出 uid 与昵称，所以 `health_check` 用后者。
+> The `GET /etc/private_fund/state.json` the user originally provided also works as a
+> login-state probe, but the writer page's semantics are **more direct** (it's literally
+> "can you write"), and it also gives uid and display name along the way, so `health_check`
+> uses the latter.
 
-**长文才是投研内容该去的地方**，而且它那套接口干净得多——没有 session_token 与风控参数这两个
-最容易坏的东西。短帖适合一句话观点。
+**Long-form is where research content really belongs**, and that API is also much
+cleaner — it has neither of the two easiest-to-break things: session_token and a
+risk-control param. Short posts suit a one-line take.
 
-**长文产出的是草稿，不是已发布**：`save.json` 落草稿箱，最后一步「发布」留给人在网页上点。
-这既是接口本身的语义，也正好是合规上更稳的形态——自动写、人工发。
+**Long-form articles produce a draft, not a published post**: `save.json` lands in the
+draft box, leaving the final "publish" step to a human clicking it on the website. This
+matches the endpoint's own semantics, and also happens to be the safer shape from a
+compliance standpoint — automated drafting, human publishing.
 
-四个头是雪球认人的关键：`Cookie` / `User-Agent` / `X-Requested-With: XMLHttpRequest` /
-`Referer`+`Origin`。少一个都可能被 WAF 拦，而它回的是**一整页 HTML**，与登录态无关。
+Four headers are key to Xueqiu recognizing a real client: `Cookie` / `User-Agent` /
+`X-Requested-With: XMLHttpRequest` / `Referer`+`Origin`. Missing any one risks being
+blocked by the WAF, which returns **a full HTML page** unrelated to login state.
 
-## 五条设计判断
+## Five design decisions
 
-1. **应答形状是猜的 → 宽松提取**。没有文档，钉死键名等于把「雪球改一次字段名」变成
-   「全线解析失败」。图片地址按**内容**找（含图床域名的那个字符串），帖子 id 递归按键名找。
-2. **失败有三种长相**：HTTP 403/401、JSON 信封里的 `error_code`、以及被风控拦时的整页 HTML。
-   第三种最坑——按 JSON 解只会得到「解析失败」，所以 `translate` 专门认它并告诉人去粘风控参数。
-3. **`session_token` 三级回退**：凭证里粘的 → 从首页抓 → 报错并**告诉人去哪儿复制**。
-   不做的话就是发一个必然被拒的请求。
-4. **正文先转义再拼**。纯文本里一个 `<` 就能冲掉整段结构；判「已经是 HTML」要求形如
-   `<p …>` 的完整标签，只看 `<p` 的话「A<B」也会被放行（有测试钉住）。
-5. **`ai_disclose` 是显式入参**，不写死 0。内容经 LLM 改写过就该置 1——这压在合规线上
-   （[GEO 方案](../../docs/geo-platform.md) §6），不是可选项。
+1. **The response shape is guesswork → loose extraction.** Undocumented, so pinning down
+   a key name would turn one Xueqiu field rename into a blanket parse failure. An image
+   address is found by **content** (the string containing the image-host domain); a post
+   id is found recursively by key name.
+2. **Failures come in three shapes**: an HTTP 403/401, an `error_code` inside a JSON
+   envelope, and a full HTML page when blocked by risk control. The third is the
+   nastiest — parsing it as JSON would just say "parse failed", so `translate` specifically
+   recognizes it and tells the user to paste a risk-control param.
+3. **`session_token` has a three-tier fallback**: pasted into the credential → scraped
+   from the homepage → an error that **tells the user exactly where to copy it from**.
+   Without this, it would send a request that's bound to be rejected.
+4. **Text is escaped before being assembled.** A single `<` in plain text can break the
+   whole structure; deciding "this is already HTML" requires a complete tag shaped like
+   `<p …>` — looking only for `<p` would let "A<B" through too (pinned by a test).
+5. **`ai_disclose` is an explicit input**, not hardcoded to 0. It should be set to 1
+   whenever content has been rewritten by an LLM — this is a compliance requirement
+   ([GEO plan](../../docs/geo-platform.md) §6), not optional.
 
-## 两个未验证的地方（**只影响短帖那条路**）
+## Two things that remain unverified (**only affect the short-post path**)
 
-抓包时它们都在，但**没验证过是否必需**（我没法从这里发真实请求）。
-长文那套两样都不需要，所以要稳就先用长文：
+Both showed up during packet capture, but **whether they're actually required hasn't been
+verified** (there's no way to send a real request from here). The long-form API needs
+neither, so use long-form first if reliability matters:
 
-- **`md5__1038`（风控参数）**：插件默认**不带**，凭证里填了才挂上去。
-  若发帖回的是一整页 HTML，就是它必需 → 粘一条进凭证。
-  **万一它是 JS 现算的**，那这条路就要复刻算法或定期用浏览器取——那是唯一可能需要浏览器的地方。
-- **`session_token` 的来源**：目前是从首页正则抓。抓不到时会明确让用户手工粘。
+- **`md5__1038` (risk-control param)**: the plugin leaves it off by default, and only
+  attaches it when it's set in the credential. If posting returns a full HTML page, that
+  means it's required → paste one into the credential.
+  **If it turns out to be computed on the fly by JS**, this path would need to either
+  replicate the algorithm or periodically fetch it with a real browser — the one place a
+  browser might end up being necessary.
+- **Where `session_token` comes from**: currently scraped from the homepage with a regex.
+  If that fails, the user is explicitly told to paste one manually.
 
-第一次真实跑通后，把结论回填到本节。
+Once this has actually been verified working end to end, update this section with the result.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试用假雪球，钉的是：请求形状（表单字段 + 四个头）、宽松提取扛得住键名变化、
-风控 HTML 要说成人话、健康检查零副作用、正文转义、token 三级回退。
+Tests use a fake Xueqiu, pinning down: request shape (form fields + four headers), loose
+extraction holding up against key renames, risk-control HTML being explained in plain
+language, zero side effects on health check, text escaping, and the token's three-tier fallback.
 
-## 没做的 / 注意
+## Not done / caveats
 
-- **长文、评论、删帖**都没做（长文是另一个接口，还没抓到；删帖发错了去网页删更安全）。
-- **这是未授权的自动化**：只发自有真实内容、走账号自身额度、低频、失败即报警。
-  形态与红线见 GEO 方案 §6。
+- **Long-form articles, comments, and deletion** aren't done yet (long-form is a separate
+  endpoint that hasn't been captured yet; deleting via the website is safer in case of a
+  mistaken post).
+- **This is unauthorized automation**: only post genuine, self-authored content, stay
+  within the account's own rate budget, keep it low frequency, and alert on failure. See
+  GEO plan §6 for the shape and the red lines.

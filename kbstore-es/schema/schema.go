@@ -1,8 +1,9 @@
-// kbstore-es 的操作契约。
+// kbstore-es's operation contracts.
 //
-// 迁移记录：此前 17 个字段是 []map[string]any / map[string]any，本次逐个查了实际用法
-// （buildBool 取 f["field"]/f["values"]、时间范围取 from/to、recency 取 pivot/boost…）
-// 全部补出了结构，见 types.go。一个 Opaque 都没剩——形状本来就是确定的，只是当年没写。
+// Migration note: 17 fields used to be []map[string]any / map[string]any. This pass checked how
+// each one was actually used (buildBool reads f["field"]/f["values"], the time range reads
+// from/to, recency reads pivot/boost…) and gave every one of them structure — see types.go. Not a
+// single Opaque is left — the shape was always fixed, it just never got written down.
 package schema
 
 import (
@@ -10,7 +11,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// ChunksBrowse （迁移自旧契约）
+// ChunksBrowse (migrated from the legacy contract)
 type ChunksBrowse struct{}
 
 func (ChunksBrowse) Meta() contract.Meta {
@@ -33,7 +34,7 @@ func (ChunksBrowse) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ChunksUpsert （迁移自旧契约）
+// ChunksUpsert (migrated from the legacy contract)
 type ChunksUpsert struct{}
 
 func (ChunksUpsert) Meta() contract.Meta {
@@ -45,8 +46,9 @@ func (ChunksUpsert) Inputs() []contract.FieldSpec {
 		field.String("kb_id"),
 		field.String("doc_id"),
 		field.Array("chunks", []Chunk{}),
-		// append=true：不先删该 doc 的既有 chunk。平台按 NATS 单帧上限分批时，
-		// 只有第一批是 false——每批都替换的话，后一批会把前一批刚写的删掉。
+		// append=true: don't delete the doc's existing chunks first. When the platform batches by
+		// the NATS single-frame size limit, only the first batch is false — replacing on every
+		// batch would delete what the previous batch just wrote.
 		field.Bool("append").Optional(),
 	}
 }
@@ -58,7 +60,7 @@ func (ChunksUpsert) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocDelete （迁移自旧契约）
+// DocDelete (migrated from the legacy contract)
 type DocDelete struct{}
 
 func (DocDelete) Meta() contract.Meta {
@@ -78,7 +80,7 @@ func (DocDelete) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KbCreate （迁移自旧契约）
+// KbCreate (migrated from the legacy contract)
 type KbCreate struct{}
 
 func (KbCreate) Meta() contract.Meta {
@@ -99,7 +101,7 @@ func (KbCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KbDrop （迁移自旧契约）
+// KbDrop (migrated from the legacy contract)
 type KbDrop struct{}
 
 func (KbDrop) Meta() contract.Meta {
@@ -120,7 +122,7 @@ func (KbDrop) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KeywordQuery （迁移自旧契约）
+// KeywordQuery (migrated from the legacy contract)
 type KeywordQuery struct{}
 
 func (KeywordQuery) Meta() contract.Meta {
@@ -145,7 +147,7 @@ func (KeywordQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Mget （迁移自旧契约）
+// Mget (migrated from the legacy contract)
 type Mget struct{}
 
 func (Mget) Meta() contract.Meta {
@@ -165,7 +167,7 @@ func (Mget) Outputs() []contract.FieldSpec {
 	}
 }
 
-// VectorQuery （迁移自旧契约）
+// VectorQuery (migrated from the legacy contract)
 type VectorQuery struct{}
 
 func (VectorQuery) Meta() contract.Meta {
@@ -188,9 +190,9 @@ func (VectorQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：ES 连接（平台凭证下发）。
+// Credential: an ES connection (issued by the platform's credential manager).
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {
@@ -201,14 +203,17 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck：体检这条凭证 —— 连一下集群，报版本与健康状态。
+// HealthCheck checks this credential — connects to the cluster and reports version and health
+// status.
 //
-// 平台侧的约定：操作 id 必须是 health_check（credential.HealthCheckOp），
-// 凭证页的「检查」按钮据此判断这个插件能不能验活；出参 ok=false + message 表示
-// 不可用（而不是抛错——抛错在界面上只剩一个红叉，说不出为什么）。
+// Platform-side convention: the operation id must be health_check (credential.HealthCheckOp); the
+// "check" button on the credential page relies on it to decide whether this plugin can be
+// health-checked. An output of ok=false + message means unavailable (rather than throwing an
+// error — an error would leave only a red X on the UI, unable to say why).
 //
-// 知识库存储没有它的后果实报过：ES 挂了要等到摄入/检索真跑才炸，而那时人已经
-// 在怀疑是自己的流程写错了。
+// The cost of not having this has actually been paid: when ES goes down, it doesn't blow up until
+// ingestion/retrieval is actually run, by which point people are already second-guessing their own
+// workflow.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {

@@ -1,30 +1,41 @@
-# submail — SUBMAIL 赛邮短信插件（第一方自部署）
+# submail — SUBMAIL SMS plugin (first-party self-hosted)
 
-7 个操作：国内短信 发送/模板发送/查发送状态、国际短信 发送/模板发送、查余额、health_check。
-面向用户的说明书是 [docs/submail.md](docs/submail.md)。纯 HTTP 表单接口，无 SDK。
+7 operations: domestic SMS send/template-send/check-delivery-status, international SMS
+send/template-send, check balance, health_check. The user-facing guide is
+[docs/submail.md](docs/submail.md). A plain HTTP form API, no SDK.
 
-## 设计判断
+## Design decisions
 
-- **凭证是两组钥匙**：SUBMAIL 控制台里国内「短信」与「国际短信」是两个应用、
-  两对 appid/appkey。凭证四个字段全选填，`appOf()` 按操作取对应组，缺的那组
-  给指路报错——而不是把国内钥匙发给国际接口换来一个 101。
-- **鉴权用明文 appkey 模式**（signature = appkey）：全程 HTTPS，摘要签名防的
-  「传输中窥视」不成立，而它换来时间戳对表的脆弱性。
-- **两类错提前拦**：国内内容缺【签名】（运营商拒收要等回执才知道）、国际号码
-  缺 + 国家码。都在插件里挡下，不打到 SUBMAIL 才发现。
+- **The credential is two key pairs**: in the SUBMAIL console, domestic "SMS" and
+  "International SMS" are two separate apps, with two separate appid/appkey pairs. All four
+  credential fields are optional; `appOf()` picks the matching group per operation, and a
+  missing group gets a pointed error -- instead of sending the domestic key to the
+  international endpoint and getting back a 101.
+- **Auth uses the plaintext appkey mode** (signature = appkey): the connection is HTTPS end to
+  end, so the "eavesdropping in transit" that digest signatures defend against doesn't apply
+  here, while that mode would trade in the fragility of clock-synced timestamps.
+- **Two kinds of errors are rejected up front**: domestic content missing a 【signature】
+  (carrier rejection would otherwise only show up once the delivery report comes back), and an
+  international number missing its + country code. Both are caught in the plugin rather than
+  discovered only after hitting SUBMAIL.
 
-## 坑
+## Gotchas
 
-- 应答里 balance 是**字符串数字**（"12345"），用 json.Number 接。
-- 错误码 101-104 都是「钥匙不对」，最常见的实际原因是**把国内的钥匙填进了国际组**，
-  翻译里点了这句。
-- health_check 配了哪组查哪组，坏了要说清是哪组坏。
-- **查发送状态只在 v4 网关**（api-v4.mysubmail.com/sms/log），老网关回 Unknown method；
-  国际短信没有对应接口（实测）。「收单成功≠到手机」，dropped+report 才是没收到的真相。
-- **余额端点国内外是两个**：`/balance/sms`（按条）与 `/balance/internationalsms`（按金额）。
-  拿国际钥匙打国内端点会把有效凭证误判成坏的——上过一次当，测试钉住了。
+- The response's balance is a **string number** ("12345"), parsed with json.Number.
+- Error codes 101-104 all mean "wrong key"; the most common actual cause is **putting the
+  domestic key into the international group** -- the translation calls this out explicitly.
+- health_check queries whichever group is configured, and says clearly which one is broken if
+  one is.
+- **Delivery-status queries only exist on the v4 gateway** (api-v4.mysubmail.com/sms/log); the
+  old gateway returns Unknown method. International SMS has no corresponding endpoint (confirmed
+  by testing). "Accepted the submission" does not mean "reached the phone" -- dropped+report is
+  the real answer for a message that didn't arrive.
+- **The balance endpoints differ by domestic/international**: `/balance/sms` (by message count)
+  vs. `/balance/internationalsms` (by amount). Hitting the domestic endpoint with the
+  international key misjudges a valid credential as broken -- this bit us once, and a test now
+  pins it down.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

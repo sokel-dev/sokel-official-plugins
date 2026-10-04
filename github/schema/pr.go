@@ -1,19 +1,21 @@
 package schema
 
-// PR 域 + 机器人回执面。
+// Package schema: PR domain + bot feedback surface.
 //
-// 覆盖的机器人形态：reviewdog / danger / CodeRabbit（读 diff → 行内评论 → 提交状态）、
-// Mergify / bors（条件满足就合）、Renovate（开 PR）、自动指派 reviewer。
+// Bot shapes covered: reviewdog / danger / CodeRabbit (read diff -> inline comments -> commit
+// status), Mergify / bors (merge once conditions are met), Renovate (open PRs), auto-assigning
+// reviewers.
 //
-// **回执面**（CommitStatusCreate / CheckRunCreate / ReactionAdd）是「GitHub 机器人」区别于
-// 「GitHub API 客户端」的地方：机器人要能把结论写回 PR 页面，而不只是读。
+// The **feedback surface** (CommitStatusCreate / CheckRunCreate / ReactionAdd) is what sets a
+// "GitHub bot" apart from a "GitHub API client": a bot needs to be able to write its conclusion
+// back onto the PR page, not just read.
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// PrList PR 列表。
+// PrList lists PRs.
 type PrList struct{}
 
 func (PrList) Meta() contract.Meta {
@@ -41,7 +43,7 @@ func (PrList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PR 一个 Pull Request。
+// PR is a single Pull Request.
 type PR struct {
 	Number    int      `sokel:"number" label:"编号"`
 	Title     string   `sokel:"title" label:"标题"`
@@ -64,7 +66,7 @@ type PR struct {
 	UpdatedAt string   `sokel:"updated_at" label:"更新时间"`
 }
 
-// PrGet PR 详情。
+// PrGet gets PR details.
 type PrGet struct{}
 
 func (PrGet) Meta() contract.Meta {
@@ -79,7 +81,7 @@ func (PrGet) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Json("pr", PR{}).Label("PR")}
 }
 
-// PrCreate 开 PR。
+// PrCreate opens a PR.
 type PrCreate struct{}
 
 func (PrCreate) Meta() contract.Meta {
@@ -107,7 +109,7 @@ func (PrCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PrUpdate 改 PR。
+// PrUpdate edits a PR.
 type PrUpdate struct{}
 
 func (PrUpdate) Meta() contract.Meta {
@@ -138,7 +140,7 @@ func (PrUpdate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PrMerge 合 PR。
+// PrMerge merges a PR.
 type PrMerge struct{}
 
 func (PrMerge) Meta() contract.Meta {
@@ -169,7 +171,7 @@ func (PrMerge) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PrFiles PR 改了哪些文件。评审机器人读 diff 的入口。
+// PrFiles lists which files a PR changed. This is the entry point for review bots reading a diff.
 type PrFiles struct{}
 
 func (PrFiles) Meta() contract.Meta {
@@ -196,7 +198,7 @@ func (PrFiles) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PRFile PR 里的一个文件改动。
+// PRFile is one file change in a PR.
 type PRFile struct {
 	Path      string `sokel:"path" label:"路径"`
 	Status    string `sokel:"status" label:"状态" desc:"added / modified / removed / renamed"`
@@ -206,7 +208,7 @@ type PRFile struct {
 	SHA       string `sokel:"sha" label:"blob sha"`
 }
 
-// PrReview 提交评审（含行内评论）。
+// PrReview submits a review (with optional inline comments).
 type PrReview struct{}
 
 func (PrReview) Meta() contract.Meta {
@@ -236,7 +238,7 @@ func (PrReview) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ReviewComment 一条行内评论。
+// ReviewComment is one inline review comment.
 type ReviewComment struct {
 	Path string `sokel:"path" label:"文件路径"`
 	Line int    `sokel:"line" label:"行号" desc:"新版文件的行号；必须是本次 diff 动过的行"`
@@ -244,7 +246,7 @@ type ReviewComment struct {
 	Body string `sokel:"body" label:"内容"`
 }
 
-// PrRequestReviewers 请人评审。自动分配 reviewer 的机器人用它。
+// PrRequestReviewers requests reviewers. Used by bots that auto-assign reviewers.
 type PrRequestReviewers struct{}
 
 func (PrRequestReviewers) Meta() contract.Meta {
@@ -269,9 +271,10 @@ func (PrRequestReviewers) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 机器人回执面 ——
+// —— Bot feedback surface ——
 
-// CommitStatusCreate 回写提交状态。PR 页面上那一排 ✓/✗ 就是它。
+// CommitStatusCreate writes back a commit status. This is the row of checkmarks/crosses shown
+// on the PR page.
 type CommitStatusCreate struct{}
 
 func (CommitStatusCreate) Meta() contract.Meta {
@@ -301,7 +304,8 @@ func (CommitStatusCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// CheckRunCreate 建检查运行。比提交状态富：能带注解、markdown 摘要、结论。
+// CheckRunCreate creates a check run. Richer than a commit status: supports annotations,
+// a markdown summary, and a conclusion.
 type CheckRunCreate struct{}
 
 func (CheckRunCreate) Meta() contract.Meta {
@@ -336,7 +340,7 @@ func (CheckRunCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Annotation 一条行内注解。
+// Annotation is one inline annotation.
 type Annotation struct {
 	Path      string `sokel:"path" label:"文件路径"`
 	StartLine int    `sokel:"start_line" label:"起始行"`
@@ -346,7 +350,7 @@ type Annotation struct {
 	Title     string `sokel:"title" label:"标题" desc:"可留空"`
 }
 
-// ReactionAdd 加表情。ChatOps 机器人「收到了」的标准手势。
+// ReactionAdd adds a reaction. The standard gesture ChatOps bots use to say "got it".
 type ReactionAdd struct{}
 
 func (ReactionAdd) Meta() contract.Meta {

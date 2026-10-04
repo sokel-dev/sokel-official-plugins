@@ -1,10 +1,14 @@
 package main
 
-// 假 PDS。钉的是四件「不测就一定错、错了还不容易发现」的事：
-//   - facets 的下标是 **UTF-8 字节偏移**（中英混排时按字符算会整体错位）；
-//   - 帖串的 root/parent 引用（只给 parent 的话整串会散成互不相干的帖子）；
-//   - 会话过期后自动续期（accessJwt 只活几分钟，工作流停在人工节点上一等就过期）；
-//   - 链接卡片抓不到时**不能让发布失败**。
+// A fake PDS. Pins down four things that would "definitely be wrong without a test, and
+// hard to notice once wrong":
+//   - a facet's index is a **UTF-8 byte offset** (indexing by character count misplaces
+//     everything when CJK and ASCII are mixed);
+//   - a thread's root/parent refs (giving only parent scatters the whole thread into
+//     unrelated posts);
+//   - automatic renewal after session expiry (accessJwt only lives a few minutes, and a
+//     workflow sitting on a human-approval node for a while will outlast it);
+//   - a failed link-card fetch **must not fail the publish**.
 
 import (
 	"context"
@@ -18,7 +22,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— 假上下文 ——
+// —— fake context ——
 
 type fakeCtx struct {
 	context.Context
@@ -45,7 +49,7 @@ func ctxTo(t *testing.T, pds string) *fakeCtx {
 	}}
 }
 
-// 记下每个 nsid 收到的请求体。
+// Records the request body received for each nsid.
 type capture struct {
 	nsids  []string
 	bodies map[string][]string
@@ -63,7 +67,7 @@ func (c *capture) last(nsid string) map[string]any {
 	return m
 }
 
-// fakePDS：createSession 恒成功；createRecord 按调用次序回不同 uri/cid。
+// fakePDS: createSession always succeeds; createRecord returns a different uri/cid per call, in call order.
 func fakePDS(t *testing.T, cap *capture, extra map[string]func(w http.ResponseWriter, r *http.Request)) *httptest.Server {
 	t.Helper()
 	n := 0
@@ -98,9 +102,10 @@ func fakePDS(t *testing.T, cap *capture, extra map[string]func(w http.ResponseWr
 	return srv
 }
 
-// —— facets：字节偏移 ——
+// —— facets: byte offsets ——
 
-// 中英混排时按字符下标算，链接会整体错位（每个中文差 2）。这条是本插件存在的主要理由之一。
+// Indexing by character count when CJK and ASCII are mixed misplaces the link entirely
+// (off by 2 per CJK character). This is one of the main reasons this plugin exists.
 func TestFacetsUseByteOffsets(t *testing.T) {
 	text := "A股放量 https://example.com/a 走强 #复盘"
 	fs, first := buildFacets(text, func(string) (string, error) { return "", nil })
@@ -120,7 +125,7 @@ func TestFacetsUseByteOffsets(t *testing.T) {
 	if link == nil || tag == nil {
 		t.Fatalf("链接与话题都该认出来: %+v", fs)
 	}
-	// 用字节切片验证：切出来必须正好是那段原文
+	// verify with a byte slice: the slice must be exactly that segment of the original text
 	b := []byte(text)
 	if got := string(b[link.Index.ByteStart:link.Index.ByteEnd]); got != "https://example.com/a" {
 		t.Errorf("链接下标切出来是 %q——按字符算的经典症状", got)
@@ -133,7 +138,7 @@ func TestFacetsUseByteOffsets(t *testing.T) {
 	}
 }
 
-// 链接末尾的中文标点不属于链接；URL 里的 # 锚点不是话题。
+// Trailing CJK punctuation is not part of the link; a # anchor inside a URL is not a hashtag.
 func TestFacetsDoNotOverreach(t *testing.T) {
 	fs, first := buildFacets("详见 https://example.com/a#section。", func(string) (string, error) { return "", nil })
 	if first != "https://example.com/a#section" {
@@ -146,7 +151,7 @@ func TestFacetsDoNotOverreach(t *testing.T) {
 	}
 }
 
-// @ 认不出来就当普通文本——一个手滑的用户名不该挡住整条发布。
+// An unresolvable @ is treated as plain text — one mistyped handle shouldn't block the whole post.
 func TestUnresolvableMentionIsPlainText(t *testing.T) {
 	fs, _ := buildFacets("问问 @nobody.bsky.social 怎么看", func(string) (string, error) {
 		return "", context.DeadlineExceeded
@@ -156,7 +161,7 @@ func TestUnresolvableMentionIsPlainText(t *testing.T) {
 	}
 }
 
-// —— 发布 ——
+// —— publish ——
 
 func TestPublishCarriesFacetsAndLangs(t *testing.T) {
 	cap := newCapture()
@@ -184,13 +189,13 @@ func TestPublishCarriesFacetsAndLangs(t *testing.T) {
 	if rec["createdAt"] == "" || rec["$type"] != "app.bsky.feed.post" {
 		t.Errorf("记录形状不对: %v", rec)
 	}
-	// "-" 明确表示不要卡片
+	// "-" explicitly means no card wanted
 	if rec["embed"] != nil {
 		t.Errorf("填了 - 还带卡片: %v", rec["embed"])
 	}
 }
 
-// 超长要**在发出去之前**拦下：发到一半被拒的话，帖串会断在中间。
+// Oversized text must be caught **before sending**: if a send is rejected partway through, a thread breaks in the middle.
 func TestPublishRejectsTooLongBeforeSending(t *testing.T) {
 	cap := newCapture()
 	srv := fakePDS(t, cap, nil)
@@ -204,12 +209,12 @@ func TestPublishRejectsTooLongBeforeSending(t *testing.T) {
 	}
 }
 
-// 抓不到 OG 信息不能让发布失败——退回纯文本链接照样发得出去。
+// A failed OG info fetch must not fail the publish — falling back to a plain text link still gets it sent.
 func TestLinkCardFailureDoesNotBlockPost(t *testing.T) {
 	cap := newCapture()
 	srv := fakePDS(t, cap, nil)
 
-	// link_card_url 指向一个必然连不上的地址
+	// link_card_url points at an address that's guaranteed to be unreachable
 	out, err := opPostCreate(ctxTo(t, srv.URL), &BskyPostCreateIn{
 		Text: "看这个", LinkCardURL: "http://127.0.0.1:1/nope",
 	})
@@ -221,9 +226,9 @@ func TestLinkCardFailureDoesNotBlockPost(t *testing.T) {
 	}
 }
 
-// —— 帖串 ——
+// —— thread ——
 
-// 第二条起 parent 是前一条，**root 恒为第一条**。搞错的话整串会散成互不相干的帖子。
+// From the second post onward, parent is the previous one, and **root is always the first post**. Getting this wrong scatters the whole thread into unrelated posts.
 func TestThreadChainsRootAndParent(t *testing.T) {
 	cap := newCapture()
 	srv := fakePDS(t, cap, nil)
@@ -269,10 +274,11 @@ func TestThreadChainsRootAndParent(t *testing.T) {
 	}
 }
 
-// —— 会话 ——
+// —— session ——
 
-// accessJwt 只活几分钟：工作流停在人工节点上等半天，恢复后第一条请求必然 401。
-// 不自动续期的话，那看起来像密码错了。
+// accessJwt only lives a few minutes: a workflow sitting on a human-approval node for a
+// while will find its first request 401 on resume. Without auto-renewal, that would look
+// like a wrong password.
 func TestExpiredSessionIsRenewed(t *testing.T) {
 	cap := newCapture()
 	first := true
@@ -306,7 +312,7 @@ func TestExpiredSessionIsRenewed(t *testing.T) {
 	}
 }
 
-// 健康检查：**不可用要返回 ok=false 而不是 error**，平台拿它去写凭证状态。
+// Health check: **unavailable must return ok=false, not an error** — the platform uses it to write the credential's status.
 func TestHealthCheckReportsFailureAsResult(t *testing.T) {
 	cap := newCapture()
 	srv := fakePDS(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -328,7 +334,7 @@ func TestHealthCheckReportsFailureAsResult(t *testing.T) {
 	}
 }
 
-// —— 地址 ——
+// —— address ——
 
 func TestAtURIFromWebLink(t *testing.T) {
 	cap := newCapture()
@@ -342,7 +348,7 @@ func TestAtURIFromWebLink(t *testing.T) {
 	if got != "at://did:plc:friend/app.bsky.feed.post/abc123" {
 		t.Errorf("网页链接没换成 at:// 地址: %q", got)
 	}
-	// 已经是 at:// 的原样返回，不必多问一次
+	// an address that's already at:// is returned as-is, no need to ask again
 	if got, _ := atURI(ctx, "at://did:plc:x/app.bsky.feed.post/y"); got != "at://did:plc:x/app.bsky.feed.post/y" {
 		t.Errorf("at:// 地址被改动了: %q", got)
 	}

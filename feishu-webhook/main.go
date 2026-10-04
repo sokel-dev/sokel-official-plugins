@@ -1,9 +1,10 @@
-// feishu-webhook —— 飞书群自定义机器人（发消息到一个群的最短路径）。
+// feishu-webhook — a Feishu group custom bot (the shortest path to sending a message to one group).
 //
-// 与 feishu 主插件（自建应用）是两个插件：凭证形态与授权范围完全不同，
-// 不混在一个凭证池里。设计说明见 schema/schema.go 顶注。
+// A separate plugin from the feishu main plugin (self-built app): the credential shape and
+// authorization scope are completely different, and shouldn't be mixed into one credential pool.
+// See the top comment in schema/schema.go for the design rationale.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feishu-webhook
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feishu-webhook
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -52,26 +53,29 @@ func env(k, def string) string {
 	return def
 }
 
-// sign 飞书自定义机器人的签名：HmacSHA256(key=timestamp+"\n"+secret, data=空) → base64。
-// **注意 key 与 data 的位置和直觉相反**——secret 在 key 里、被签的数据是空串，
-// 这是飞书文档定的，别按常规 HMAC 直觉「修好它」。
+// sign computes Feishu's custom-bot signature: HmacSHA256(key=timestamp+"\n"+secret, data=empty)
+// → base64. **Note that key and data are swapped from what intuition suggests** — the secret goes
+// in the key, and the data being signed is an empty string. This is what Feishu's docs specify;
+// don't "fix" it based on the usual HMAC intuition.
 func sign(secret string, ts int64) string {
 	mac := hmac.New(sha256.New, []byte(fmt.Sprintf("%d\n%s", ts, secret)))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// hookResp 应答：新版 {code,msg}，老版 {StatusCode,StatusMessage}，两种都认。
+// hookResp is the response shape: the new version uses {code,msg}, the old version uses
+// {StatusCode,StatusMessage}, and both are recognized.
 type hookResp struct {
 	Code          int    `json:"code"`
 	Msg           string `json:"msg"`
 	StatusCode    int    `json:"StatusCode"`
 	StatusMessage string `json:"StatusMessage"`
-	httpStatus    int    // HTTP 层状态（不入 JSON）
+	httpStatus    int    // the HTTP-layer status (not part of the JSON)
 }
 
-// postRaw 发一次 webhook 请求，返回**结构化**应答（连接失败才走 error）。
-// 健康检查要按 code/msg 精确分类，不能在拼好的错误字符串上做子串匹配——
-// 那正是「恒绿」的病根（issue #13）。
+// postRaw fires a single webhook request and returns a **structured** response (only a connection
+// failure goes through error). The health check needs to classify precisely by code/msg, not do
+// substring matching on an already-assembled error string — that's exactly the root cause of the
+// "always green" bug (issue #13).
 func postRaw(ctx plugin.Ctx, body map[string]any) (hookResp, error) {
 	cred := credOf(ctx)
 	hook := strings.TrimSpace(cred.WebhookURL)
@@ -101,7 +105,8 @@ func postRaw(ctx plugin.Ctx, body map[string]any) (hookResp, error) {
 	return r, nil
 }
 
-// post 发一次 webhook 请求并解读应答（发送面用；健康检查走 postRaw 自行分类）。
+// post fires a single webhook request and interprets the response (used by the send side; the
+// health check uses postRaw and classifies the response itself).
 func post(ctx plugin.Ctx, body map[string]any) error {
 	r, err := postRaw(ctx, body)
 	if err != nil {
@@ -150,15 +155,19 @@ func opSend(ctx plugin.Ctx, in *WebhookSendIn) (*WebhookSendOut, error) {
 	return &WebhookSendOut{OK: true}, nil
 }
 
-// opHealthCheck 发一个**空 content** 的校验请求，按结构化 code/msg 分类，不在群里发出消息。
+// opHealthCheck sends a validation request with **empty content**, classifies it by structured
+// code/msg, and never actually posts a message into the group.
 //
-// 判定次序有讲究：飞书的 **token 检查先于内容检查**（实测：伪 token 无论 body 什么形状
-// 一律回 19001 + "param invalid: incoming webhook access token invalid"）。所以：
-//   - 19001 且 msg 提到 access token → URL 死（机器人被删/token 粘错）——曾经的子串
-//     白名单（"19001"/"param"）恰好把这条判成绿，正是「恒绿」实锤（issue #13）；
-//   - 19021 → 签名密钥不对，凭证坏；
-//   - 其余非 0 的参数类错误 → token 已过、轮到内容检查了 = URL 活。
-//     这个分支不依赖空内容应答的具体形状：能走到内容检查本身就是活的证据。
+// The order of checks matters here: Feishu **checks the token before it checks the content**
+// (observed: an invalid token returns 19001 + "param invalid: incoming webhook access token
+// invalid" no matter what shape the body is). So:
+//   - 19001 with msg mentioning access token → the URL is dead (bot removed / token pasted wrong)
+//     — the old substring allowlist ("19001"/"param") happened to classify exactly this case as
+//     green, which is the smoking gun for the "always green" bug (issue #13);
+//   - 19021 → the signature secret is wrong, the credential is broken;
+//   - any other non-zero parameter-type error → the token check already passed and it's on to the
+//     content check = the URL is alive. This branch doesn't depend on the specific shape of the
+//     empty-content response: reaching the content check at all is itself the evidence of being alive.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	r, err := postRaw(ctx, map[string]any{"msg_type": "text", "content": map[string]any{}})
 	if err != nil {
@@ -166,12 +175,12 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	}
 	code := r.Code
 	if code == 0 {
-		code = r.StatusCode // 老版应答字段
+		code = r.StatusCode // old-version response field
 	}
 	msg := r.Msg + r.StatusMessage
 	switch {
 	case code == 0 && r.httpStatus == http.StatusOK:
-		// 空文本竟然发成功了不该发生；按可用处理。
+		// An empty text message succeeding shouldn't happen; treat it as available.
 		return &HealthCheckOut{OK: true, Message: "webhook 可用"}, nil
 	case code == 19001 && strings.Contains(strings.ToLower(msg), "access token"):
 		return &HealthCheckOut{OK: false, Message: "webhook 无效——机器人可能已被移除，或 URL 粘错（飞书：" + msg + "）"}, nil

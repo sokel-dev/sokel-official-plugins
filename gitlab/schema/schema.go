@@ -1,17 +1,21 @@
-// Package schema 声明 gitlab 插件的操作与凭证契约。
+// Package schema declares the gitlab plugin's operation and credential contracts.
 //
-// 定位：GitLab 自动化——**自建 CE / gitlab.com 都支持**（凭证里填实例地址）。
-// 覆盖四个域：仓库（读写文件/分支/提交）、MR（建/查/评/合）、Issue、CI/CD
-// （查流水线/触发/看失败日志），外加 call 保底直调任意 REST v4 接口。
+// Scope: GitLab automation -- supports both self-hosted CE and gitlab.com (set the instance
+// address in the credential). Covers four domains: repository (read/write files, branches,
+// commits), MR (create/list/comment/merge), Issue, CI/CD (list pipelines/trigger/view failure
+// logs), plus call as a catch-all for direct REST v4 access.
 //
-// 三条 GitLab 特有的约定，操作设计围着它们转：
+// Three GitLab-specific conventions that the operation design revolves around:
 //
-//   - **project 双形态**：数字 ID 或 "group/name" 路径都行（路径会 URL 编码），
-//     所有操作的 project 字段同一规则——画布上抄仓库地址里的路径最顺手。
-//   - **写文件走 commits 接口**而不是 files 接口：一次提交可含多文件动作，
-//     且天然带提交信息；简化为单文件（create/update 自动判断），多文件走 call。
-//   - **列表都分页**（page/per_page）：默认给第一页 50 条 + total 头透传，
-//     翻页场景把 page 往上加。
+//   - project has two forms: a numeric id or a "group/name" path both work (the path gets
+//     URL-encoded), and every operation's project field follows the same rule -- it's most
+//     convenient to copy the path straight out of the repository address on the canvas.
+//   - Writing a file goes through the commits endpoint rather than the files endpoint: a
+//     single commit can contain multiple file actions and naturally carries a commit message;
+//     simplified here to a single file (create/update is auto-detected), multi-file goes
+//     through call.
+//   - All lists are paginated (page/per_page): the first page defaults to 50 items + the total
+//     header is passed through; bump page to page further.
 package schema
 
 import (
@@ -28,9 +32,9 @@ func pageField() contract.FieldSpec {
 	return field.Int("page").Label("页码").Desc("默认 1；每页 50 条").Optional()
 }
 
-// —— 项目 ——
+// -- Projects --
 
-// ProjectsList 项目列表。
+// ProjectsList lists projects.
 type ProjectsList struct{}
 
 func (ProjectsList) Meta() contract.Meta {
@@ -54,7 +58,7 @@ func (ProjectsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Project 一个项目。
+// Project is a single project.
 type Project struct {
 	ID            int    `sokel:"id" label:"ID"`
 	Path          string `sokel:"path" label:"路径" desc:"group/name 形态，其他操作的 project 字段用它"`
@@ -64,9 +68,9 @@ type Project struct {
 	LastActivity  string `sokel:"last_activity,optional" label:"最近活动"`
 }
 
-// —— 仓库 ——
+// -- Repository --
 
-// FileGet 读文件。
+// FileGet reads a file.
 type FileGet struct{}
 
 func (FileGet) Meta() contract.Meta {
@@ -89,7 +93,7 @@ func (FileGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// FileWrite 写文件（提交）。
+// FileWrite writes a file (as a commit).
 type FileWrite struct{}
 
 func (FileWrite) Meta() contract.Meta {
@@ -117,7 +121,7 @@ func (FileWrite) Outputs() []contract.FieldSpec {
 	}
 }
 
-// BranchesList 分支列表。
+// BranchesList lists branches.
 type BranchesList struct{}
 
 func (BranchesList) Meta() contract.Meta {
@@ -141,7 +145,7 @@ func (BranchesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Branch 一个分支。
+// Branch is a single branch.
 type Branch struct {
 	Name      string `sokel:"name" label:"名称"`
 	Default   bool   `sokel:"default" label:"是否默认分支"`
@@ -149,7 +153,7 @@ type Branch struct {
 	CommitID  string `sokel:"commit_id,optional" label:"最新提交"`
 }
 
-// CommitsList 提交列表。
+// CommitsList lists commits.
 type CommitsList struct{}
 
 func (CommitsList) Meta() contract.Meta {
@@ -175,7 +179,7 @@ func (CommitsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Commit 一次提交。
+// Commit is a single commit.
 type Commit struct {
 	ID        string `sokel:"id" label:"提交 ID"`
 	ShortID   string `sokel:"short_id" label:"短 ID"`
@@ -185,9 +189,9 @@ type Commit struct {
 	WebURL    string `sokel:"web_url,optional" label:"页面地址"`
 }
 
-// —— MR ——
+// -- MR --
 
-// MrList MR 列表。
+// MrList lists MRs.
 type MrList struct{}
 
 func (MrList) Meta() contract.Meta {
@@ -216,7 +220,7 @@ func (MrList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Mr 一个 MR。
+// Mr is a single MR.
 type Mr struct {
 	IID          int    `sokel:"iid" label:"MR 编号" desc:"项目内编号（!42 的 42），其他 MR 操作认它"`
 	Title        string `sokel:"title" label:"标题"`
@@ -228,7 +232,7 @@ type Mr struct {
 	MergeStatus  string `sokel:"merge_status,optional" label:"可合并性" desc:"can_be_merged / cannot_be_merged…"`
 }
 
-// MrCreate 建 MR。
+// MrCreate creates an MR.
 type MrCreate struct{}
 
 func (MrCreate) Meta() contract.Meta {
@@ -253,7 +257,7 @@ func (MrCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MrMerge 合并 MR。
+// MrMerge merges an MR.
 type MrMerge struct{}
 
 func (MrMerge) Meta() contract.Meta {
@@ -277,7 +281,7 @@ func (MrMerge) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MrNote 评论 MR。
+// MrNote comments on an MR.
 type MrNote struct{}
 
 func (MrNote) Meta() contract.Meta {
@@ -297,9 +301,9 @@ func (MrNote) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("note_id").Label("评论 ID")}
 }
 
-// —— Issue ——
+// -- Issue --
 
-// MrChange 一个文件的改动。
+// MrChange is one file's changes.
 type MrChange struct {
 	Path    string `sokel:"path" label:"文件路径"`
 	OldPath string `sokel:"old_path,optional" label:"原路径" desc:"重命名时才不同"`
@@ -308,7 +312,7 @@ type MrChange struct {
 	Diff    string `sokel:"diff" label:"改动内容" desc:"统一 diff 片段"`
 }
 
-// MrChanges MR 的改动。
+// MrChanges is an MR's changes.
 type MrChanges struct{}
 
 func (MrChanges) Meta() contract.Meta {
@@ -337,7 +341,7 @@ func (MrChanges) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MrApprove 批准 MR。
+// MrApprove approves an MR.
 type MrApprove struct{}
 
 func (MrApprove) Meta() contract.Meta {
@@ -356,7 +360,7 @@ func (MrApprove) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MrUpdate 改 MR。
+// MrUpdate edits an MR.
 type MrUpdate struct{}
 
 func (MrUpdate) Meta() contract.Meta {
@@ -385,7 +389,7 @@ func (MrUpdate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssuesList Issue 列表。
+// IssuesList lists Issues.
 type IssuesList struct{}
 
 func (IssuesList) Meta() contract.Meta {
@@ -411,7 +415,7 @@ func (IssuesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Issue 一个 Issue。
+// Issue is a single Issue.
 type Issue struct {
 	IID       int      `sokel:"iid" label:"编号"`
 	Title     string   `sokel:"title" label:"标题"`
@@ -422,7 +426,7 @@ type Issue struct {
 	CreatedAt string   `sokel:"created_at,optional" label:"创建时间"`
 }
 
-// IssueCreate 建 Issue。
+// IssueCreate creates an Issue.
 type IssueCreate struct{}
 
 func (IssueCreate) Meta() contract.Meta {
@@ -447,7 +451,7 @@ func (IssueCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssueNote 评论 Issue。
+// IssueNote comments on an Issue.
 type IssueNote struct{}
 
 func (IssueNote) Meta() contract.Meta {
@@ -466,12 +470,14 @@ func (IssueNote) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("note_id").Label("评论 ID")}
 }
 
-// —— CI/CD ——
+// -- CI/CD --
 
-// IssueUpdate 改 Issue。
+// IssueUpdate edits an Issue.
 //
-// 闭环那一步：agent 处理完要能关掉 Issue、换掉标签。
-// **摘掉触发标签还是防重复触发最干净的办法**——比在流程里记「这个 Issue 我处理过了」可靠得多。
+// The closing-the-loop step: once an agent has handled it, it needs to be able to close the
+// Issue and swap its labels. Removing the triggering label is the cleanest way to prevent
+// repeat triggering -- far more reliable than having the workflow itself track "I already
+// handled this Issue."
 type IssueUpdate struct{}
 
 func (IssueUpdate) Meta() contract.Meta {
@@ -502,7 +508,7 @@ func (IssueUpdate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// NoteUpdate 改评论。
+// NoteUpdate edits a comment.
 type NoteUpdate struct{}
 
 func (NoteUpdate) Meta() contract.Meta {
@@ -526,7 +532,7 @@ func (NoteUpdate) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Int("note_id").Label("评论 ID")}
 }
 
-// PipelinesList 流水线列表。
+// PipelinesList lists pipelines.
 type PipelinesList struct{}
 
 func (PipelinesList) Meta() contract.Meta {
@@ -554,7 +560,7 @@ func (PipelinesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Pipeline 一条流水线。
+// Pipeline is a single pipeline.
 type Pipeline struct {
 	ID        int    `sokel:"id" label:"ID"`
 	Status    string `sokel:"status" label:"状态"`
@@ -564,7 +570,7 @@ type Pipeline struct {
 	CreatedAt string `sokel:"created_at,optional" label:"创建时间"`
 }
 
-// PipelineTrigger 触发流水线。
+// PipelineTrigger triggers a pipeline.
 type PipelineTrigger struct{}
 
 func (PipelineTrigger) Meta() contract.Meta {
@@ -589,7 +595,7 @@ func (PipelineTrigger) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PipelineJobs 流水线的 job 列表。
+// PipelineJobs lists a pipeline's jobs.
 type PipelineJobs struct{}
 
 func (PipelineJobs) Meta() contract.Meta {
@@ -611,7 +617,7 @@ func (PipelineJobs) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Job 一个 CI job。
+// Job is a single CI job.
 type Job struct {
 	ID       int     `sokel:"id" label:"ID" desc:"看日志认它"`
 	Name     string  `sokel:"name" label:"名称"`
@@ -621,7 +627,7 @@ type Job struct {
 	WebURL   string  `sokel:"web_url,optional" label:"页面地址"`
 }
 
-// JobLog 看 job 日志。
+// JobLog views a job's log.
 type JobLog struct{}
 
 func (JobLog) Meta() contract.Meta {
@@ -644,9 +650,9 @@ func (JobLog) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 保底 / 体检 ——
+// -- Catch-all / health check --
 
-// Call 通用调用。
+// Call is the generic catch-all call.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -673,7 +679,8 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SearchHit 一条搜索结果。字段按 scope 填——代码命中给路径与片段，Issue/MR 命中给编号与标题。
+// SearchHit is a single search result. Fields are filled in depending on scope -- a code hit
+// gives a path and snippet, an Issue/MR hit gives an id and title.
 type SearchHit struct {
 	Title   string `sokel:"title,optional" label:"标题" desc:"Issue/MR 的标题；代码命中时是文件名"`
 	Path    string `sokel:"path,optional" label:"文件路径" desc:"仅代码命中"`
@@ -685,7 +692,7 @@ type SearchHit struct {
 	Project string `sokel:"project,optional" label:"项目" desc:"跨项目搜索时用它分辨命中在哪个仓库"`
 }
 
-// Search 搜索。
+// Search performs a search.
 type Search struct{}
 
 func (Search) Meta() contract.Meta {
@@ -715,7 +722,7 @@ func (Search) Outputs() []contract.FieldSpec {
 	}
 }
 
-// MrDiscussion 在 MR 的某一行上评论。
+// MrDiscussion comments on a specific line of an MR.
 type MrDiscussion struct{}
 
 func (MrDiscussion) Meta() contract.Meta {
@@ -742,7 +749,7 @@ func (MrDiscussion) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform's standard credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -760,18 +767,20 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 事件（轮询事件源，起工作流）——
+// -- Events (polling event source, starts workflows) --
 //
-// GitLab 没有长轮询/推流 API，事件源是**轮询**：每 poll 周期拉一次
-// Events API + 失败流水线。延迟 = 轮询间隔；要零延迟用平台的 Webhook 触发器
-// （GitLab 项目 Settings→Webhooks 指过来），两条路互补。
-// 轮询范围必须收窄到凭证里点名的项目——盯全实例的量不可控。
+// GitLab has no long-polling/streaming API, so the event source polls: each poll cycle fetches
+// the Events API + failed pipelines once. Latency = poll interval; for zero latency, use the
+// platform's Webhook trigger (pointed at from the GitLab project's Settings -> Webhooks) -- the
+// two approaches complement each other.
+// Polling scope must be narrowed to the projects named in the credential -- watching the whole
+// instance has unbounded volume.
 
 func eventProjectField() contract.FieldSpec {
 	return field.String("project").Label("项目").Desc("path 形态（group/name）")
 }
 
-// CommitPushed 有新提交。
+// CommitPushed fires when there's a new commit.
 type CommitPushed struct{}
 
 func (CommitPushed) EventMeta() contract.EventMeta {
@@ -794,7 +803,7 @@ func (CommitPushed) Fields() []contract.FieldSpec {
 	}
 }
 
-// MrOpened 新 MR。
+// MrOpened fires when a new MR is opened.
 type MrOpened struct{}
 
 func (MrOpened) EventMeta() contract.EventMeta {
@@ -815,7 +824,7 @@ func (MrOpened) Fields() []contract.FieldSpec {
 	}
 }
 
-// MrMerged MR 被合并。
+// MrMerged fires when an MR is merged.
 type MrMerged struct{}
 
 func (MrMerged) EventMeta() contract.EventMeta {
@@ -836,7 +845,7 @@ func (MrMerged) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueOpened 新 Issue。
+// IssueOpened fires when a new Issue is created.
 type IssueOpened struct{}
 
 func (IssueOpened) EventMeta() contract.EventMeta {
@@ -863,11 +872,13 @@ func (IssueOpened) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueLabeled Issue 被打标签。
+// IssueLabeled fires when an Issue is labeled.
 //
-// 单独一个事件而不是并进 issue_opened：**人真正的用法是「先建 Issue，看一眼再决定派不派活」**。
-// 而 GitLab 那边加标签是一次 update 不是 open，issue_opened 再也不会响——
-// 于是「建完才打标签」这条最自然的路径整个是死的（用户实报）。
+// A separate event rather than folded into issue_opened: the real-world usage pattern is
+// "create the Issue first, take a look, then decide whether to dispatch work". But adding a
+// label is an update on GitLab's side, not an open, so issue_opened will never fire again --
+// which means the most natural path of "label it after creating it" is entirely dead (reported
+// by an actual user).
 type IssueLabeled struct{}
 
 func (IssueLabeled) EventMeta() contract.EventMeta {
@@ -888,13 +899,16 @@ func (IssueLabeled) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueCommented Issue 有新评论。
+// IssueCommented fires when there's a new comment on an Issue.
 //
-// 这是「派活」最自然的形态：在 Issue 下说一句就继续，而且能接着上一轮的会话多轮往复。
+// This is the most natural shape for "dispatching work": say something under the Issue and it
+// continues, and it can carry on a multi-round back-and-forth from the previous conversation.
 //
-// **它天然会成环**：机器人回复 Issue 也是一条评论，不设防就是无限循环——
-// 一次评论触发一次运行、运行又产生一条评论。所以事件必须带 author 与 comment 原文，
-// 让工作流能把机器人自己的回复滤掉（推荐再叠一层：只认以 /cc 开头的评论）。
+// It naturally forms a loop: a bot replying to the Issue is also a comment, and without a
+// guard that's an infinite loop -- one comment triggers one run, and the run produces another
+// comment. So the event must carry the original author and comment text, so the workflow can
+// filter out the bot's own replies (recommended extra layer: only recognize comments starting
+// with /cc).
 type IssueCommented struct{}
 
 func (IssueCommented) EventMeta() contract.EventMeta {
@@ -913,10 +927,10 @@ func (IssueCommented) Fields() []contract.FieldSpec {
 	}
 }
 
-// MrCommented MR 有新评论。
+// MrCommented fires when there's a new comment on an MR.
 //
-// 与 issue_commented 分开：review 场景要的是 MR 的编号与分支，
-// 而两者在 GitLab 那边走的是同一种 Note 事件，靠 noteable_type 分。
+// Kept separate from issue_commented: the review use case wants the MR's id and branches, and
+// on GitLab's side both go through the same Note event, distinguished by noteable_type.
 type MrCommented struct{}
 
 func (MrCommented) EventMeta() contract.EventMeta {
@@ -934,7 +948,7 @@ func (MrCommented) Fields() []contract.FieldSpec {
 	}
 }
 
-// PipelineFailed 流水线失败。
+// PipelineFailed fires when a pipeline fails.
 type PipelineFailed struct{}
 
 func (PipelineFailed) EventMeta() contract.EventMeta {
@@ -951,12 +965,12 @@ func (PipelineFailed) Fields() []contract.FieldSpec {
 	}
 }
 
-// Events 声明公共字段。
+// Events declares the common fields.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"project"} }
 
-// Credential：实例地址 + PAT。自建 CE 与 gitlab.com 都是这一套。
+// Credential: instance address + PAT. The same scheme covers both self-hosted CE and gitlab.com.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

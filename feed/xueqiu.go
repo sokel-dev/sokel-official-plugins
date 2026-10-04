@@ -1,17 +1,19 @@
 package main
 
-// 雪球适配器。**走它的读接口，不爬网页**——这一条是从 RSSHub 的 route 里学到的：
+// Xueqiu adapter. **Uses its read API, not page scraping** — learned from RSSHub's route:
 //
 //	GET https://api.xueqiu.com/v4/statuses/user_timeline.json?user_id=&page=
 //	GET https://api.xueqiu.com/statuses/hot/listV2.json?since_id=-1&max_id=-1&size=
 //	GET https://api.xueqiu.com/statuses/livenews/list.json?count=
 //
-// **这三条路径是实测出来的，别按名字猜**：`/v4/statuses/hots.json` 看着最像热帖，
-// 实际 404；而网页端那个 `xueqiu.com/statuses/hot/listV2.json` 会撞上阿里云 WAF
-// 回一页 HTML——只有 api 域名下的同名路径是通的。
+// **These three paths were found by trial, don't guess from the name**: `/v4/statuses/hots.json`
+// looks the most like "hot posts" but 404s; and the web-facing
+// `xueqiu.com/statuses/hot/listV2.json` hits Alibaba Cloud's WAF and returns an HTML page —
+// only the same-named path under the api domain actually works.
 //
-// 关键在于**它只要一个匿名令牌**（访问首页即得，见 client.go），不需要用户登录——
-// 所以取数与发帖是两条完全独立的路：取数的凭证可以是空的。
+// The key is that **it only needs an anonymous token** (obtained just by hitting the homepage,
+// see client.go), not a user login — so fetching data and posting are two completely separate
+// paths: the credential used for fetching can be empty.
 
 import (
 	"encoding/json"
@@ -30,13 +32,14 @@ type xqStatus struct {
 	Text        string `json:"text"`
 	Description string `json:"description"`
 	Target      string `json:"target"`
-	CreatedAt   int64  `json:"created_at"` // 毫秒
+	CreatedAt   int64  `json:"created_at"` // milliseconds
 	User        struct {
 		ScreenName string `json:"screen_name"`
 	} `json:"user"`
 	RetweetedStatus *xqStatus `json:"retweeted_status"`
-	// OriginalStatus：热帖列表是一层壳，壳自己的 id 是「热帖榜条目 id」而不是帖子 id。
-	// 不拆壳的话拿到的 id、时间、正文全是空的或错的。
+	// OriginalStatus: the hot-posts list wraps a shell whose own id is the "hot-list entry
+	// id," not the post id. Without unwrapping it, the id, time, and body all come out
+	// empty or wrong.
 	OriginalStatus *xqStatus `json:"original_status"`
 }
 
@@ -50,7 +53,7 @@ func fetchXueqiu(ctx plugin.Ctx, kind, target string, skipReposts bool) ([]schem
 	case "xueqiu_user":
 		uid := strings.TrimSpace(target)
 		if i := strings.LastIndex(uid, "/"); i >= 0 {
-			uid = uid[i+1:] // 允许直接粘主页地址
+			uid = uid[i+1:] // allow pasting the profile URL directly
 		}
 		if uid == "" {
 			return nil, fmt.Errorf("雪球用户来源要填 uid（主页地址 xueqiu.com/u/<这一串>）")
@@ -69,7 +72,8 @@ func fetchXueqiu(ctx plugin.Ctx, kind, target string, skipReposts bool) ([]schem
 	if err != nil {
 		return nil, err
 	}
-	// 两个接口的外壳不同：user_timeline 是 {statuses:[…]}，hots 是数组或 {list:[…]}。
+	// The two endpoints wrap results differently: user_timeline is {statuses:[…]}, hots is
+	// either an array or {list:[…]}.
 	var wrap struct {
 		Statuses []xqStatus `json:"statuses"`
 		List     []xqStatus `json:"list"`
@@ -97,7 +101,7 @@ func fetchXueqiu(ctx plugin.Ctx, kind, target string, skipReposts bool) ([]schem
 	items := make([]schema.Item, 0, len(list))
 	for _, s := range list {
 		if s.OriginalStatus != nil {
-			s = *s.OriginalStatus // 热帖榜：拆掉外面那层壳
+			s = *s.OriginalStatus // hot-posts list: unwrap the outer shell
 		}
 		if skipReposts && s.RetweetedStatus != nil {
 			continue
@@ -112,9 +116,10 @@ func xqToItem(s xqStatus, source string) schema.Item {
 	id := strconv.FormatInt(s.ID, 10)
 	link := ""
 	if t := strings.TrimSpace(s.Target); t != "" {
-		// target 两种形状都出现过：帖子接口给相对路径 /uid/statusid，
-		// 快讯接口给的是整条 http:// 绝对地址。拼前先分清，否则会拼出
-		// https://xueqiu.comhttp://… 这种打不开的链接。
+		// target shows up in two shapes: the posts endpoint gives a relative path
+		// /uid/statusid, while the flash-news endpoint gives a full http:// absolute URL.
+		// Distinguish before concatenating, otherwise you get an unopenable link like
+		// https://xueqiu.comhttp://….
 		switch {
 		case strings.HasPrefix(t, "http://"):
 			link = "https://" + strings.TrimPrefix(t, "http://")
@@ -131,8 +136,9 @@ func xqToItem(s xqStatus, source string) schema.Item {
 		DedupKey: "xueqiu:" + id,
 	}
 	if s.CreatedAt > 0 {
-		// 雪球给的是毫秒时间戳。当秒用会把 2026 年的帖子算成 56000 年——
-		// 那会让游标一次跳到未来，此后再也收不到新内容。
+		// Xueqiu gives a millisecond timestamp. Treating it as seconds would turn a 2026
+		// post into the year 56000 — that would jump the cursor into the future in one
+		// shot, and no new content would ever arrive after that.
 		it.PublishedAt = time.UnixMilli(s.CreatedAt).UTC().Format(time.RFC3339)
 	}
 	if s.Title == "" {

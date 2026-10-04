@@ -1,22 +1,29 @@
-// Package schema 声明 xueqiu 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the xueqiu plugin.
 //
-// **雪球没有官方发布 API**（它的「开放平台」只有行情，与发帖无关，见
-// docs/social-publishing-plugins.md §4）。这个插件走的是网页端自己在调的私有接口——
-// 纯 HTTP，不跑浏览器，但也因此有三条与别家不同的纪律：
+// **Xueqiu has no official publish API** (its "open platform" only covers market data,
+// unrelated to posting — see docs/social-publishing-plugins.md §4). This plugin calls the
+// private endpoints the web frontend uses itself — plain HTTP, no browser — and that
+// brings three disciplines that differ from other plugins:
 //
-//  1. **凭证是 cookie，会过期**。所以 health_check 打的是一个无副作用的登录态接口，
-//     配合平台的「失效 → 告警 → 人工重登 → 按 id 写回」那条链路（dev-playbook §4.4）。
-//     别拿「发一条帖子」来检查凭证还活着。
+//  1. **The credential is a cookie, and it expires.** So health_check hits a
+//     side-effect-free login-state endpoint, feeding the platform's "expired → alert →
+//     human re-login → write back by id" chain (dev-playbook §4.4). Don't use "post a
+//     status" to check whether the credential is still alive.
 //
-//  2. **正文是雪球那套 HTML**，不是 markdown 也不是纯文本：段落 <p>、图片是
-//     <div class="img-single-upload"><img class="ke_img"> 的固定形状，而图片得先传到
-//     它自己的图床拿到地址。这些转换插件包掉。
+//  2. **The text is Xueqiu's own HTML**, not markdown or plain text: paragraphs are
+//     <p>, images are the fixed shape <div class="img-single-upload"><img
+//     class="ke_img">, and an image must first be uploaded to Xueqiu's own image host to
+//     get its address. The plugin handles these conversions.
 //
-//  3. **AI 披露是一等入参**。雪球的发帖参数里有 ai_disclose——内容经 LLM 改写过就该置 1。
-//     把它做成显式开关而不是写死 0：这条压在合规线上（GEO 方案 §6），不是可选项。
+//  3. **AI disclosure is a first-class input.** Xueqiu's posting params include
+//     ai_disclose — it should be set to 1 whenever content has been rewritten by an LLM.
+//     Making it an explicit toggle instead of hardcoding 0 is a compliance requirement
+//     (GEO plan §6), not optional.
 //
-// **两个未验证的地方**（说明书里也写了）：请求上挂的风控参数 md5__1038 是否必需、
-// session_token 从哪来。插件对两者都留了口：能自动取就自动取，取不到就让用户在凭证里粘。
+// **Two things remain unverified** (also noted in the usage doc): whether the
+// risk-control param md5__1038 attached to requests is actually required, and where
+// session_token comes from. The plugin leaves both open: fetch automatically when
+// possible, otherwise let the user paste one into the credential.
 package schema
 
 import (
@@ -24,7 +31,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// PostCreate 发一条雪球帖子。
+// PostCreate sends one Xueqiu post.
 type PostCreate struct{}
 
 func (PostCreate) Meta() contract.Meta {
@@ -51,11 +58,13 @@ func (PostCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ArticleDraft 发一篇长文到草稿箱（mp.xueqiu.com 那套接口）。
+// ArticleDraft writes a long-form article to the draft box (the mp.xueqiu.com API).
 //
-// **产出是草稿不是已发布**：接口本身的语义就是存草稿，最后一步「发布」留给人在网页上点。
-// 这也正好是合规上更稳的形态——自动写、人工发。长文是投研内容真正该去的地方，
-// 短帖那条路适合的是一句话观点。
+// **The output is a draft, not a published post**: the endpoint's own semantics are to
+// save a draft, leaving the final "publish" step to a human clicking it on the website.
+// This also happens to be the safer shape from a compliance standpoint — automated
+// drafting, human publishing. Long-form is where research content really belongs; the
+// short-post path suits a one-line take.
 type ArticleDraft struct{}
 
 func (ArticleDraft) Meta() contract.Meta {
@@ -81,7 +90,7 @@ func (ArticleDraft) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform's standard operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -101,10 +110,11 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 //
-// **cookie 就是凭据**：拿到它就能以这个账号发帖，所以按密钥保管。
-// 它会过期——配合「检查凭证 + 失效告警 + 人工重登 + 按 id 写回」那条链路用。
+// **The cookie is the credential**: whoever has it can post as this account, so it must
+// be handled like a secret. It expires — this works together with the "check credential +
+// expiry alert + human re-login + write back by id" chain.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

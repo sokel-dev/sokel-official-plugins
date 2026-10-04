@@ -1,13 +1,15 @@
-// notion —— Sokel 第一方插件：读写 Notion + 数据源变动触发。
+// notion — a first-party Sokel plugin: read/write Notion plus data-source-change triggers.
 //
-// 三条设计判断（详见 schema/schema.go 顶部）：按**数据源**建模（2025-09-03 之后
-// database 只是容器）、正文走 **markdown**（块树只作兜底）、属性**两份都给**
-// （props 归一化 + properties_raw 原样）。
+// Three design decisions (see the top of schema/schema.go for details): model around
+// **data sources** (since 2025-09-03, a database is just a container), page content goes through
+// **markdown** (the block tree is only a fallback), and properties are given **both ways**
+// (normalized props + raw properties_raw).
 //
-// 认证两种并存：内部集成密钥（凭证里填 ntn_ 开头的 token，自部署最省事）
-// 或 OAuth 授权（平台侧 notion provider 代答，见 server/internal/credential/oauth.go）。
+// Two auth methods coexist: an internal integration secret (paste the ntn_-prefixed token into the
+// credential — simplest for self-hosting) or OAuth authorization (answered on the platform side by
+// the notion provider, see server/internal/credential/oauth.go).
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./notion
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./notion
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -30,11 +32,11 @@ func main() {
 		Name:     "notion",
 	})
 
-	RegisterCredential(p)  // 凭证契约（schema 声明生成；Cred 类型在 zz_credential.go）
-	p.SetDoc(usageDoc, "") // 使用说明（docs/notion.md）：集成怎么建、页面怎么 share、实时事件怎么接
-	RegisterAuth(p)        // 认证方式：Notion OAuth（无作用域——权限是用户在同意页上勾页面）
+	RegisterCredential(p)  // Credential contract (generated from the schema declaration; Cred type is in zz_credential.go)
+	p.SetDoc(usageDoc, "") // Usage doc (docs/notion.md): how to set up the integration, share pages, wire up real-time events
+	RegisterAuth(p)        // Auth method: Notion OAuth (no scopes — permissions are the pages the user checks on the consent screen)
 
-	// 读
+	// Read
 	OnNotionSearch(p, opSearch)
 	OnNotionPageGet(p, opPageGet)
 	OnNotionDBQuery(p, opDBQuery)
@@ -44,8 +46,8 @@ func main() {
 	OnNotionUserList(p, opUserList)
 	OnNotionUserGet(p, opUserGet)
 	OnNotionCommentList(p, opCommentList)
-	OnHealthCheck(p, opHealthCheck) // 凭证页「检查」按钮调它（id 必须是 health_check）
-	// 写
+	OnHealthCheck(p, opHealthCheck) // Called by the "check" button on the credential page (id must be health_check)
+	// Write
 	OnNotionPageCreate(p, opPageCreate)
 	OnNotionPageUpdate(p, opPageUpdate)
 	OnNotionPageContent(p, opPageContent)
@@ -57,7 +59,8 @@ func main() {
 	OnNotionFileUpload(p, opFileUpload)
 
 	DeclareEvents(p)
-	// 常驻事件源：轮询凭证里配的数据源（Notion 的 webhook 装不了自动化，理由见 watch.go）。
+	// Long-running event source: polls the data sources configured on the credential (Notion's
+	// webhooks can't be wired up for automation — see watch.go for why).
 	sokel.RegisterSource(p, sokel.Source{ID: "watch", Label: "数据源变动轮询"}, runWatchSource)
 
 	if err := p.Run(); err != nil {

@@ -1,23 +1,31 @@
-# mastodon — 发布器插件（P0 三件套之一）
+# mastodon — publisher plugin (one of the P0 three)
 
-与 [bluesky](../bluesky/README.md) 同一套 publish 契约（[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3）：
-发布回 `id` + `url`、长内容分段归插件、媒体随发布走、健康检查用平台约定的 `health_check`。
+Uses the same publish contract as [bluesky](../bluesky/README.md)
+([docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3): publishing
+returns `id` + `url`, chunking long content is the plugin's job, media travels with publishing,
+and the health check uses the platform-mandated `health_check`.
 
-面向用户的说明书是 [docs/mastodon.md](docs/mastodon.md)（随握手上报）。设计判断写在 `schema/schema.go` 顶部。
+The user-facing manual is [docs/mastodon.md](docs/mastodon.md) (reported with the handshake). The
+design decisions are written at the top of `schema/schema.go`.
 
-## 四条与别家不同的
+## Four things that differ from other platforms
 
-1. **字数上限问实例**（`client.go::maxChars`）。Mastodon 是联邦网络，500 只是官方默认；
-   不少中文实例是 5000、有的到 11000。写死的话，用户在网页上明明发得出去的长文，
-   在这里被插件自己拦下。问一次缓存住。
-2. **发布带幂等键**（`Idempotency-Key`，一小时内同键只落一条）。工作流会重试，
-   不带的话一次超时重试就是时间线上两条一样的嘟文。键取「正文+回复目标+可见性+CW」的摘要——
-   重跑同一个节点这几样不会变。
-3. **CW 与可见性整串继承**。一串里混进公开与不列出，读者只能看到断断续续的半串。
-4. **视频要等转码**。v2 媒体接口对图片同步返回、对视频返回 202 且 url 为空，
-   这时发嘟会被 422 拒（错误只说「媒体不可用」）。插件轮询到处理完再发。
+1. **The character limit is asked from the instance** (`client.go::maxChars`). Mastodon is a
+   federated network, and 500 is just the official default; many Chinese-language instances use
+   5000, some go up to 11000. Hardcoding it would mean the plugin itself rejects a long post that
+   the user could clearly send fine on the web UI. Asked once and cached.
+2. **Publishing carries an idempotency key** (`Idempotency-Key`, same key within an hour lands
+   only one post). Workflows retry, and without this, a single timeout-and-retry turns into two
+   identical posts on the timeline. The key is a digest of "body + reply target + visibility +
+   CW" — none of which change when the same node reruns.
+3. **CW and visibility are inherited across a whole thread.** Mixing public and unlisted in one
+   thread leaves readers seeing only a disjointed half.
+4. **Video has to wait for transcoding.** The v2 media endpoint returns synchronously for images
+   but returns 202 with an empty url for video, and posting at that point gets a 422 (with the
+   error only saying "media unavailable"). The plugin polls until processing finishes before
+   posting.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

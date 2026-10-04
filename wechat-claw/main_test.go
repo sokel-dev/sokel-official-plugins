@@ -9,12 +9,14 @@ import (
 	"github.com/importcjj/wechat-clawbot-client-go/store"
 )
 
-// session 序列化往返：凭证行 fields.session（对象 JSON）↔ store.Credentials。
-// 平台 auth_flow 对 poll 带出的 session 做 json.Marshal 后原样保存——必须是对象形态（防双重编码）。
+// Session serialization round trip: the credential row's fields.session (object JSON) ↔
+// store.Credentials. The platform's auth_flow json.Marshals the session carried out by poll and
+// saves it as-is — it must stay in object form (prevents double encoding).
 func TestSessionRoundtrip(t *testing.T) {
 	in := store.Credentials{Token: "tk", BaseURL: "https://x", UserID: "u1", SavedAt: time.Now().Truncate(time.Second)}
 	j := sessionToJSON(in)
-	// 模拟平台侧：json.Marshal(json.RawMessage(j)) 应保持对象形态不再包引号。
+	// Simulates the platform side: json.Marshal(json.RawMessage(j)) should keep the object form and
+	// not wrap it in quotes again.
 	b, _ := json.Marshal(json.RawMessage(j))
 	out, ok := sessionFromJSON(string(b))
 	if !ok || out.Token != "tk" || out.UserID != "u1" {
@@ -28,7 +30,8 @@ func TestSessionRoundtrip(t *testing.T) {
 	}
 }
 
-// platformStore：Save 触发回写钩子；Load 读回；SyncBuf/ContextToken 内存可用。
+// platformStore: Save triggers the write-back hook; Load reads it back; SyncBuf/ContextToken work
+// from memory.
 func TestPlatformStore(t *testing.T) {
 	var saved string
 	ps := newPlatformStore("", func(s string) error { saved = s; return nil })
@@ -48,14 +51,15 @@ func TestPlatformStore(t *testing.T) {
 	if tk, _ := ps.LoadContextToken(context.Background(), "c", "u1"); tk != "ctk" {
 		t.Errorf("context token 应可读回: %q", tk)
 	}
-	// 预载 session 的 store（源实例路径）。
+	// A store preloaded with a session (the source-instance path).
 	ps2 := newPlatformStore(sessionToJSON(store.Credentials{Token: "tk2"}), nil)
 	if c, err := ps2.LoadCredentials(context.Background(), "c"); err != nil || c.Token != "tk2" {
 		t.Errorf("预载 session 应可读: %+v %v", c, err)
 	}
 }
 
-// 发送注册表：未登录/源未运行的清晰报错（用户可行动的提示，而非空指针）。
+// Send registry: clear errors for "not logged in" / "source not running" (an actionable message
+// for the user, not a nil pointer).
 func TestRunningClientFor(t *testing.T) {
 	if _, err := runningClientFor(map[string]string{}); err == nil {
 		t.Error("无 session 应报「请扫码」")
@@ -65,7 +69,8 @@ func TestRunningClientFor(t *testing.T) {
 	}
 }
 
-// auth 会话状态机：终态不被回调覆盖（confirmed 后再来 expired 不得回退）。
+// auth session state machine: a terminal state isn't overwritten by a callback (once confirmed, a
+// later expired must not roll it back).
 func TestAuthSessionTerminal(t *testing.T) {
 	as := &authSession{status: "pending"}
 	as.set("scanned", "")

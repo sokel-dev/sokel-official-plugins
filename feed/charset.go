@@ -1,9 +1,12 @@
 package main
 
-// GBK/GB2312 解码。国内不少 RSS 源还是这个编码，不解的话整份内容是乱码。
+// GBK/GB2312 decoding. Plenty of domestic RSS feeds still use this encoding; without decoding,
+// the whole body comes out garbled.
 //
-// 用 x/text 的现成解码器而不是自己写码表：GBK 有两万多个码位，手写表既大又必然出错，
-// 而这个依赖本仓库别处已经在用（golang.org/x/crypto 同源），不算引入新的一片。
+// We use x/text's ready-made decoder instead of writing our own code table: GBK has over
+// twenty thousand code points, so a hand-written table would be large and bound to have bugs,
+// and this dependency is already used elsewhere in this repo (same family as golang.org/x/crypto),
+// so it's not pulling in a new one.
 
 import (
 	"bytes"
@@ -14,8 +17,9 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// charsetReader：交给 xml.Decoder 用。认得的编码就转，认不得的原样放行——
-// **不认识就报错是错的**：多数源其实是 UTF-8 却写了个奇怪的 charset 名。
+// charsetReader is handed to xml.Decoder. Known encodings get converted; unknown ones pass
+// through unchanged — **erroring out on an unknown encoding would be wrong**: most feeds are
+// actually UTF-8 but declare a weird charset name.
 func charsetReader(label string, input io.Reader) (io.Reader, error) {
 	switch strings.ToLower(strings.TrimSpace(label)) {
 	case "gbk", "gb2312", "gb-2312", "gb18030", "x-gbk":
@@ -25,7 +29,8 @@ func charsetReader(label string, input io.Reader) (io.Reader, error) {
 		}
 		out, _, err := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), raw)
 		if err != nil {
-			// 解不动就把原文交回去：个别字乱码好过整份内容作废。
+			// If decoding fails, hand back the raw bytes: a few garbled characters beat
+			// discarding the whole body.
 			return bytes.NewReader(raw), nil
 		}
 		return bytes.NewReader(out), nil

@@ -1,9 +1,11 @@
-// aliyun —— Sokel 第一方插件：阿里云管控面（SLS/RDS/DNS/ACK/云监控 + call 保底）。
+// aliyun —— Sokel first-party plugin: Alibaba Cloud control plane (SLS/RDS/DNS/ACK/CloudMonitor
+// + call fallback).
 //
-// 集群内工作负载操作在通用 kubernetes 插件里（凭证 = kubeconfig，
-// 本插件的 ack_kubeconfig 能导出来喂它）。设计判断见 schema/schema.go 顶注。
+// In-cluster workload operations live in the generic kubernetes plugin (credential = kubeconfig;
+// this plugin's ack_kubeconfig can export one to feed it). See the top comment in
+// schema/schema.go for the design rationale.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./aliyun
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./aliyun
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

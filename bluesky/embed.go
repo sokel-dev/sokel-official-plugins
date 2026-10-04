@@ -1,10 +1,12 @@
 package main
 
-// 嵌入：图片与链接卡片。
+// Embeds: images and link cards.
 //
-// 两者都要先把字节传成 blob（com.atproto.repo.uploadBlob），再把返回的 blob 引用塞进记录。
-// **blob 不被记录引用就会被回收**，所以传完必须马上发帖——中间隔一个人工节点等半天是不行的，
-// 这也是图片不单列成一个「上传」操作的原因。
+// Both need the bytes uploaded as a blob first (com.atproto.repo.uploadBlob), then the
+// returned blob ref gets put into the record. **An unreferenced blob gets garbage
+// collected**, so the post must follow the upload immediately — it can't wait hours
+// behind a human-approval node in between. This is also why images aren't exposed as a
+// separate "upload" operation.
 
 import (
 	"fmt"
@@ -17,10 +19,10 @@ import (
 
 const (
 	maxImages   = 4
-	maxImgBytes = 2_000_000 // Bluesky 单张上限，超了回 BlobTooLarge
+	maxImgBytes = 2_000_000 // Bluesky's per-image limit; exceeding it returns BlobTooLarge
 )
 
-// blobRef：uploadBlob 的返回，原样塞回记录里即可。
+// blobRef: uploadBlob's return value, put back into the record as-is.
 type blobRef map[string]any
 
 type imageItem struct {
@@ -51,7 +53,7 @@ func uploadBlob(ctx plugin.Ctx, data []byte, mime string) (blobRef, error) {
 	var out struct {
 		Blob blobRef `json:"blob"`
 	}
-	// uploadBlob 收的是原始字节 + 真实 Content-Type（不是 JSON）。
+	// uploadBlob accepts raw bytes + the real Content-Type (not JSON).
 	err = rpc(withBlobMime(ctx, mime), hc, pdsOf(cred), s.AccessJwt,
 		http.MethodPost, "com.atproto.repo.uploadBlob", nil, data, &out)
 	if err != nil {
@@ -96,10 +98,11 @@ func imagesEmbed(ctx plugin.Ctx, files []*plugin.File, alts []string) (*imagesEm
 	return rec, nil
 }
 
-// externalEmbed：链接卡片。抓一次 OG 信息拼出来。
+// externalEmbed: a link card, built by fetching OG info once.
 //
-// **抓不到不是错误**（调用方会忽略 error 退回纯文本链接）：目标站可能挡爬虫、可能超时，
-// 而那不该让一条本可以发出去的帖子失败。
+// **A failed fetch is not an error** (the caller ignores the error and falls back to a
+// plain text link): the target site might block crawlers or time out, and that shouldn't
+// fail a post that could otherwise go out fine.
 func externalEmbed(ctx plugin.Ctx, link string) (*externalEmbedRec, error) {
 	cred := credFrom(ctx)
 	hc := clientFor(cred.Proxy)
@@ -107,7 +110,7 @@ func externalEmbed(ctx plugin.Ctx, link string) (*externalEmbedRec, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 带一个正经 UA：不少站对空 UA 直接 403，那样卡片永远做不出来。
+	// Send a real UA: plenty of sites 403 an empty UA outright, which would make the card impossible to build.
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; SokelBot/1.0; +https://bsky.app)")
 	resp, err := hc.Do(req)
 	if err != nil {
@@ -117,7 +120,7 @@ func externalEmbed(ctx plugin.Ctx, link string) (*externalEmbedRec, error) {
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("目标站回 HTTP %d", resp.StatusCode)
 	}
-	head := make([]byte, 128<<10) // OG 标签在 <head> 里，读前 128KB 足够
+	head := make([]byte, 128<<10) // OG tags live in <head>, the first 128KB is plenty
 	n, _ := resp.Body.Read(head)
 	html := string(head[:n])
 
@@ -172,7 +175,7 @@ func readFull(r interface{ Read([]byte) (int, error) }, buf []byte) (int, error)
 	return total, nil
 }
 
-// —— OG 解析（正则够用：只取 head 里那几个 meta，不值得引一个 HTML 解析器）——
+// —— OG parsing (regex is good enough: it only reads a few meta tags from head, not worth pulling in an HTML parser) ——
 
 var metaRe = regexp.MustCompile(`(?is)<meta[^>]+>`)
 
@@ -212,7 +215,7 @@ func unescape(s string) string {
 	return strings.TrimSpace(r.Replace(s))
 }
 
-// absURL：og:image 常常是相对路径。
+// absURL: og:image is often a relative path.
 func absURL(base, ref string) string {
 	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
 		return ref

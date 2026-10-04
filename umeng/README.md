@@ -1,20 +1,26 @@
-# umeng — 友盟推送插件（第一方自部署）
+# umeng — Umeng push plugin (first-party, self-hosted)
 
-4 个操作：push（单播/列播/广播）、task_status、cancel、health_check。
-说明书 [docs/umeng.md](docs/umeng.md)。接口细节参照一套已在生产运行的推送服务整理。
+4 operations: push (unicast/listcast/broadcast), task_status, cancel, health_check.
+Usage doc: [docs/umeng.md](docs/umeng.md). Interface details are modeled on a push
+service already running in production.
 
-## 坑（改代码前先读）
+## Gotchas (read before touching the code)
 
-- **签名是 MD5("POST" + 完整URL + body + master_secret) 拼在 ?sign=**——
-  URL 里不含 ?sign= 自身；body 是序列化后的原文（改一个字节签名就错）。
-- **Android 与 iOS 的 payload 形状完全不同**：Android 是 {display_type, body:{title,text}}
-  自有格式；iOS 是 APNs 的 {aps:{alert:{}}}，自定义键与 aps 平级。
-- **单播是消息类**：友盟不给任务统计，返回 msg_id 而非 task_id；查它的状态会 2000。
-- health_check 拿不存在的任务号问状态：钥匙错回 1002/1003，钥匙对回「任务不存在」
-  ——不发真推送就验完了凭证。
-- cast type 按 token 数自动定：1 个=unicast，>1=listcast，0 个=broadcast。
+- **The signature is MD5("POST" + full URL + body + master_secret), appended as
+  ?sign=** — the URL does not include ?sign= itself; the body is the serialized text
+  as-is (changing a single byte breaks the signature).
+- **Android and iOS payload shapes are completely different**: Android uses its own
+  format, {display_type, body:{title,text}}; iOS uses APNs' {aps:{alert:{}}}, with
+  custom keys sitting alongside aps.
+- **Unicast is message-class**: Umeng gives it no task statistics, returning msg_id
+  instead of task_id; querying its status returns 2000.
+- health_check queries the status of a nonexistent task ID: wrong credentials return
+  1002/1003, correct credentials return "task not found" — this verifies the
+  credentials without sending a real push.
+- cast type is auto-determined by token count: 1 token = unicast, >1 = listcast,
+  0 = broadcast.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

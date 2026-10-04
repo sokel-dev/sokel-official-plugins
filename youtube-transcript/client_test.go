@@ -5,16 +5,19 @@ import (
 	"testing"
 )
 
-// 代理有两个来源，**都得管用**：
+// The proxy can come from two sources, and **both must actually work**:
 //
-//	① 凭证里的「出站代理」——线上正解（住宅代理对付 YouTube 封机房 IP）；
-//	② 进程的 HTTP(S)_PROXY 环境变量——本地开发的正解（国内直连根本到不了 youtube.com）。
+//	① the credential's "outbound proxy" — the production answer (a residential proxy to get around
+//	   YouTube blocking datacenter IPs);
+//	② the process's HTTP(S)_PROXY environment variables — the local-dev answer (direct connections from
+//	   mainland China can't reach youtube.com at all).
 //
-// 第一版只做了 ①：newClient 造了个 &http.Transport{}，而它的 Proxy 字段是 nil ——
-// 那不是「用默认」，那是**显式关掉**代理（http.DefaultTransport 才带 ProxyFromEnvironment）。
-// 症状：本地 export 了 HTTPS_PROXY 也照样连不上 YouTube，而且看起来像是网络问题。
+// The first version only implemented ①: newClient built a bare &http.Transport{}, whose Proxy field is
+// nil — which isn't "use the default", it's **explicitly disabling** the proxy (only
+// http.DefaultTransport carries ProxyFromEnvironment). Symptom: exporting HTTPS_PROXY locally still
+// couldn't reach YouTube, and it looked exactly like a network problem.
 func TestClientProxySources(t *testing.T) {
-	// ① 凭证给了就用凭证的，不看环境。
+	// ① when the credential provides one, use it, ignoring the environment.
 	c, err := newClient("http://127.0.0.1:7897", "")
 	if err != nil {
 		t.Fatal(err)
@@ -32,9 +35,11 @@ func TestClientProxySources(t *testing.T) {
 		t.Errorf("应走凭证里的代理，实际 %v", u)
 	}
 
-	// ② 凭证没给时**不能把代理关掉**——要回落到环境变量。
-	// 这里只断言「没被关掉」，不断言具体取值：ProxyFromEnvironment 内部用 sync.Once
-	// 缓存了首次读到的环境，测试里改 env 未必生效，断具体值会变成一条时灵时不灵的用例。
+	// ② when the credential gives nothing, the proxy **must not be disabled** — it should fall back to
+	// the environment variables. This only asserts "not disabled", not a specific value:
+	// ProxyFromEnvironment caches the environment it first reads via sync.Once internally, so changing
+	// env vars in a test may not take effect, and asserting a specific value would make this a flaky
+	// test.
 	c2, err := newClient("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +50,8 @@ func TestClientProxySources(t *testing.T) {
 }
 
 func TestClientRejectsBadProxy(t *testing.T) {
-	// 报错要说清正确形状——只说「不合法」的话用户不知道该写成什么样。
+	// The error must spell out the correct shape — just saying "invalid" leaves the user with no idea
+	// what it should look like.
 	if _, err := newClient("://nonsense", ""); err == nil {
 		t.Error("非法代理地址应报错")
 	}

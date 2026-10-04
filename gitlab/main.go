@@ -1,8 +1,9 @@
-// gitlab —— Sokel 第一方插件：GitLab 自动化（自建 CE / gitlab.com 通吃）。
+// gitlab -- a first-party Sokel plugin: GitLab automation (works with self-hosted CE and gitlab.com alike).
 //
-// 25 个操作覆盖 仓库/MR/Issue/CI 四个域 + call 保底。设计判断见 schema/schema.go 顶注。
+// 25 operations covering the repository/MR/Issue/CI domains, plus call as a catch-all. Design
+// decisions are documented at the top of schema/schema.go.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./gitlab
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./gitlab
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -53,10 +54,10 @@ func main() {
 	OnCall(p, opCall)
 	OnHealthCheck(p, opHealthCheck)
 
-	// 事件源：轮询 Events API + 失败流水线（凭证填了 watch_projects 才启动）。
+	// Event source: polls the Events API + failed pipelines (only starts if the credential has watch_projects set).
 	DeclareEvents(p)
 	sokel.RegisterSource(p, sokel.Source{ID: "poll", Label: "GitLab 事件轮询"}, runEvents)
-	// 平台代收 webhook(零延迟版;与轮询源二选一,见 docs)
+	// The platform receives the webhook on our behalf (zero-latency version; pick either this or the polling source, see docs)
 	sokel.RegisterWebhook(p, handleWebhook)
 
 	if err := p.Run(); err != nil {

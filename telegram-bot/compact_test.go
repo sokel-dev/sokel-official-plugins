@@ -5,17 +5,18 @@ import (
 	"testing"
 )
 
-// compact 去零值：Telegram 对空 parse_mode / 0 reply_to_message_id / false 开关敏感，
-// 传了空值反而报错或改变行为，必须剔除。非零值全保留。
+// compact strips zero values: Telegram is picky about empty parse_mode / 0 reply_to_message_id /
+// false switches — passing the zero value instead causes an error or changes behavior, so it must
+// be dropped. Non-zero values are all kept.
 func TestCompact(t *testing.T) {
 	got := compact(map[string]any{
-		"chat_id":                  int64(123), // 非零保留
-		"text":                     "hi",       // 非空保留
-		"parse_mode":               "",         // 空串剔除
-		"reply_to_message_id":      int64(0),   // 0 剔除
-		"disable_web_page_preview": false,      // false 剔除
-		"show_alert":               true,       // true 保留
-		"reply_markup":             nil,        // nil 剔除
+		"chat_id":                  int64(123), // non-zero, kept
+		"text":                     "hi",       // non-empty, kept
+		"parse_mode":               "",         // empty string, dropped
+		"reply_to_message_id":      int64(0),   // 0, dropped
+		"disable_web_page_preview": false,      // false, dropped
+		"show_alert":               true,       // true, kept
+		"reply_markup":             nil,        // nil, dropped
 	})
 	want := map[string]any{"chat_id": int64(123), "text": "hi", "show_alert": true}
 	if !reflect.DeepEqual(got, want) {
@@ -23,10 +24,11 @@ func TestCompact(t *testing.T) {
 	}
 }
 
-// typed nil 也必须剔除：SendMessageIn.ReplyMarkup 是 map[string]any，入参没给时
-// 它是**带类型的 nil**（interface{type: map, value: nil}），不命中 case nil，
-// 曾被保留并 marshal 成 "reply_markup": null → Telegram 400 "object expected as
-// reply markup"（run_a433bdca，2026-08-21：兜底通知全灭）。切片同理。
+// A typed nil must also be dropped: SendMessageIn.ReplyMarkup is map[string]any, and when the
+// input isn't given it's a **typed nil** (interface{type: map, value: nil}), which doesn't match
+// `case nil`. It used to slip through and get marshaled as "reply_markup": null → Telegram 400
+// "object expected as reply markup" (run_a433bdca, 2026-08-21: wiped out all fallback
+// notifications). Slices have the same issue.
 func TestCompactStripsTypedNil(t *testing.T) {
 	var m map[string]any
 	var sl []any
@@ -37,7 +39,7 @@ func TestCompactStripsTypedNil(t *testing.T) {
 	}
 }
 
-// chat_id 允许字符串（@channelusername）——不能被当空值误删。
+// chat_id may be a string (@channelusername) — it must not be mistaken for a zero value and dropped.
 func TestCompactKeepsUsernameChatID(t *testing.T) {
 	got := compact(map[string]any{"chat_id": "@mychannel", "text": "x"})
 	if got["chat_id"] != "@mychannel" {

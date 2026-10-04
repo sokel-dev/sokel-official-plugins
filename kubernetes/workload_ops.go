@@ -1,11 +1,13 @@
 package main
 
-// workload_ops.go —— 部署与任务五操作（deploy_workload / deployment_status / run_job /
-// apply_manifest / delete_object）。
+// workload_ops.go -- five deploy/job operations (deploy_workload / deployment_status / run_job /
+// apply_manifest / delete_object).
 //
-// 写路径统一走 **server-side apply**（PATCH + application/apply-patch+yaml，fieldManager=sokel）：
-// 不存在则建、存在则按本次给的字段收敛，天然幂等——工作流重跑不会因「已存在」炸掉。
-// kind → REST 资源名不猜复数规则，问集群的 discovery 接口（/apis/<gv> 自报资源表）并缓存。
+// All write paths uniformly use server-side apply (PATCH + application/apply-patch+yaml,
+// fieldManager=sokel): creates if absent, converges to the fields given this time if present --
+// naturally idempotent, so a workflow re-run won't blow up on "already exists". kind -> REST
+// resource name isn't guessed by pluralization rules; it's looked up from the cluster's
+// discovery endpoint (/apis/<gv> self-reports its resource table) and cached.
 
 import (
 	"context"
@@ -23,9 +25,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— 通用小件 ——
+// -- small shared helpers --
 
-// gvPath：group/version → REST 前缀。核心组（v1）历史路径特殊。
+// gvPath: group/version -> REST prefix. The core group (v1) has a special legacy path.
 func gvPath(gv string) string {
 	if gv == "v1" {
 		return "/api/v1"
@@ -33,7 +35,8 @@ func gvPath(gv string) string {
 	return "/apis/" + gv
 }
 
-// envList：map → K8s env 数组，键排序保证清单稳定（apply 靠内容收敛，乱序=每次都「有变更」）。
+// envList: map -> K8s env array; keys are sorted to keep the manifest stable (apply converges
+// by content, so unstable ordering would look like "something changed" every time).
 func envList(env map[string]string) []map[string]string {
 	if len(env) == 0 {
 		return nil
@@ -50,11 +53,12 @@ func envList(env map[string]string) []map[string]string {
 	return out
 }
 
-// applyObj：server-side apply 一个对象。返回是否新建（apply 前探一次 GET——
-// apply 本身不区分 created/configured，而「新建还是改了旧的」是使用者要的答案）。
+// applyObj: server-side-applies one object. Returns whether it was newly created (probed with
+// a GET before the apply -- apply itself doesn't distinguish created/configured, but "created
+// new vs. changed an existing one" is the answer the caller wants).
 func (k *kubeClient) applyObj(ctx context.Context, path string, obj any) (created bool, err error) {
 	if _, gerr := k.do(ctx, "GET", path, nil, nil, ""); gerr != nil {
-		created = strings.Contains(gerr.Error(), "找不到资源") // kubeErr 的 404 翻译
+		created = strings.Contains(gerr.Error(), "找不到资源") // kubeErr's 404 translation
 	}
 	body, err := json.Marshal(obj)
 	if err != nil {
@@ -67,7 +71,7 @@ func (k *kubeClient) applyObj(ctx context.Context, path string, obj any) (create
 	return created, nil
 }
 
-// —— discovery：kind → REST 资源名 ——
+// -- discovery: kind -> REST resource name --
 
 type apiResourceList struct {
 	Resources []struct {
@@ -82,8 +86,8 @@ var (
 	discCache   = map[string]apiResourceList{} // key: base+gv
 )
 
-// resourceFor：问集群「这个 gv 下 Kind 对应哪个资源路径、是否命名空间级」。
-// 子资源（deployments/scale 这类带斜杠的）跳过——apply/delete 只面向顶级对象。
+// resourceFor asks the cluster "for this gv, which resource path does Kind map to, and is it
+// namespaced". Subresources (things like deployments/scale with a slash) are skipped -- apply/delete only target top-level objects.
 func (k *kubeClient) resourceFor(ctx context.Context, gv, kind string) (resource string, namespaced bool, err error) {
 	key := k.base + "|" + gv
 	discCacheMu.Lock()
@@ -109,7 +113,7 @@ func (k *kubeClient) resourceFor(ctx context.Context, gv, kind string) (resource
 	return "", false, fmt.Errorf("%s 里没有 kind=%s——核对 apiVersion 与 Kind 拼写（区分大小写）", gv, kind)
 }
 
-// objPath：一个对象的 REST 路径。
+// objPath is one object's REST path.
 func objPath(gv, resource, ns, name string, namespaced bool) string {
 	p := gvPath(gv)
 	if namespaced {
@@ -118,12 +122,12 @@ func objPath(gv, resource, ns, name string, namespaced bool) string {
 	return p + "/" + resource + "/" + url.PathEscape(name)
 }
 
-// —— deploy_workload ——
+// -- deploy_workload --
 
 func deployManifest(in *DeployWorkloadIn, ns string) map[string]any {
 	labels := map[string]string{"app": in.Name}
 	for k, v := range in.Labels {
-		if k != "app" { // app 是选择器锚点，不许覆盖（选择器建后不可改，改了 apply 直接被拒）
+		if k != "app" { // app is the selector anchor; it can't be overridden (the selector is immutable once created, and apply would just be rejected)
 			labels[k] = v
 		}
 	}
@@ -184,7 +188,7 @@ func opDeployWorkload(ctx plugin.Ctx, in *DeployWorkloadIn) (*DeployWorkloadOut,
 	return &DeployWorkloadOut{OK: true, Created: created, Name: in.Name, Namespace: ns}, nil
 }
 
-// —— deployment_status ——
+// -- deployment_status --
 
 func opDeploymentStatus(ctx plugin.Ctx, in *DeploymentStatusIn) (*DeploymentStatusOut, error) {
 	cred := credOf(ctx)
@@ -234,7 +238,7 @@ func opDeploymentStatus(ctx plugin.Ctx, in *DeploymentStatusIn) (*DeploymentStat
 	msg := "全部就绪"
 	if !ready {
 		msg = fmt.Sprintf("就绪 %d/%d", d.Status.ReadyReplicas, desired)
-		// 未就绪时把最近一条非 True 的 condition 带出来——「为什么没起来」比数字有用。
+		// When not ready, surface the most recent non-True condition -- "why it is not up" is more useful than a number.
 		for _, c := range d.Status.Conditions {
 			if c.Status != "True" && (c.Reason != "" || c.Message != "") {
 				msg += "：" + firstNonEmpty(c.Message, c.Reason)
@@ -248,7 +252,7 @@ func opDeploymentStatus(ctx plugin.Ctx, in *DeploymentStatusIn) (*DeploymentStat
 	}, nil
 }
 
-// —— run_job ——
+// -- run_job --
 
 func opRunJob(ctx plugin.Ctx, in *RunJobIn) (*RunJobOut, error) {
 	cred := credOf(ctx)
@@ -287,7 +291,7 @@ func opRunJob(ctx plugin.Ctx, in *RunJobIn) (*RunJobOut, error) {
 	if !in.Wait {
 		return &RunJobOut{Job: name, Succeeded: false, Status: "submitted"}, nil
 	}
-	// 等待：超时上限受操作 TimeoutSec(600) 约束，留 30s 余量取日志。
+	// Waiting: the timeout cap is bounded by the operation's TimeoutSec(600), leaving 30s of margin to fetch logs.
 	limit := in.TimeoutSec
 	if limit <= 0 {
 		limit = 300
@@ -323,7 +327,7 @@ func opRunJob(ctx plugin.Ctx, in *RunJobIn) (*RunJobOut, error) {
 	return &RunJobOut{Job: name, Succeeded: status == "succeeded", Status: status, Logs: logs}, nil
 }
 
-// jobLogs：Job 的第一个 pod 的日志尾部。拿不到不算错——日志是佐料，任务结果是主菜。
+// jobLogs fetches the tail of the Job's first pod's log. Failing to get it isn't an error -- the log is a garnish, the job result is the main course.
 func (k *kubeClient) jobLogs(ctx context.Context, ns, job string) string {
 	raw, err := k.do(ctx, "GET", "/api/v1/namespaces/"+url.PathEscape(ns)+"/pods",
 		url.Values{"labelSelector": {"job-name=" + job}}, nil, "")
@@ -348,7 +352,7 @@ func (k *kubeClient) jobLogs(ctx context.Context, ns, job string) string {
 	return string(lg)
 }
 
-// —— apply_manifest ——
+// -- apply_manifest --
 
 func opApplyManifest(ctx plugin.Ctx, in *ApplyManifestIn) (*ApplyManifestOut, error) {
 	cred := credOf(ctx)
@@ -381,12 +385,13 @@ func opApplyManifest(ctx plugin.Ctx, in *ApplyManifestIn) (*ApplyManifestOut, er
 		if rerr != nil {
 			return nil, rerr
 		}
-		// 命名空间：文档里写的 > 操作入参 > 凭证默认。
+		// Namespace: what's written in the document takes priority over the operation input, which takes priority over the credential default.
 		ns := firstNonEmpty(meta.Metadata.Namespace, nsOf(cred, in.Namespace))
 		var obj map[string]any
 		_ = json.Unmarshal(js, &obj)
 		if namespaced {
-			// apply 的对象里必须有 namespace，否则 server 按 default 收敛，和路径对不上。
+			// The apply object must have a namespace, otherwise the server converges on default,
+			// which wouldn't match the path.
 			md, _ := obj["metadata"].(map[string]any)
 			if md != nil && md["namespace"] == nil {
 				md["namespace"] = ns
@@ -409,9 +414,9 @@ func opApplyManifest(ctx plugin.Ctx, in *ApplyManifestIn) (*ApplyManifestOut, er
 	return &ApplyManifestOut{OK: true, Applied: applied, Items: strings.Join(lines, "\n")}, nil
 }
 
-// —— delete_object ——
+// -- delete_object --
 
-// deleteProbeGVs：不给 apiVersion 时按常见程度探测的组。
+// deleteProbeGVs: the groups probed by commonality when apiVersion isn't given.
 var deleteProbeGVs = []string{"apps/v1", "batch/v1", "v1", "networking.k8s.io/v1"}
 
 func opDeleteObject(ctx plugin.Ctx, in *DeleteObjectIn) (*DeleteObjectOut, error) {

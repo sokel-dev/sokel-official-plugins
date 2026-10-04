@@ -1,27 +1,35 @@
 package main
 
-// 对着**真** GitHub 跑一遍。
+// Runs a pass against **real** GitHub.
 //
-// 假上游只能验我们自己写的装配逻辑。有几类东西它天然验不了，而这几类恰恰最容易错：
+// The fake upstream can only validate the assembly logic we wrote ourselves. There are a
+// few kinds of things it inherently can't validate, and those are exactly the ones most
+// likely to be wrong:
 //
-//   - **GraphQL 查询写对没有**。查询串是纯文本，字段名拼错时 GitHub 回 200 + errors，
-//     假上游根本不会去解析那串查询——看板那四个操作在假测里是零覆盖。
-//   - **/issues 到底会不会返回 PR**。这是整个插件的头号设计前提，靠的是文档而不是实测。
-//   - **Link 头长什么样、403 到底带不带 X-RateLimit-Remaining**。都是我们照文档写死的判据。
-//   - **令牌权限够不够**（细粒度令牌的 Checks、看板的 project scope）。
+//   - **Whether the GraphQL queries are actually correct**. A query string is plain text;
+//     when a field name is misspelled, GitHub returns 200 + errors, and the fake upstream
+//     never parses that query string — the four Projects operations have zero coverage
+//     in the fake tests.
+//   - **Whether /issues actually returns PRs mixed in**. This is the whole plugin's number
+//     one design assumption, backed by documentation rather than an actual test.
+//   - **What the Link header actually looks like, and whether a 403 actually carries
+//     X-RateLimit-Remaining**. Both are criteria we hardcoded from reading the docs.
+//   - **Whether the token actually has enough permission** (Checks for fine-grained
+//     tokens, project scope for Projects).
 //
-// 跑法：
+// How to run:
 //
-//	# 只读那批，任何令牌都能跑
+//	# the read-only batch, any token works
 //	GITHUB_TOKEN=ghp_xxx go test -run Live ./...
 //
-//	# 加上写操作（会真的建 Issue/分支/PR）——**务必指向一个一次性仓库**
+//	# add write operations (will actually create Issues/branches/PRs) — **must point at a throwaway repo**
 //	GITHUB_TOKEN=ghp_xxx GITHUB_WRITE_REPO=you/scratch go test -run Live -v ./...
 //
-//	# 看板（要 project scope）
+//	# Projects (needs project scope)
 //	GITHUB_TOKEN=ghp_xxx GITHUB_PROJECT_OWNER=you go test -run LiveProject -v ./...
 //
-// 没设 GITHUB_TOKEN 就整批跳过，CI 与他人机器上不会因此变红。
+// With GITHUB_TOKEN unset, the whole batch is skipped, so it won't turn CI or anyone
+// else's machine red.
 
 import (
 	"context"
@@ -43,12 +51,12 @@ func liveCtx(t *testing.T) *fakeCtx {
 		Context: context.Background(),
 		cred: map[string]string{
 			"token":    token,
-			"base_url": os.Getenv("GITHUB_BASE_URL"), // GHES 联调时设它，留空 = github.com
+			"base_url": os.Getenv("GITHUB_BASE_URL"), // set this for GHES live testing, empty = github.com
 		},
 	}
 }
 
-// liveReadRepo 只读测试用的仓库。默认拿 GitHub 自己的示例仓库，任何令牌都读得到。
+// liveReadRepo is the repo used for read-only tests. Defaults to GitHub's own sample repo, readable by any token.
 func liveReadRepo() string {
 	if r := os.Getenv("GITHUB_TEST_REPO"); r != "" {
 		return r
@@ -56,7 +64,7 @@ func liveReadRepo() string {
 	return "octocat/Hello-World"
 }
 
-// liveWriteRepo 会真的写东西的仓库。**必须显式指定**，且请用一次性仓库。
+// liveWriteRepo is the repo that write operations actually modify. **Must be set explicitly**, and please use a throwaway repo.
 func liveWriteRepo(t *testing.T) string {
 	t.Helper()
 	r := os.Getenv("GITHUB_WRITE_REPO")
@@ -66,9 +74,9 @@ func liveWriteRepo(t *testing.T) string {
 	return r
 }
 
-// —— 只读：验那些「照文档写死」的判据 ——
+// —— Read-only: validates the criteria "hardcoded from reading the docs" ——
 
-// 令牌能不能用、余量多少、是经典还是细粒度。联调第一条永远是它。
+// Whether the token works, how much quota is left, classic vs. fine-grained. Always the first live test to run.
 func TestLiveHealthCheck(t *testing.T) {
 	ctx := liveCtx(t)
 	out, err := opHealthCheck(ctx, &HealthCheckIn{})
@@ -87,8 +95,9 @@ func TestLiveHealthCheck(t *testing.T) {
 	}
 }
 
-// **这条是整个插件的头号前提**：GitHub 的 /issues 真的会把 PR 一起返回吗？
-// 假上游里是我自己塞的 pull_request 键，等于自己验自己。这里拿真数据看。
+// **This is the plugin's number one assumption**: does GitHub's /issues really return
+// PRs mixed in? In the fake upstream, the pull_request key is something I stuffed in
+// myself, which amounts to validating against my own assumption. Here we check against real data.
 func TestLiveIssuesListReturnsPRs(t *testing.T) {
 	ctx := liveCtx(t)
 	repo := liveReadRepo()
@@ -120,10 +129,11 @@ func TestLiveIssuesListReturnsPRs(t *testing.T) {
 	}
 }
 
-// 分页判据来自 Link 头，是照文档写死的。翻页在真接口上到底成不成立，只能实测。
+// The pagination criterion comes from the Link header, hardcoded from reading the docs.
+// Whether pagination actually holds up against the real API can only be verified by testing it live.
 func TestLivePaginationLinkHeader(t *testing.T) {
 	ctx := liveCtx(t)
-	// 拿一个提交多的仓库，确保有第二页
+	// Use a repo with many commits, to guarantee a second page
 	repo := liveReadRepo()
 	out, err := opCommitsList(ctx, &CommitsListIn{Repo: repo})
 	if err != nil {
@@ -145,7 +155,7 @@ func TestLivePaginationLinkHeader(t *testing.T) {
 	}
 }
 
-// 404 对「不存在」与「没权限」是同一个码，我们的报错文案要把这层说全。
+// 404 is the same status code for both "doesn't exist" and "no permission"; our error message needs to spell that out fully.
 func TestLiveNotFoundWording(t *testing.T) {
 	ctx := liveCtx(t)
 	_, err := opRepoGet(ctx, &RepoGetIn{Repo: "sokel-dev/definitely-not-a-real-repo-xyz"})
@@ -158,7 +168,7 @@ func TestLiveNotFoundWording(t *testing.T) {
 	t.Logf("404 文案：%v", err)
 }
 
-// 搜索是少数会给总数的接口，也是唯一会说「结果不完整」的。
+// Search is one of the few endpoints that returns a total count, and the only one that can say "results incomplete".
 func TestLiveSearch(t *testing.T) {
 	ctx := liveCtx(t)
 	out, err := opSearch(ctx, &SearchIn{
@@ -176,10 +186,11 @@ func TestLiveSearch(t *testing.T) {
 	}
 }
 
-// —— 看板：GraphQL 查询串写对没有，只能对着真接口验 ——
+// —— Projects: whether the GraphQL query strings are correct can only be verified against the real endpoint ——
 
-// 假上游对 GraphQL 是**零覆盖**：查询串是纯文本，字段拼错时 GitHub 回 200 + errors，
-// 而我们的 ghGraphQL 会把它翻成一条错误——所以这条一旦通过，说明查询串确实是对的。
+// The fake upstream has **zero coverage** for GraphQL: a query string is plain text, and
+// when a field is misspelled GitHub returns 200 + errors, which our ghGraphQL turns into
+// an error — so once this test passes, it means the query string is genuinely correct.
 func TestLiveProjectsList(t *testing.T) {
 	ctx := liveCtx(t)
 	owner := os.Getenv("GITHUB_PROJECT_OWNER")
@@ -203,7 +214,7 @@ func TestLiveProjectsList(t *testing.T) {
 	if out.Count == 0 {
 		t.Skip("这个账号下没有看板，卡片查询验不到")
 	}
-	// 卡片查询用了 fieldValues 上的 4 个内联片段，是全插件最容易写错的一段
+	// The item query uses 4 inline fragments on fieldValues, the section of the whole plugin most prone to mistakes
 	items, err := opProjectItemsList(ctx, &ProjectItemsListIn{
 		Owner: owner, Number: out.Projects[0].Number, Limit: 10,
 	})
@@ -216,11 +227,12 @@ func TestLiveProjectsList(t *testing.T) {
 	}
 }
 
-// —— 写操作：真的会改仓库，务必用一次性仓库 ——
+// —— Write operations: actually modify the repo, must use a throwaway repo ——
 
-// 一条完整的机器人链路：开 Issue → 评论 → 打标签 → 加表情 → 关闭。
-// 每一步都在验一个「假上游验不了」的点：标签不存在会不会 422、表情重复加会不会报错、
-// 关闭时 state_reason 收不收。
+// A full bot workflow: open Issue → comment → label → react → close.
+// Each step validates something the fake upstream can't: whether a nonexistent label
+// causes a 422, whether adding the same reaction twice errors, whether state_reason is
+// accepted on close.
 func TestLiveIssueLifecycle(t *testing.T) {
 	ctx := liveCtx(t)
 	repo := liveWriteRepo(t)
@@ -242,7 +254,7 @@ func TestLiveIssueLifecycle(t *testing.T) {
 		t.Fatalf("发评论失败: %v", err)
 	}
 
-	// 加表情：ChatOps 的回执手势。重复加 GitHub 回 200 不是错。
+	// Add a reaction: the ChatOps acknowledgment gesture. GitHub returning 200 on a duplicate add is not an error.
 	if _, err := opReactionAdd(ctx, &ReactionAddIn{
 		Repo: repo, Target: "comment", ID: cm.CommentID, Content: "eyes",
 	}); err != nil {
@@ -254,7 +266,7 @@ func TestLiveIssueLifecycle(t *testing.T) {
 		t.Errorf("重复加同一个表情不该失败（GitHub 回 200）: %v", err)
 	}
 
-	// 标签必须先存在。建标签是幂等的，这里连跑两次验它。
+	// A label must exist before it can be applied. Creating a label is idempotent; run it twice here to verify that.
 	const label = "sokel-live-test"
 	for i := 0; i < 2; i++ {
 		out, err := opLabelCreate(ctx, &LabelCreateIn{
@@ -275,7 +287,7 @@ func TestLiveIssueLifecycle(t *testing.T) {
 		t.Errorf("打完标签出参里没有它：%v", lbl.Labels)
 	}
 
-	// 关闭时给 not_planned——stale-bot 的正确做法
+	// Close with not_planned — the correct behavior for a stale-bot
 	closed, err := opIssueUpdate(ctx, &IssueUpdateIn{
 		Repo: repo, Number: created.Number, State: "closed", StateReason: "not_planned",
 	})
@@ -288,9 +300,9 @@ func TestLiveIssueLifecycle(t *testing.T) {
 	t.Logf("已关闭 #%d", created.Number)
 }
 
-// 开 PR 的机器人那条链路：建分支 → 写文件 → 开 PR → 读 diff → 回写提交状态。
-// 回写提交状态是「机器人」的核心动作，也是最该实测的一步——写错 sha 不会报错，
-// 只是状态不出现在 PR 页面上。
+// The PR-opening bot workflow: create branch → write file → open PR → read diff → write commit status back.
+// Writing the commit status is the "bot's" core action and the step most worth testing live
+// — getting the sha wrong doesn't error, the status simply never shows up on the PR page.
 func TestLivePullRequestFlow(t *testing.T) {
 	ctx := liveCtx(t)
 	repo := liveWriteRepo(t)
@@ -301,7 +313,7 @@ func TestLivePullRequestFlow(t *testing.T) {
 		t.Fatalf("建分支失败: %v", err)
 	}
 	t.Logf("建了分支 %s → %s", br.Branch, br.SHA)
-	// 幂等：再建一次应当 existed=true 而不是报错
+	// Idempotent: creating it again should give existed=true rather than an error
 	again, err := opBranchCreate(ctx, &BranchCreateIn{Repo: repo, Branch: branch})
 	if err != nil || !again.Existed {
 		t.Errorf("重复建分支应当 existed=true 且不报错，得 %+v / %v", again, err)
@@ -318,7 +330,7 @@ func TestLivePullRequestFlow(t *testing.T) {
 	}
 	t.Logf("写文件：新建=%v 提交=%s", w1.Created, w1.CommitSHA)
 
-	// 再写一次同一个文件——**这一步验的是 get-then-put 拿 blob sha**，不带 sha 会 422
+	// Write the same file again — **this step validates get-then-put fetching the blob sha**; without the sha it's a 422
 	w2, err := opFileWrite(ctx, &FileWriteIn{
 		Repo: repo, Path: path, Branch: branch,
 		Content: "sokel 联调 第二次\n", Message: "chore: sokel live test 2",
@@ -348,7 +360,7 @@ func TestLivePullRequestFlow(t *testing.T) {
 		t.Error("打开了 with_patch 却没有 diff 正文")
 	}
 
-	// 回写提交状态：**必须用 head_sha**
+	// Write the commit status back: **must use head_sha**
 	st, err := opCommitStatusCreate(ctx, &CommitStatusCreateIn{
 		Repo: repo, SHA: pr.HeadSHA, State: "success",
 		Context: "sokel/live-test", Description: "联调通过",
@@ -360,7 +372,7 @@ func TestLivePullRequestFlow(t *testing.T) {
 	t.Logf("回写状态 id=%d context=%s —— 去 %s 看 PR 页面上有没有这一条",
 		st.StatusID, st.Context, pr.URL)
 
-	// 检查运行：经典 PAT 会 403，这时报错文案要指路
+	// Check run: a classic PAT gets a 403 here, and the error message needs to point the way
 	if _, err := opCheckRunCreate(ctx, &CheckRunCreateIn{
 		Repo: repo, SHA: pr.HeadSHA, Name: "sokel/live-check", Conclusion: "success",
 		Title: "联调", Summary: "由 live_test 建",
@@ -373,7 +385,7 @@ func TestLivePullRequestFlow(t *testing.T) {
 		t.Log("检查运行建成功——说明这是个有 Checks 权限的细粒度令牌")
 	}
 
-	// 收尾：关掉 PR，别留一堆开着的
+	// Cleanup: close the PR, don't leave a pile of open ones
 	if _, err := opPrUpdate(ctx, &PrUpdateIn{Repo: repo, Number: pr.Number, State: "closed"}); err != nil {
 		t.Errorf("关 PR 失败（请手动清理 %s）: %v", pr.URL, err)
 	}
@@ -381,8 +393,9 @@ func TestLivePullRequestFlow(t *testing.T) {
 		pr.Number, branch, path)
 }
 
-// 限流文案只有在真被限流时才会走到。这条不制造限流，只验「余量头确实存在」——
-// 我们区分「限流」与「权限不够」全靠它。
+// The rate-limit message path is only reached when actually rate limited. This test
+// doesn't trigger rate limiting; it only verifies the "remaining quota header actually
+// exists" — distinguishing "rate limited" from "insufficient permission" depends entirely on it.
 func TestLiveRateLimitHeaderExists(t *testing.T) {
 	ctx := liveCtx(t)
 	_, h, err := ghCall(ctx, http.MethodGet, "/rate_limit", nil)

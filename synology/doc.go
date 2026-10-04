@@ -1,8 +1,9 @@
 package main
 
-// 使用说明：真的 markdown 文件，编译期 embed 进来（见 docs/dev-playbook.md §5.0.0）。
-// 随注册握手上报给平台，界面上「使用说明」看到的就是它——凭证怎么拿、有什么坑，
-// 跟着插件代码走，重新部署即更新。
+// Usage doc: a real markdown file, embedded at build time (see docs/dev-playbook.md
+// §5.0.0). Reported to the platform during the registration handshake — it's what shows
+// as "usage doc" in the UI: how to get the credential, what the gotchas are. It travels
+// with the plugin code, so a redeploy is all it takes to update.
 
 import _ "embed"
 

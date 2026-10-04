@@ -1,8 +1,10 @@
 package main
 
-// 契约级测试。网络面（真发飞书）在联调时用 operation:test 验，这里钉的是
-// 纯逻辑与「装错凭证/漏填」的报错质量——按「验齿五坑」的教训，每条断言
-// 都断具体值，不断「有没有报错」这种空话。
+// Contract-level tests. The network side (actually sending to Feishu) is verified with
+// operation:test during integration testing; what's pinned down here is pure logic and the
+// quality of error messages for "wrong credential / missing field" — per the lesson from "the five
+// pitfalls of mutation-testing self-deception", every assertion checks a specific value, never a
+// vague "did it error or not".
 
 import (
 	"encoding/json"
@@ -14,12 +16,13 @@ import (
 	"testing"
 )
 
-// 签名算法必须逐字节对上飞书文档的样例形态：**secret 在 key 里、被签数据是空串**，
-// 与常规 HMAC 直觉相反。有人按直觉「修好它」的话，所有开了签名校验的机器人
-// 全部 19021——这条测试就是防那次好心。
+// The signature algorithm must match Feishu's documented example byte for byte: **the secret goes
+// in the key, and the data being signed is an empty string**, the opposite of normal HMAC
+// intuition. If someone "fixes" it based on intuition, every bot with signature verification
+// turned on starts getting 19021 — this test exists to guard against that well-meaning mistake.
 func TestSignShape(t *testing.T) {
 	got := sign("mysecret", 1700000000)
-	// 与独立实现比对过的定值：
+	// A fixed value cross-checked against an independent implementation:
 	//   python: hmac.new(b"1700000000\nmysecret", b"", sha256) → base64
 	if got != "Jp33/xXhCipDEpjyHvEyc7mRSyXWHbNz6J8+C3qQKNo=" {
 		t.Errorf("签名 = %q", got)
@@ -33,8 +36,8 @@ func TestSignShape(t *testing.T) {
 }
 
 func TestSendPicksMessageShape(t *testing.T) {
-	// text/markdown/card 三选一的优先级：card > markdown > text。
-	// 都不填要报错，而不是发一条空消息进群。
+	// Priority among the three choices text/markdown/card: card > markdown > text.
+	// Leaving all of them empty must error, rather than posting an empty message into the group.
 	_, err := opSend(newFake(map[string]string{"webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/x"}), &WebhookSendIn{})
 	if err == nil || !strings.Contains(err.Error(), "至少填一个") {
 		t.Errorf("全空要报「至少填一个」，got %v", err)
@@ -48,7 +51,8 @@ func TestWebhookURLValidation(t *testing.T) {
 	}
 }
 
-// 打穿一次真实 POST：开签名时 body 里要有 timestamp+sign，且签名可用密钥重算验证。
+// Drives one real POST end-to-end: with signing on, the body must carry timestamp+sign, and the
+// signature must be verifiable by recomputing it with the secret.
 func TestPostSignsAndParses(t *testing.T) {
 	var got map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +61,7 @@ func TestPostSignsAndParses(t *testing.T) {
 		_, _ = io.WriteString(w, `{"code":0,"msg":"success"}`)
 	}))
 	defer srv.Close()
-	// URL 校验要求含 /open-apis/bot/，假服务器路径带上它。
+	// URL validation requires it to contain /open-apis/bot/, so the fake server's path carries it.
 	ctx := newFake(map[string]string{"webhook_url": srv.URL + "/open-apis/bot/v2/hook/x", "secret": "s3"})
 	if _, err := opSend(ctx, &WebhookSendIn{Text: "hi", AtAll: true}); err != nil {
 		t.Fatal(err)
@@ -77,7 +81,8 @@ func TestPostSignsAndParses(t *testing.T) {
 	}
 }
 
-// 签名错误码要翻译成「去核对密钥」，频控要说「降低频率」。
+// The signature error code must be translated to "go check the secret", and the rate-limit error
+// must say "lower the send rate".
 func TestErrorCodes(t *testing.T) {
 	for code, want := range map[int]string{19021: "签名校验失败", 9499: "频控"} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -92,19 +97,23 @@ func TestErrorCodes(t *testing.T) {
 	}
 }
 
-// 健康检查判码（issue #13 实锤回归钉）：曾经的子串白名单把「token 无效」
-// （19001 + "access token invalid"，机器人被删/URL 粘错的真实应答，实测形状）
-// 恰好判成绿——只要能连上飞书域名几乎必绿。改结构化判码后逐形态钉死。
+// Health check code classification (a regression test pinning down the smoking gun from issue
+// #13): the old substring allowlist classified "invalid token" (19001 + "access token invalid",
+// the real observed response when a bot is removed / a URL is pasted wrong) as green by pure
+// coincidence — effectively always green as long as the Feishu domain is reachable at all. After
+// switching to structured code classification, every shape is pinned down one by one.
 func TestHealthCheckClassifiesByCode(t *testing.T) {
 	cases := []struct {
 		name string
 		resp string
 		ok   bool
 	}{
-		// 实测：伪 token 无论 body 什么形状都回这条——必须红。
+		// Observed: an invalid token returns this exact response no matter what shape the body is —
+		// must be red.
 		{"token 无效=红", `{"code":19001,"data":{},"msg":"param invalid: incoming webhook access token invalid"}`, false},
 		{"签名密钥错=红", `{"code":19021,"msg":"sign match fail or timestamp is not within one hour from current time"}`, false},
-		// token 已过、轮到内容检查 = URL 活：不依赖空内容应答的具体形状。
+		// The token check already passed and it's on to the content check = the URL is alive:
+		// doesn't depend on the specific shape of the empty-content response.
 		{"内容参数错=绿", `{"code":9499,"msg":"Bad Request: fail to parse content"}`, true},
 		{"其他参数错=绿", `{"code":19002,"msg":"param invalid: msg_type"}`, true},
 		{"老版字段参数错=绿", `{"StatusCode":9499,"StatusMessage":"fail to parse content"}`, true},
@@ -126,7 +135,7 @@ func TestHealthCheckClassifiesByCode(t *testing.T) {
 			}
 		})
 	}
-	// 连不上 = 红。
+	// Connection failure = red.
 	t.Run("连接失败=红", func(t *testing.T) {
 		ctx := newFake(map[string]string{"webhook_url": "http://127.0.0.1:1/open-apis/bot/v2/hook/x"})
 		out, err := opHealthCheck(ctx, &HealthCheckIn{})

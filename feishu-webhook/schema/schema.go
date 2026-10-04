@@ -1,13 +1,16 @@
-// Package schema 声明 feishu-webhook 插件的契约。
+// Package schema declares the contracts for the feishu-webhook plugin.
 //
-// 定位：飞书**群自定义机器人**——发消息到「那一个群」的最短路径。不建应用、
-// 不求管理员：群设置 → 群机器人 → 添加自定义机器人，30 秒拿到一条 webhook URL。
+// Scope: a Feishu **group custom bot** — the shortest path to sending a message to "that one
+// group". No app to build, no admin to ask: Group settings → Group bots → Add a custom bot, and
+// you have a webhook URL in 30 seconds.
 //
-// 与 feishu 主插件（自建应用）刻意分成两个插件：一条群 webhook 的授权范围
-// （只能发一个群）和一个企业应用（能发全公司）不该混在一个凭证池里——
-// 凭证类型是安全边界。discord 插件是同构先例。
+// Deliberately split into a separate plugin from the feishu main plugin (self-built app): a group
+// webhook's authorization scope (can only post to one group) and an enterprise app (can post to
+// the whole company) shouldn't be mixed into one credential pool — the credential type is a
+// security boundary. The discord plugin is a structurally identical precedent.
 //
-// 能力边界照实说：只能发、只发这一个群、收不了消息，频控 100 条/分钟。
+// The capability boundary is stated as-is: can only send, only to this one group, can't receive
+// messages, rate-limited to 100 messages/minute.
 package schema
 
 import (
@@ -15,7 +18,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// Send 发消息到群。
+// Send posts a message to the group.
 type Send struct{}
 
 func (Send) Meta() contract.Meta {
@@ -39,7 +42,7 @@ func (Send) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform-mandated credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -56,7 +59,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 群机器人凭证：一条凭证 = 一个群的一个机器人。
+// Credential is a group bot credential: one credential = one bot in one group.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

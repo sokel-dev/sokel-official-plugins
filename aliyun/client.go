@@ -1,14 +1,17 @@
 package main
 
-// 阿里云调用层。两条通道：
+// Alibaba Cloud call layer. Two channels:
 //
-//   - **泛化调用**（callACS）：darabonba-openapi 的统一签名网关，{Endpoint, Action,
-//     Version, 参数} 调任意 RPC 产品——DNS/RDS/ACK 管控/云监控/STS 全走这一条。
-//     不引 per-product 生成 SDK（每个产品一个巨包，而我们只用每家两三个接口）。
-//   - **SLS**（slsClientOf）：日志服务是独立协议独立签名，走官方 aliyun-log-go-sdk。
+//   - **Generic call** (callACS): darabonba-openapi's unified signing gateway, {Endpoint, Action,
+//     Version, params} dials any RPC product — DNS/RDS/ACK control plane/CloudMonitor/STS all go
+//     through this one. We avoid pulling in per-product generated SDKs (one giant package per
+//     product, when we only use two or three endpoints per vendor).
+//   - **SLS** (slsClientOf): the log service has its own protocol and signing, via the official
+//     aliyun-log-go-sdk.
 //
-// client 按 (AK, endpoint) 缓存：每次新建虽然不至于重新握手（AK 签名无状态），
-// 但 darabonba 的 client 构造并不便宜，也没理由重复做。
+// Clients are cached by (AK, endpoint): creating a new one wouldn't force a fresh handshake
+// (AK signing is stateless), but building a darabonba client isn't cheap, and there's no reason
+// to redo it.
 
 import (
 	"context"
@@ -32,8 +35,9 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// regionOf 操作级 region 覆盖凭证默认；都没有则用杭州——
-// 报错时会带上「哪个 region」的信息，不至于静默查错地方。
+// regionOf lets an operation-level region override the credential default; falls back to
+// Hangzhou if neither is set — errors still carry "which region" info, so lookups don't
+// silently hit the wrong place.
 func regionOf(cred Cred, override string) string {
 	if r := strings.TrimSpace(override); r != "" {
 		return r
@@ -70,7 +74,8 @@ func acsClientOf(cred Cred, endpoint string) (*openapi.Client, error) {
 	return c, nil
 }
 
-// callACS 泛化调用一个 RPC Action。params 全走 query（阿里云 RPC 风格的规范位置）。
+// callACS makes a generic call to an RPC Action. params always go in the query (the canonical
+// place for Alibaba Cloud's RPC style).
 func callACS(ctx context.Context, cred Cred, endpoint, action, version string, params map[string]any) (map[string]any, error) {
 	c, err := acsClientOf(cred, endpoint)
 	if err != nil {
@@ -101,14 +106,15 @@ func callACS(ctx context.Context, cred Cred, endpoint, action, version string, p
 	}
 	body, _ := res["body"].(map[string]any)
 	if body == nil {
-		// 有些网关把 body 平铺在顶层
+		// Some gateways flatten the body into the top level.
 		body = res
 	}
 	return body, nil
 }
 
-// acsErr 高频错误码翻译成「下一步做什么」。阿里云的报错是给开发者的英文 + RequestId，
-// 看到它的是画布上配节点的人。
+// acsErr translates high-frequency error codes into "what to do next". Alibaba Cloud's raw
+// errors are developer-facing English plus a RequestId, but the person seeing them is
+// configuring a node on the canvas.
 func acsErr(action string, err error) error {
 	msg := err.Error()
 	switch {
@@ -155,7 +161,7 @@ func slsClientOf(cred Cred, region string) (sls.ClientInterface, error) {
 	return c, nil
 }
 
-// slsErr SLS 独立协议的错误翻译。
+// slsErr translates errors for SLS's independent protocol.
 func slsErr(err error) error {
 	msg := err.Error()
 	switch {
@@ -169,7 +175,8 @@ func slsErr(err error) error {
 	return fmt.Errorf("SLS 调用失败: %w", err)
 }
 
-// dig 从 map 应答里逐层取值（阿里云应答嵌套深，且大小写驼峰）。
+// dig walks a map response level by level (Alibaba Cloud responses nest deeply and use
+// CamelCase keys).
 func dig(m map[string]any, path ...string) any {
 	var cur any = m
 	for _, p := range path {
@@ -220,8 +227,8 @@ func digFloat(m map[string]any, path ...string) float64 {
 	return 0
 }
 
-// digList 取数组（阿里云的列表都包在 {"Items":{"Item":[...]}} 这类双层壳里，
-// path 直接写到最里层的数组）。
+// digList extracts an array (Alibaba Cloud lists are always wrapped in a double shell like
+// {"Items":{"Item":[...]}}; path should point straight at the innermost array).
 func digList(m map[string]any, path ...string) []map[string]any {
 	v := dig(m, path...)
 	arr, ok := v.([]any)

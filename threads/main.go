@@ -1,9 +1,10 @@
-// threads —— Sokel 第一方发布器插件：发 Threads（Meta）。
+// threads — a Sokel first-party publisher plugin: posting to Threads (Meta).
 //
-// 与其余发布器同一套 publish 契约。四件特殊事见 schema/schema.go 顶部：
-// 两步发布（已包成一个操作）、媒体靠 URL 拉取、24 小时 250 条配额、令牌 60 天。
+// Uses the same publish contract as the other publishers. The four quirks are covered at the top
+// of schema/schema.go: two-step publishing (already wrapped into one operation), media fetched by
+// URL, a 250-post/24h quota, and a 60-day token.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./threads
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./threads
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -28,7 +29,7 @@ func main() {
 
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
-	RegisterAuth(p) // Threads OAuth：threads_basic + threads_content_publish
+	RegisterAuth(p) // Threads OAuth: threads_basic + threads_content_publish
 
 	OnThPostCreate(p, opPostCreate)
 	OnThPostThread(p, opPostThread)

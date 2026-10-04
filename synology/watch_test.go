@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// 忽略规则：Synology 垃圾/临时文件恒忽略；凭证追加子串生效；正常文件放行。
+// Ignore rules: Synology junk/temp files are always ignored; credential-appended substrings take effect; normal files pass through.
 func TestIsIgnoredName(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -21,7 +21,7 @@ func TestIsIgnoredName(t *testing.T) {
 		{"#recycle", nil, true},
 		{"Thumbs.db", nil, true},
 		{"._report.pdf", nil, true}, // AppleDouble
-		{"~$草稿.docx", nil, true},    // Office 锁
+		{"~$草稿.docx", nil, true},    // Office lock file
 		{"a.tmp", nil, true},
 		{"movie.part", nil, true},
 		{"报告.pdf", nil, false},
@@ -35,7 +35,7 @@ func TestIsIgnoredName(t *testing.T) {
 	}
 }
 
-// 路径 jail：绝对/相对都限制在 root 内；.. 越界与 root 外绝对路径拒绝。
+// Path jail: both absolute and relative paths are confined within root; .. traversal and an absolute path outside root are rejected.
 func TestJailTo(t *testing.T) {
 	root := "/watch/研报"
 	if p, err := jailTo(root, "a/b.pdf"); err != nil || p != "/watch/研报/a/b.pdf" {
@@ -55,7 +55,7 @@ func TestJailTo(t *testing.T) {
 	}
 }
 
-// 凭证解析：include/ignore/settle 归一；path 必填。
+// Credential parsing: include/ignore/settle are normalized; path is required.
 func TestParseWatchCfg(t *testing.T) {
 	cfg, err := parseWatchCfg(map[string]string{"path": "/watch/a/", "include": " PDF, .docx ", "settle_seconds": "5", "ignore": "draft, "})
 	if err != nil {
@@ -72,11 +72,12 @@ func TestParseWatchCfg(t *testing.T) {
 	}
 }
 
-// 端到端（真实文件系统）：新建文件落定后报 created；追加写报 changed；删除报 deleted；
-// 初始已存在的文件不发事件；忽略目录里的文件不报。
+// End-to-end (real filesystem): a new file reports created once settled; an appended
+// write reports changed; a delete reports deleted; a file that already existed at
+// startup emits no event; a file inside an ignored directory is never reported.
 func TestFSWatcherLifecycle(t *testing.T) {
 	root := t.TempDir()
-	// 初始已存在的文件：只盘点，不发事件。
+	// A file that already exists at startup: only inventoried, no event emitted.
 	if err := os.WriteFile(filepath.Join(root, "已有.pdf"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -96,20 +97,20 @@ func TestFSWatcherLifecycle(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- fw.run(ctx) }()
-	time.Sleep(200 * time.Millisecond) // 等 watch 建好
+	time.Sleep(200 * time.Millisecond) // wait for the watch to be set up
 
-	// created：写入 → 落定。
+	// created: write → settle.
 	target := filepath.Join(root, "新文件.txt")
 	if err := os.WriteFile(target, []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// 忽略目录中的文件：不报。
+	// A file inside an ignored directory: not reported.
 	if err := os.WriteFile(filepath.Join(root, "@eaDir", "SYNO.jpg"), []byte("t"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(400 * time.Millisecond)
 
-	// changed：追加写。
+	// changed: an appended write.
 	f, err := os.OpenFile(target, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +119,7 @@ func TestFSWatcherLifecycle(t *testing.T) {
 	_ = f.Close()
 	time.Sleep(400 * time.Millisecond)
 
-	// deleted。
+	// deleted.
 	if err := os.Remove(target); err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +152,7 @@ func TestFSWatcherLifecycle(t *testing.T) {
 	}
 }
 
-// 新建子目录动态补 watch：子目录里的新文件也能报 created。
+// A newly created subdirectory dynamically gets a watch added: new files inside it also report created.
 func TestFSWatcherNewSubdir(t *testing.T) {
 	root := t.TempDir()
 	var mu sync.Mutex
@@ -174,7 +175,7 @@ func TestFSWatcherNewSubdir(t *testing.T) {
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(200 * time.Millisecond) // 等子目录 watch 补上
+	time.Sleep(200 * time.Millisecond) // wait for the subdirectory watch to be added
 	if err := os.WriteFile(filepath.Join(sub, "内部.pdf"), []byte("d"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -195,10 +196,13 @@ func TestFSWatcherNewSubdir(t *testing.T) {
 	}
 }
 
-// 事件契约由 schema 声明生成：三个事件、公共字段一致、typed 触发口存在。
+// The event contract is generated from the schema declaration: three events, consistent
+// common fields, and typed trigger functions exist.
 //
-// 这条的意义在于「以前根本做不到」：事件只能命令式声明 + 无类型 payload，
-// 事件名拼错、字段名写错都要等运行期，而症状是「事件没触发」这种最难查的那类。
+// The point of this test is that "this used to be impossible to catch": events used to be
+// declared imperatively with an untyped payload, so a misspelled event name or field name
+// would only surface at runtime -- and as the hardest symptom to diagnose, "the event just
+// doesn't fire."
 func TestEventContractGenerated(t *testing.T) {
 	h := &captureEventHost{}
 	DeclareEvents(h)
@@ -215,7 +219,7 @@ func TestEventContractGenerated(t *testing.T) {
 			t.Errorf("缺事件 %s", want)
 		}
 	}
-	// 公共字段：四个都得在，且删除事件也有（它没有 size/mtime，但公共的四个必须有）
+	// Common fields: all four must be present, including on the delete event (it has no size/mtime, but the four common fields are mandatory).
 	if len(h.common) != 4 {
 		t.Fatalf("公共字段应有 4 个: %+v", h.commonNames)
 	}

@@ -11,8 +11,10 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// callAPICtx：事件源侧调用。token 优先取平台注册时下发的凭证 bot_token（在平台凭证管理里配，default 工作空间），
-// 缺省回退环境变量 TELEGRAM_BOT_TOKEN（多 bot/多工作空间部署时用 env 分部署）。
+// callAPICtx is the event-source-side call. The token is taken first from the bot_token credential
+// issued when the plugin registered with the platform (configured in the platform's credential
+// manager, default workspace), falling back to the TELEGRAM_BOT_TOKEN environment variable
+// (useful for splitting deployments by env when running multiple bots/workspaces).
 func callAPICtx(ctx plugin.SourceCtx, method string, params map[string]any) (any, error) {
 	tok := ctx.Credential()["bot_token"]
 	if tok == "" {
@@ -24,12 +26,13 @@ func callAPICtx(ctx plugin.SourceCtx, method string, params map[string]any) (any
 	return callTelegram(ctx, tok, method, params)
 }
 
-// 接收侧：长轮询 getUpdates，把每条 update 按类型平铺成事件 payload → ctx.Trigger 推给平台。
-// payload 字段名与 DeclareEvent 声明的 struct（sokel tag）一致，下游节点按契约引用。
+// Receiving side: long-polls getUpdates, flattens each update by type into an event payload, and
+// pushes it to the platform via ctx.Trigger. Payload field names match the struct (sokel tag)
+// declared with DeclareEvent, so downstream nodes can reference them per the contract.
 
-// —— 事件 payload 契约（每种事件一套；Raw 兜底完整 update）——
+// —— Event payload contracts (one per event type; Raw carries the full update as a fallback) ——
 
-// —— 原始 update 解析 ——
+// —— Raw update parsing ——
 
 type tgUpdate struct {
 	UpdateID int64 `json:"update_id"`
@@ -67,7 +70,8 @@ type tgChat struct {
 	ID int64 `json:"id"`
 }
 
-// runUpdatesSource：长轮询循环。allowed_updates 与声明的事件对齐（省流量，Telegram 不推没订阅的类型）。
+// runUpdatesSource is the long-polling loop. allowed_updates is kept in sync with the declared
+// events (saves bandwidth — Telegram won't push types nobody subscribed to).
 func runUpdatesSource(ctx plugin.SourceCtx) error {
 	offset := int64(0)
 	allowed := []string{"message", "edited_message", "callback_query", "my_chat_member"}
@@ -83,8 +87,9 @@ func runUpdatesSource(ctx plugin.SourceCtx) error {
 		}
 		for _, u := range ups {
 			offset = u.UpdateID + 1
-			// 事件名与 payload 字段都由生成的 TriggerXxx 定死——此前是「拼字符串 +
-			// 无类型 payload」，写错要等运行期，症状还是最难查的「事件没触发」。
+			// Both the event name and the payload fields are pinned by the generated TriggerXxx —
+			// it used to be "concatenated strings + untyped payload", where a mistake only
+			// surfaced at runtime, and the symptom was the hardest kind to debug: "event never fired".
 			if event, err := triggerUpdate(ctx, u); err != nil {
 				log.Printf("[tg] 推事件 %s 失败: %v", event, err)
 			}
@@ -92,8 +97,8 @@ func runUpdatesSource(ctx plugin.SourceCtx) error {
 	}
 }
 
-// triggerUpdate：一条 update → 对应的 typed 触发。未识别的 update 直接跳过。
-// 返回事件名仅供出错时打日志。
+// triggerUpdate maps one update to its corresponding typed trigger. Unrecognized updates are
+// skipped. The returned event name is only used for logging on error.
 func triggerUpdate(ctx plugin.SourceCtx, u tgUpdate) (string, error) {
 	id := strconv.FormatInt(u.UpdateID, 10)
 	switch {
@@ -120,7 +125,8 @@ func triggerUpdate(ctx plugin.SourceCtx, u tgUpdate) (string, error) {
 	return "", nil
 }
 
-// getUpdates：一次长轮询（timeout=25s）。复用 callAPI 的凭证与 HTTP，但要 raw update 数组，故单独解析。
+// getUpdates runs a single long-poll (timeout=25s). It reuses callAPI's credential and HTTP
+// handling, but needs the raw update array, so it parses the response separately.
 func getUpdates(ctx plugin.SourceCtx, offset int64, allowed []string) ([]tgUpdate, error) {
 	res, err := callAPICtx(ctx, "getUpdates", map[string]any{
 		"offset": offset, "timeout": 25, "allowed_updates": allowed,
@@ -128,7 +134,7 @@ func getUpdates(ctx plugin.SourceCtx, offset int64, allowed []string) ([]tgUpdat
 	if err != nil {
 		return nil, err
 	}
-	// res = []any（update 对象数组）；回填进 tgUpdate。
+	// res = []any (an array of update objects); round-trip it back into tgUpdate.
 	b, _ := json.Marshal(res)
 	var ups []tgUpdate
 	_ = json.Unmarshal(b, &ups)

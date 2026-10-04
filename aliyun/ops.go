@@ -1,7 +1,8 @@
 package main
 
-// 全部操作实现。每家产品只挑了两三个高频接口做 typed，其余走 call——
-// 各接口的 Action/Version 常量集中在这里，改版时一眼可查。
+// All operation implementations. For each product we've only made two or three high-frequency
+// endpoints typed; the rest go through call. Each endpoint's Action/Version constants are
+// gathered here so they're easy to spot when the API version changes.
 
 import (
 	"encoding/json"
@@ -18,7 +19,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// parseJSONArray 云监控把 Datapoints 塞成 JSON 串（历史包袱），解不开就当空。
+// parseJSONArray — CloudMonitor stuffs Datapoints into a JSON string (legacy baggage); if it
+// can't be parsed, treat it as empty.
 func parseJSONArray(s string) []map[string]any {
 	var out []map[string]any
 	_ = json.Unmarshal([]byte(s), &out)
@@ -27,7 +29,7 @@ func parseJSONArray(s string) []map[string]any {
 
 // —— SLS ——
 
-// parseWhen RFC3339 或秒级时间戳 → Unix 秒。
+// parseWhen converts RFC3339 or a second-level timestamp into Unix seconds.
 func parseWhen(s string, def int64) (int64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -170,7 +172,8 @@ func opRdsInstanceDetail(ctx plugin.Ctx, in *RdsInstanceDetailIn) (*RdsInstanceD
 		MaintainTime:   digStr(it, "MaintainTime"),
 		Raw:            it,
 	}
-	// 磁盘已用另一个接口才有；查不到不失败——详情的其余部分照给。
+	// Disk usage only comes from a different endpoint; if that lookup fails, don't fail
+	// the whole call — still return the rest of the detail.
 	if res, rerr := callACS(ctx, cred, rdsEndpoint, "DescribeDBInstanceResourceUsage", rdsVersion,
 		map[string]any{"DBInstanceId": id}); rerr == nil {
 		out.DiskUsedGb = digFloat(res, "DiskUsed") / (1 << 30)
@@ -187,7 +190,8 @@ func opRdsSlowLogs(ctx plugin.Ctx, in *RdsSlowLogsIn) (*RdsSlowLogsOut, error) {
 	if days <= 0 {
 		days = 1
 	}
-	// 阿里云要求 UTC 的 yyyy-MM-ddZ，且 end 不含当天——取 [今天-days, 明天)。
+	// Alibaba Cloud requires UTC yyyy-MM-ddZ, and end excludes the current day — so we take
+	// [today-days, tomorrow).
 	now := time.Now().UTC()
 	start := now.AddDate(0, 0, -days).Format("2006-01-02") + "Z"
 	end := now.AddDate(0, 0, 1).Format("2006-01-02") + "Z"
@@ -286,7 +290,8 @@ func opDnsUpdateRecord(ctx plugin.Ctx, in *DNSUpdateRecordIn) (*DNSUpdateRecordO
 		params["TTL"] = in.TTL
 	}
 	if _, err := callACS(ctx, credOf(ctx), dnsEndpoint, "UpdateDomainRecord", dnsVersion, params); err != nil {
-		// 值没变时阿里云回 DomainRecordDuplicate——对调用方来说这就是幂等成功。
+		// When the value is unchanged, Alibaba Cloud returns DomainRecordDuplicate — to the
+		// caller this counts as an idempotent success.
 		if strings.Contains(err.Error(), "DomainRecordDuplicate") {
 			return &DNSUpdateRecordOut{OK: true}, nil
 		}
@@ -309,7 +314,8 @@ func opDnsDeleteRecord(ctx plugin.Ctx, in *DNSDeleteRecordIn) (*DNSDeleteRecordO
 
 // —— ACK ——
 //
-// 容器服务是 ROA 风格（RESTful 路径），泛化调用换 Style=ROA + Pathname。
+// Container Service is ROA-style (RESTful paths); the generic call switches to Style=ROA +
+// Pathname for it.
 
 const csVersion = "2015-12-15"
 
@@ -348,7 +354,7 @@ func opAckClusters(ctx plugin.Ctx, _ *AckClustersIn) (*AckClustersOut, error) {
 		return nil, err
 	}
 	items := digList(body, "clusters")
-	if len(items) == 0 { // 兼容平铺形态
+	if len(items) == 0 { // tolerate a flat response shape
 		items = digList(map[string]any{"x": body["clusters"]}, "x")
 	}
 	out := &AckClustersOut{}
@@ -387,7 +393,7 @@ func opAckKubeconfig(ctx plugin.Ctx, in *AckKubeconfigIn) (*AckKubeconfigOut, er
 	return &AckKubeconfigOut{Kubeconfig: kc}, nil
 }
 
-// —— 云监控 ——
+// —— CloudMonitor ——
 
 const cmsVersion = "2019-01-01"
 
@@ -419,7 +425,7 @@ func opCmsMetric(ctx plugin.Ctx, in *CmsMetricIn) (*CmsMetricOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Datapoints 是**JSON 串**不是数组（云监控的历史包袱）。
+	// Datapoints is a **JSON string**, not an array (CloudMonitor legacy baggage).
 	var points []map[string]any
 	if s := digStr(body, "Datapoints"); s != "" && s != "[]" {
 		points = parseJSONArray(s)
@@ -431,7 +437,7 @@ func opCmsMetric(ctx plugin.Ctx, in *CmsMetricIn) (*CmsMetricOut, error) {
 	return out, nil
 }
 
-// —— 移动推送（EMAS）——
+// —— Mobile push (EMAS) ——
 
 const (
 	pushEndpoint = "cloudpush.aliyuncs.com"
@@ -453,7 +459,7 @@ func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 	}
 	targetValue := strings.TrimSpace(in.TargetValue)
 	if target == "ALL" {
-		targetValue = "ALL" // 广播时阿里云要求 TargetValue 也是 ALL
+		targetValue = "ALL" // when broadcasting, Alibaba Cloud requires TargetValue to also be ALL
 	} else if targetValue == "" {
 		return nil, fmt.Errorf("目标类型是 %s 时必须填目标值（多个逗号分隔）", target)
 	}
@@ -470,7 +476,8 @@ func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 		"Target": target, "TargetValue": targetValue,
 		"Title": title, "Body": body,
 	}
-	// iOS 走 APNs 必须声明证书环境；只推 Android 时这个参数无害。
+	// iOS over APNs must declare the certificate environment; this param is harmless when
+	// only pushing to Android.
 	env := strings.TrimSpace(in.IosEnv)
 	if env == "" {
 		env = "PRODUCT"
@@ -479,7 +486,8 @@ func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 		params["iOSApnsEnv"] = env
 	}
 	if len(in.Extras) > 0 {
-		// 自定义参数 Android/iOS 是两个入参，一份 extras 两边都发——客户端各取各的。
+		// Custom params are two separate inputs for Android/iOS; the same extras get sent to
+		// both — each client picks what it needs.
 		b, _ := json.Marshal(in.Extras)
 		params["AndroidExtParameters"] = string(b)
 		params["iOSExtParameters"] = string(b)
@@ -491,7 +499,7 @@ func opPush(ctx plugin.Ctx, in *PushIn) (*PushOut, error) {
 	return &PushOut{MessageID: digStr(body2, "MessageId")}, nil
 }
 
-// —— 邮件推送（DirectMail）——
+// —— Email push (DirectMail) ——
 
 func opSendMail(ctx plugin.Ctx, in *SendMailIn) (*SendMailOut, error) {
 	account, to, subject := strings.TrimSpace(in.AccountName), strings.TrimSpace(in.To), strings.TrimSpace(in.Subject)
@@ -528,7 +536,7 @@ func opSendMail(ctx plugin.Ctx, in *SendMailIn) (*SendMailOut, error) {
 	return &SendMailOut{EnvID: digStr(body, "EnvId")}, nil
 }
 
-// —— 保底 / 体检 ——
+// —— Fallback / health check ——
 
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	ep, action, version := strings.TrimSpace(in.Endpoint), strings.TrimSpace(in.Action), strings.TrimSpace(in.Version)

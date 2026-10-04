@@ -6,10 +6,12 @@ import (
 	"testing"
 )
 
-// mapUpdate：一条 update → (事件类型, payload)。按 update 里非空的那个字段判类型，平铺关键字段。
-// update → 事件的映射：现在走 typed 的 TriggerXxx，所以用一个假 SourceCtx 录下
-// 「推了哪个事件、payload 是什么」。比原先断言 mapUpdate 的返回值更贴近真实路径——
-// 事件名与字段名都由生成物定死，这条测的是「哪条 update 对应哪个事件」这层判断。
+// mapUpdate: one update → (event type, payload). The type is decided by whichever field in the
+// update is non-nil, and the key fields get flattened.
+// update → event mapping: this now goes through the typed TriggerXxx, so a fake SourceCtx records
+// "which event got pushed, with what payload". This is closer to the real path than asserting
+// mapUpdate's return value directly — the event name and field names are both pinned by the
+// generated code, and this test covers the "which update maps to which event" decision layer.
 func TestTriggerUpdate(t *testing.T) {
 	parse := func(s string) tgUpdate {
 		var u tgUpdate
@@ -51,14 +53,14 @@ func TestTriggerUpdate(t *testing.T) {
 	if _, ev := fire(`{"update_id":4,"my_chat_member":{"chat":{"id":300},"from":{"id":9}}}`); ev != "my_chat_member" {
 		t.Errorf("应推 my_chat_member: %q", ev)
 	}
-	// 未订阅/未识别的 update（如 poll）：不推事件，也不报错
+	// Unsubscribed/unrecognized update (e.g. poll): no event pushed, no error either
 	rec, ev = fire(`{"update_id":5,"poll":{"id":"p"}}`)
 	if ev != "" || rec.event != "" {
 		t.Errorf("未识别类型不该推事件: ev=%q rec=%+v", ev, rec)
 	}
 }
 
-// recordingSource：只录不发的 plugin.SourceCtx。
+// recordingSource is a plugin.SourceCtx that only records, never actually sends.
 type recordingSource struct {
 	plugin.SourceCtx
 	event, eventID string

@@ -1,17 +1,23 @@
-// Package schema 声明 aliyun 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the aliyun plugin.
 //
-// 定位：阿里云**管控面**一网打尽——SLS 日志、RDS、DNS、ACK、云监控 + call 保底。
-// 集群内的工作负载操作（查 pod/看日志/重启 deployment）不在这里：那是 K8s API 的事，
-// 用通用 kubernetes 插件（凭证 = kubeconfig，本插件的 ack_kubeconfig 能导出来喂它）。
+// Scope: covers Alibaba Cloud's **control plane** end to end — SLS logging, RDS, DNS, ACK,
+// CloudMonitor, plus the call fallback. In-cluster workload operations (checking pods, viewing
+// logs, restarting a deployment) are not here: that's the K8s API's job, handled by the generic
+// kubernetes plugin (credential = kubeconfig; this plugin's ack_kubeconfig can export one to
+// feed it).
 //
-// 一个别家没有的红利决定了本插件的形状：**阿里云 OpenAPI 是统一网关**——一套签名、
-// {Action, Version, Endpoint} 三元组能调任意 RPC 产品。所以 call 保底操作天然覆盖
-// 全部产品线（ECS/SLB/OSS 管控/…），typed 操作只是把高频的拼好参数。
-// 唯一例外是 SLS：独立协议独立签名，走官方 aliyun-log-go-sdk。
+// One advantage no other vendor offers shapes this plugin: **Alibaba Cloud's OpenAPI is a
+// unified gateway** — one signing scheme, and an {Action, Version, Endpoint} triple can call any
+// RPC product. So the call fallback operation naturally covers the entire product line
+// (ECS/SLB/OSS control, etc.); typed operations just pre-fill the params for the high-frequency
+// ones. The one exception is SLS: it has its own protocol and signing, via the official
+// aliyun-log-go-sdk.
 //
-// 安全边界：权限控制点在**阿里云 RAM**，插件不自造权限系统——凭证建议用最小权限的
-// RAM 用户（docs 有现成策略 JSON）。高危写操作（RDS 重启/删实例/删集群）**不做 typed**，
-// call 能调但要显式拼参数，有意抬高门槛。
+// Security boundary: the permission control point is **Alibaba Cloud RAM**; the plugin doesn't
+// invent its own permission system — credentials should use a least-privilege RAM user (docs
+// ship a ready-made policy JSON). High-risk write operations (restarting/deleting an RDS
+// instance, deleting a cluster) **are deliberately not typed**: call can still reach them, but
+// requires spelling out the params explicitly, raising the bar on purpose.
 package schema
 
 import (
@@ -19,9 +25,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// —— SLS 日志 ——
+// —— SLS logging ——
 
-// SlsQuery 查日志。
+// SlsQuery queries logs.
 type SlsQuery struct{}
 
 func (SlsQuery) Meta() contract.Meta {
@@ -51,7 +57,7 @@ func (SlsQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// SlsListLogstores 列出 project 下的 logstore。
+// SlsListLogstores lists the logstores under a project.
 type SlsListLogstores struct{}
 
 func (SlsListLogstores) Meta() contract.Meta {
@@ -68,7 +74,7 @@ func (SlsListLogstores) Outputs() []contract.FieldSpec {
 
 // —— RDS ——
 
-// RdsInstances 实例列表。
+// RdsInstances lists instances.
 type RdsInstances struct{}
 
 func (RdsInstances) Meta() contract.Meta {
@@ -89,7 +95,7 @@ func (RdsInstances) Outputs() []contract.FieldSpec {
 	}
 }
 
-// RdsInstance 一个实例的概要。
+// RdsInstance is a summary of one instance.
 type RdsInstance struct {
 	ID          string `sokel:"id" label:"实例 ID"`
 	Description string `sokel:"description,optional" label:"备注名"`
@@ -100,7 +106,7 @@ type RdsInstance struct {
 	ExpireTime  string `sokel:"expire_time,optional" label:"到期时间"`
 }
 
-// RdsInstanceDetail 实例详情（含容量水位）。
+// RdsInstanceDetail is instance detail (including capacity levels).
 type RdsInstanceDetail struct{}
 
 func (RdsInstanceDetail) Meta() contract.Meta {
@@ -126,7 +132,7 @@ func (RdsInstanceDetail) Outputs() []contract.FieldSpec {
 	}
 }
 
-// RdsSlowLogs 慢 SQL 汇总。
+// RdsSlowLogs is a slow SQL summary.
 type RdsSlowLogs struct{}
 
 func (RdsSlowLogs) Meta() contract.Meta {
@@ -148,7 +154,7 @@ func (RdsSlowLogs) Outputs() []contract.FieldSpec {
 	}
 }
 
-// RdsSlowSQL 一条慢 SQL 模板。
+// RdsSlowSQL is one slow SQL template.
 type RdsSlowSQL struct {
 	SQLText          string  `sokel:"sql_text" label:"SQL 模板"`
 	Database         string  `sokel:"database,optional" label:"库"`
@@ -161,7 +167,7 @@ type RdsSlowSQL struct {
 
 // —— DNS ——
 
-// DnsRecords 解析记录列表。
+// DnsRecords lists resolution records.
 type DnsRecords struct{}
 
 func (DnsRecords) Meta() contract.Meta {
@@ -184,7 +190,7 @@ func (DnsRecords) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DnsRecord 一条解析记录。
+// DnsRecord is one resolution record.
 type DnsRecord struct {
 	RecordID string `sokel:"record_id" label:"记录 ID"`
 	RR       string `sokel:"rr" label:"主机记录"`
@@ -194,7 +200,7 @@ type DnsRecord struct {
 	Status   string `sokel:"status" label:"状态" desc:"ENABLE/DISABLE"`
 }
 
-// DnsAddRecord 加解析记录。
+// DnsAddRecord adds a resolution record.
 type DnsAddRecord struct{}
 
 func (DnsAddRecord) Meta() contract.Meta {
@@ -219,7 +225,7 @@ func (DnsAddRecord) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.String("record_id").Label("记录 ID")}
 }
 
-// DnsUpdateRecord 改解析记录。
+// DnsUpdateRecord updates a resolution record.
 type DnsUpdateRecord struct{}
 
 func (DnsUpdateRecord) Meta() contract.Meta {
@@ -241,7 +247,7 @@ func (DnsUpdateRecord) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// DnsDeleteRecord 删解析记录。
+// DnsDeleteRecord deletes a resolution record.
 type DnsDeleteRecord struct{}
 
 func (DnsDeleteRecord) Meta() contract.Meta {
@@ -259,7 +265,7 @@ func (DnsDeleteRecord) Outputs() []contract.FieldSpec {
 
 // —— ACK ——
 
-// AckClusters 集群列表。
+// AckClusters lists clusters.
 type AckClusters struct{}
 
 func (AckClusters) Meta() contract.Meta {
@@ -276,7 +282,7 @@ func (AckClusters) Outputs() []contract.FieldSpec {
 	}
 }
 
-// AckCluster 一个集群概要。
+// AckCluster is a summary of one cluster.
 type AckCluster struct {
 	ClusterID string `sokel:"cluster_id" label:"集群 ID"`
 	Name      string `sokel:"name" label:"名称"`
@@ -287,7 +293,7 @@ type AckCluster struct {
 	Type      string `sokel:"type,optional" label:"类型" desc:"ManagedKubernetes 等"`
 }
 
-// AckKubeconfig 导出 kubeconfig。
+// AckKubeconfig exports the kubeconfig.
 type AckKubeconfig struct{}
 
 func (AckKubeconfig) Meta() contract.Meta {
@@ -309,9 +315,9 @@ func (AckKubeconfig) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 云监控 ——
+// —— CloudMonitor ——
 
-// CmsMetric 查指标。
+// CmsMetric queries a metric.
 type CmsMetric struct{}
 
 func (CmsMetric) Meta() contract.Meta {
@@ -339,9 +345,9 @@ func (CmsMetric) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 移动推送（EMAS）——
+// —— Mobile push (EMAS) ——
 
-// Push 推送到 App。
+// Push sends a push to an App.
 type Push struct{}
 
 func (Push) Meta() contract.Meta {
@@ -389,9 +395,9 @@ func (Push) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 邮件推送（DirectMail）——
+// —— Email push (DirectMail) ——
 
-// SendMail 发邮件。
+// SendMail sends an email.
 type SendMail struct{}
 
 func (SendMail) Meta() contract.Meta {
@@ -419,9 +425,9 @@ func (SendMail) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 保底 / 体检 ——
+// —— Fallback / health check ——
 
-// Call 泛化调用：任意 RPC 产品。
+// Call makes a generic call: any RPC product.
 type Call struct{}
 
 func (Call) Meta() contract.Meta {
@@ -446,7 +452,7 @@ func (Call) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform's standard credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -464,9 +470,10 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：AccessKey。建议用最小权限的 RAM 用户（策略样例见使用说明），别用主账号 AK。
+// Credential: AccessKey. Use a least-privilege RAM user (policy sample in the usage docs);
+// avoid the primary account's AK.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

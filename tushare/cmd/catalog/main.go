@@ -1,17 +1,21 @@
-// catalog：把 TuShare Pro 文档站的接口规格抓成一份 JSON，作为 codegen 的输入。
+// catalog scrapes the TuShare Pro doc site's endpoint specs into a single JSON file, as the input
+// for codegen.
 //
-// 为什么自己抓（而不是用 reportify/core/tools/tushare/scraper 那份现成的）：
-// 那份是**按表头猜表格类型**的——见「必选」当入参、见「默认显示」当出参。
-// 遇到出参表少一列或页面多一张示例表就分错，实测 232 个接口里 29 个字段表是错的，
-// 其中 25 个（daily / daily_basic / margin / top10_holders / forecast …）
-// 整张出参表被当成入参吞掉，出参为空。生成出来的操作在画布上没有任何输出字段，且不报错。
+// Why scrape it ourselves (instead of using the one already in reportify/core/tools/tushare/scraper):
+// that one **guesses the table type from the column headers** — seeing "必选" (required) it treats
+// the table as inputs, seeing "默认显示" (default shown) it treats it as outputs. It misclassifies
+// whenever an outputs table is missing a column or a page has an extra sample table; in practice 29
+// of the field tables across 232 endpoints were wrong, and in 25 of those (daily / daily_basic /
+// margin / top10_holders / forecast, …) the entire outputs table got swallowed as inputs, leaving
+// outputs empty. The generated operation then has zero output fields on the canvas, with no error.
 //
-// 这里改成**按段落标记切**：页面结构是
+// This one instead **splits by paragraph markers**: the page structure is
 //
-//	<p>输入参数</p><table>…</table>
-//	<p>输出参数</p><table>…</table>
+//	<p>输入参数</p><table>…</table>  (input parameters)
+//	<p>输出参数</p><table>…</table>  (output parameters)
 //
-// 标记明确、无歧义；这两个标记之外的表（示例数据）一律不看。
+// The markers are explicit and unambiguous; any table outside these two markers (sample data) is
+// simply ignored.
 //
 //	go run ./cmd/catalog -out catalog/tushare-apis.json
 package main
@@ -69,7 +73,8 @@ func run(outPath string, workers, limit int) error {
 				case err != nil:
 					skipped = append(skipped, fmt.Sprintf("doc_id=%d %s: %v", nodes[i].DocID, nodes[i].Path, err))
 				case api == nil:
-					// 分类页与已下线的空页都走这里，不是错误，但要能数得出来。
+					// Category pages and decommissioned empty pages both land here; it's not an
+					// error, but it still needs to be countable.
 					skipped = append(skipped, fmt.Sprintf("doc_id=%d %s: %s", nodes[i].DocID, nodes[i].Path, why))
 				default:
 					apis[i] = *api
@@ -121,31 +126,32 @@ func run(outPath string, workers, limit int) error {
 	return nil
 }
 
-// ===== 数据形状 =====
+// ===== Data shapes =====
 
-// API 一个接口页的规格。
+// API is one endpoint page's spec.
 type API struct {
-	APIName  string  `json:"api_name"` // daily
-	Title    string  `json:"title"`    // A股日线行情
+	APIName  string  `json:"api_name"` // e.g. daily
+	Title    string  `json:"title"`    // e.g. A-share daily quotes
 	DocID    int     `json:"doc_id"`
-	Category string  `json:"category"` // 股票数据/行情数据/历史日线
+	Category string  `json:"category"` // e.g. Stock data/Quotes data/Historical daily bars
 	Describe string  `json:"describe,omitempty"`
 	Inputs   []Param `json:"inputs,omitempty"`
 	Outputs  []Param `json:"outputs,omitempty"`
 }
 
-// Param 一个入参或出参。
+// Param is one input or output parameter.
 type Param struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Required bool   `json:"required,omitempty"`
 	Desc     string `json:"desc,omitempty"`
-	// DefaultShow 出参专用：默认是否返回该列。留着是因为 TuShare 的 fields
-	// 不传就只回默认列——生成器要用它决定请求里带哪些字段。
+	// DefaultShow is output-only: whether this column is returned by default. Kept because
+	// TuShare's fields only returns the default columns when it isn't passed — the generator uses
+	// this to decide which fields to include in the request.
 	DefaultShow bool `json:"default_show,omitempty"`
 }
 
-// node 导航树上的一个页面。
+// node is one page in the navigation tree.
 type node struct {
 	DocID int
 	Name  string

@@ -1,10 +1,11 @@
-// Package schema 声明 tushare 插件的操作、凭证与数据形状。
+// Package schema declares the tushare plugin's operations, credential, and data shapes.
 package schema
 
-// BrokerReport 一条券商研报（research_report 接口）。
+// BrokerReport is a single brokerage research report (the research_report endpoint).
 //
-// 行业研报与个股研报是同一个接口的两个 report_type，字段集只差一个 ind_name，
-// 故共用一个形状——个股研报的 ind_name 为空是正常的。
+// Industry reports and individual-stock reports are two report_type values of the same endpoint,
+// and their field sets only differ by ind_name, so they share one shape — ind_name being empty for
+// a stock report is expected.
 type BrokerReport struct {
 	DedupKey string `json:"dedup_key" sokel:"dedup_key" label:"去重键" desc:"trade_date+ts_code+机构+标题 的稳定摘要——上游没有主键，只能这么对上同一篇"`
 

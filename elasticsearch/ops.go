@@ -1,12 +1,15 @@
 package main
 
-// 全部操作实现。
+// All operation implementations.
 //
-// 两条贯穿始终的约定：
-//   - **「不存在」不是错误**：取文档没找到、删文档本来就没有——回出参（found/deleted），
-//     那在画布上是正常分支。真错误留给连不上、查询写错、权限不够。
-//   - **危险操作有闸**：按查询删除必须给查询，删索引不接受通配。ES 这两个接口
-//     字面上都支持「全都删」，而工作流里手滑一次就没了。
+// Two conventions run through all of them:
+//   - **"Not found" is not an error**: a missing document on get, or a document that was
+//     already gone on delete, comes back through the outputs (found/deleted) — that's a
+//     normal branch on the canvas. Real errors are reserved for connection failures, bad
+//     queries, and insufficient permissions.
+//   - **Dangerous operations have a gate**: delete-by-query requires a query, and
+//     delete-index rejects wildcards. Both ES endpoints literally support "delete
+//     everything", and one slip of the hand in a workflow would wipe it out.
 
 import (
 	"encoding/json"
@@ -19,7 +22,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— 检索 ——
+// —— search ——
 
 func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	idx, err := indexPath(in.Index)
@@ -36,9 +39,11 @@ func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	if len(in.Aggs) > 0 {
 		body["aggs"] = in.Aggs
 	}
-	// size 留空时：给了聚合就只回聚合（size=0，聚合场景的常规做法），否则 ES 默认的 10。
-	// 这条互动规则是刻意的——数字字段留空到手就是 0，与「显式要 0 条」分不开，
-	// 用「有没有给聚合」来断意图比猜一个哨兵值可靠。
+	// When size is left empty: if aggs are given, return only the aggregations (size=0,
+	// the usual pattern for aggregation use cases); otherwise fall back to ES's default
+	// of 10. This interaction is deliberate — an empty numeric field arrives as 0, which
+	// is indistinguishable from "explicitly want 0 hits", so inferring intent from
+	// "was an agg given" is more reliable than guessing at a sentinel value.
 	switch {
 	case in.Size > 0:
 		body["size"] = in.Size
@@ -74,7 +79,7 @@ func opSearch(ctx plugin.Ctx, in *SearchIn) (*SearchOut, error) {
 	hits := mapAt(res, "hits")
 	if total := mapAt(hits, "total"); total != nil {
 		out.Total = num(total, "value")
-		// relation=gte 意思是「至少这么多」——ES 默认只精确统计到 10000 条。
+		// relation=gte means "at least this many" — ES only counts exactly up to 10000 hits by default.
 		out.TotalIsLowerBound = str(total, "relation") == "gte"
 	}
 	for _, h := range listAt(hits, "hits") {
@@ -113,7 +118,7 @@ func opCount(ctx plugin.Ctx, in *CountIn) (*CountOut, error) {
 	return &CountOut{Count: num(res, "count")}, nil
 }
 
-// —— 文档读写 ——
+// —— document read/write ——
 
 func opDocGet(ctx plugin.Ctx, in *DocGetIn) (*DocGetOut, error) {
 	idx, err := indexPath(in.Index)
@@ -128,8 +133,9 @@ func opDocGet(ctx plugin.Ctx, in *DocGetIn) (*DocGetOut, error) {
 		return nil, err
 	}
 	if code == http.StatusNotFound {
-		// 文档不存在 **和** 索引不存在都会回 404。索引不存在是配置错，要说清楚；
-		// 文档不存在是正常分支。ES 的应答体能区分：前者带 error.type。
+		// **Both** a missing document and a missing index return 404. A missing index is
+		// a config error and should be reported clearly; a missing document is a normal
+		// branch. ES's response body lets us tell them apart: the former carries error.type.
 		var probe map[string]any
 		if json.Unmarshal(raw, &probe) == nil {
 			if _, isErr := probe["error"]; isErr {
@@ -216,7 +222,7 @@ func opDocDelete(ctx plugin.Ctx, in *DocDeleteIn) (*DocDeleteOut, error) {
 		return nil, err
 	}
 	if code == http.StatusNotFound {
-		return &DocDeleteOut{}, nil // 本来就没有：不是错误
+		return &DocDeleteOut{}, nil // already gone: not an error
 	}
 	if code >= 400 {
 		return nil, esError(code, raw)
@@ -232,8 +238,9 @@ func opBulkIndex(ctx plugin.Ctx, in *BulkIndexIn) (*BulkIndexOut, error) {
 	if len(in.Documents) == 0 {
 		return nil, fmt.Errorf("没给文档——文档数组是空的")
 	}
-	// _bulk 是 NDJSON：一行动作、一行文档，最后必须有换行。
-	// 它不是 JSON 数组——按 JSON 发过去 ES 会回 400 说 "The bulk request must be terminated"。
+	// _bulk is NDJSON: one action line, one document line, and a trailing newline at the
+	// end. It is not a JSON array — sending it as JSON makes ES reply 400 with
+	// "The bulk request must be terminated".
 	var buf strings.Builder
 	idField := strings.TrimSpace(in.IDField)
 	for i, d := range in.Documents {
@@ -293,7 +300,7 @@ func opDeleteByQuery(ctx plugin.Ctx, in *DeleteByQueryIn) (*DeleteByQueryOut, er
 		return nil, err
 	}
 	if len(in.Query) == 0 {
-		// ES 侧「不给查询」= match_all = 删光整个索引。这一步必须是显式的。
+		// On the ES side, "no query" = match_all = delete the entire index. This step must be explicit.
 		return nil, fmt.Errorf("按查询删除必须给查询条件——不给等于删光索引；" +
 			"真要清空请用「删索引」再重建（那样还能顺便换 mapping）")
 	}
@@ -305,7 +312,7 @@ func opDeleteByQuery(ctx plugin.Ctx, in *DeleteByQueryIn) (*DeleteByQueryOut, er
 	return &DeleteByQueryOut{Deleted: num(res, "deleted"), TookMs: num(res, "took")}, nil
 }
 
-// —— 索引管理 ——
+// —— index management ——
 
 func opIndicesList(ctx plugin.Ctx, in *IndicesListIn) (*IndicesListOut, error) {
 	path := "/_cat/indices"
@@ -331,7 +338,7 @@ func opIndicesList(ctx plugin.Ctx, in *IndicesListIn) (*IndicesListOut, error) {
 	for _, r := range rows {
 		name := str(r, "index")
 		if strings.HasPrefix(name, ".") {
-			continue // 系统索引（.kibana 之类）不摆到画布上
+			continue // system indices (like .kibana) don't belong on the canvas
 		}
 		out.Indices = append(out.Indices, schema.IndexInfo{
 			Name: name, Health: str(r, "health"), Status: str(r, "status"),
@@ -363,7 +370,7 @@ func opIndexCreate(ctx plugin.Ctx, in *IndexCreateIn) (*IndexCreateOut, error) {
 		return nil, err
 	}
 	if code == http.StatusBadRequest && strings.Contains(string(raw), "resource_already_exists") {
-		return &IndexCreateOut{Existed: true}, nil // 已存在：幂等地告诉调用方，不是错误
+		return &IndexCreateOut{Existed: true}, nil // already exists: tell the caller idempotently, not an error
 	}
 	if code >= 400 {
 		return nil, esError(code, raw)
@@ -376,7 +383,7 @@ func opIndexDelete(ctx plugin.Ctx, in *IndexDeleteIn) (*IndexDeleteOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// DELETE /* 在 ES 里是合法请求，意思是删光集群。工作流里手滑一次就没了。
+	// DELETE /* is a valid ES request meaning "delete the whole cluster". One slip of the hand in a workflow and it's gone.
 	if strings.ContainsAny(name, "*?,") || name == "_all" {
 		return nil, fmt.Errorf("删索引只接受一个具体的索引名，不接受通配或 _all（那会删掉一大片）；"+
 			"要删多个请分别调用。你给的是 %q", name)
@@ -433,8 +440,10 @@ func opAliasSwitch(ctx plugin.Ctx, in *AliasSwitchIn) (*AliasSwitchOut, error) {
 	actions := []any{}
 	out := &AliasSwitchOut{}
 	if !in.KeepOthers {
-		// 先查别名当前指向谁：**一次 _aliases 请求里 remove+add 才是原子的**，
-		// 分两次调用中间会有一瞬别名指向空/两处，查询方正好撞上就会读到错的数据。
+		// First look up what the alias currently points to: **remove+add inside a single
+		// _aliases request is what makes it atomic** — splitting it into two calls leaves
+		// a moment where the alias points to nothing or to both, and a query that lands
+		// right then reads the wrong data.
 		raw, code, err := esCall(ctx, http.MethodGet, "/_alias/"+url.PathEscape(alias), nil)
 		if err != nil {
 			return nil, err
@@ -505,7 +514,7 @@ func opClusterHealth(ctx plugin.Ctx, _ *ClusterHealthIn) (*ClusterHealthOut, err
 	}, nil
 }
 
-// —— 保底 ——
+// —— fallback ——
 
 func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	path := strings.TrimSpace(in.Path)
@@ -531,7 +540,7 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 	if len(raw) > 0 {
 		var data any
 		if err := json.Unmarshal(raw, &data); err != nil {
-			out.Data = string(raw) // _cat 的默认格式是纯文本，原样给出去
+			out.Data = string(raw) // _cat's default format is plain text, pass it through as-is
 		} else {
 			out.Data = data
 		}
@@ -542,7 +551,8 @@ func opCall(ctx plugin.Ctx, in *CallIn) (*CallOut, error) {
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	res, err := esJSON(ctx, http.MethodGet, "/", nil)
 	if err != nil {
-		// 体检的答案是「不可用 + 为什么」，不是抛错——抛错在界面上只剩一个红叉。
+		// The health check's answer is "unavailable + why", not an error return — an
+		// error return would leave nothing but a red X in the UI.
 		return &HealthCheckOut{Message: err.Error()}, nil
 	}
 	ver := mapAt(res, "version")
@@ -553,7 +563,7 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		ClusterName:  str(res, "cluster_name"),
 	}
 	if out.Distribution == "" {
-		out.Distribution = "elasticsearch" // ES 不回这个字段，OpenSearch 回 "opensearch"
+		out.Distribution = "elasticsearch" // ES doesn't return this field, OpenSearch returns "opensearch"
 	}
 	if h, err := esJSON(ctx, http.MethodGet, "/_cluster/health", nil); err == nil {
 		out.Status = str(h, "status")

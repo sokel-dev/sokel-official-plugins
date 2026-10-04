@@ -1,22 +1,26 @@
-// Package schema 声明 youtube-transcript 插件的操作与凭证契约。
+// Package schema declares the operation and credential contract for the youtube-transcript plugin.
 //
-// **取 YouTube 字幕，不要 API key、不要浏览器。** 思路取自 Python 的
-// jdepoix/youtube-transcript-api：走 YouTube 网页客户端自己在用的那套未公开接口
-// （watch 页拿 InnerTube key → player 接口拿字幕轨清单 → timedtext 拿内容），
-// 而不是 YouTube Data API v3（那条路要 key、有配额，且**根本取不到自动生成的字幕**）。
+// **Fetches YouTube transcripts, needs no API key, no browser.** The approach is borrowed from the
+// Python jdepoix/youtube-transcript-api: it uses the same undocumented API the YouTube web client itself
+// relies on (get the InnerTube key from the watch page → get the caption-track list from the player
+// endpoint → get the content from timedtext), rather than the YouTube Data API v3 (which needs a key,
+// has a quota, and **simply cannot fetch auto-generated transcripts at all**).
 //
-// 与参考项目**有意不同**的两处：
+// Two places this is **deliberately different** from the reference project:
 //
-//   - **列清单与取内容拆成两个操作**。Python 版是一条链（list → find → fetch），
-//     在画布上不好摆：用户想做的往往是「先看有没有中文人工字幕，没有再退回机翻」，
-//     那是一个条件分支，需要清单先成为一份可判断的数据。
-//   - **同时产出 snippets 与 text**。下游一半场景是喂给 LLM 总结（要全文），
-//     另一半是做时间轴跳转/分段（要时间）。只给一种，另一半就得再取一次。
+//   - **Listing and fetching are split into two operations.** The Python version is a single chain
+//     (list → find → fetch), which doesn't lay out well on a canvas: what a user usually wants is
+//     "check whether a Chinese manual transcript exists, fall back to machine translation if not" — a
+//     conditional branch, which needs the list to first become data that can be inspected.
+//   - **Both snippets and text are produced together.** Half of downstream use cases feed an LLM for
+//     summarization (needs the full text), the other half build a timeline jump/segmentation UI (needs
+//     timing). Giving only one would force a second fetch for the other half.
 //
-// **风控是这个插件唯一的真实难点**：YouTube 对机房 IP 封得很凶（返回 429 或
-// 「Sign in to confirm you're not a bot」）。所以凭证里那个出站代理不是可选装饰，
-// 是自部署到云上之后大概率必须配的东西——文档里必须说清楚，否则用户只会看到
-// 一句「被限流」然后以为插件坏了。
+// **Anti-bot blocking is this plugin's one real hard problem**: YouTube blocks datacenter IPs
+// aggressively (returning 429 or "Sign in to confirm you're not a bot"). So the outbound proxy field in
+// the credential isn't an optional nicety — it's something that will almost certainly need configuring
+// once this is self-deployed to the cloud, and the docs must say so clearly, otherwise a user will just
+// see "rate limited" and assume the plugin is broken.
 package schema
 
 import (
@@ -24,11 +28,12 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// videoDesc：三个操作共用的「视频」入参说明（形态一致，说明也该一致）。
+// videoDesc is the "video" input description shared by all three operations (same shape, so the
+// description should be consistent too).
 const videoDesc = "视频 id 或任意 YouTube 链接：watch?v=… / youtu.be/… / shorts/… / embed/… / live/… 都认；" +
 	"直接填 11 位 id 也行"
 
-// Fetch 取一条字幕的完整内容。
+// Fetch retrieves the full content of one transcript.
 type Fetch struct{}
 
 func (Fetch) Meta() contract.Meta {
@@ -73,7 +78,7 @@ func (Fetch) Outputs() []contract.FieldSpec {
 	}
 }
 
-// List 列出这个视频有哪些字幕可用。
+// List lists which transcripts are available for this video.
 type List struct{}
 
 func (List) Meta() contract.Meta {
@@ -97,7 +102,7 @@ func (List) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 网络与风控体检（平台约定的操作 id）。
+// HealthCheck checks network reachability and anti-bot status (the platform-mandated operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -115,13 +120,15 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 //
-// **本插件不需要 YouTube 账号**——字幕是公开数据。这里全部字段都是为了对付一件事：
-// YouTube 对机房 IP 的封锁。自部署到任何云主机上，早晚会撞到 429 或
-// 「Sign in to confirm you're not a bot」，那时唯一的解法就是走一个住宅代理出去。
+// **This plugin needs no YouTube account** — transcripts are public data. Every field here exists to
+// deal with exactly one thing: YouTube's blocking of datacenter IPs. Self-deployed on any cloud
+// instance, it will sooner or later hit a 429 or "Sign in to confirm you're not a bot", and the only fix
+// at that point is routing through a residential proxy.
 //
-// 刻意**不做** cookie 登录：参考项目那条路已经被 YouTube 改坏了，留着只会让人以为能用。
+// Deliberately **not** implementing cookie login: the reference project's version of that path has
+// already been broken by YouTube, and keeping it would only mislead people into thinking it works.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

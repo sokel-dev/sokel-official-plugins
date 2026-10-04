@@ -1,16 +1,20 @@
-// Package schema 声明 kubernetes 插件的操作与凭证契约。
+// Package schema declares the kubernetes plugin's operation and credential contracts.
 //
-// 定位：**通用** K8s 工作负载操作——查 pod / 看日志 / 重启与扩缩 deployment / 事件 / 节点。
-// 不绑任何云：凭证就是一份 kubeconfig，ACK/自建/别家托管都一样用
-// （ACK 的 kubeconfig 用 aliyun 插件的 ack_kubeconfig 一键导出）。
+// Scope: generic K8s workload operations -- list pods / view logs / restart and scale
+// deployments / events / nodes. Not tied to any cloud: the credential is just a kubeconfig,
+// used the same way whether it's ACK, self-hosted, or someone else's managed offering (ACK's
+// kubeconfig can be one-click exported via the aliyun plugin's ack_kubeconfig).
 //
-// 实现走 kubeconfig 解析 + 裸 REST（client-go 只用 clientcmd/rest 两个底层包，
-// 不引 typed clientset 全家桶）：认证/mTLS/exec 插件这些自己实现不现实，
-// 而资源读写本身就是普通 REST——这条线与「飞书先例」的 SDK 放行标准一致。
+// Implemented via kubeconfig parsing + raw REST (client-go only uses the two low-level
+// packages clientcmd/rest, the typed clientset family isn't pulled in): implementing
+// auth/mTLS/exec plugins ourselves isn't realistic, while resource reads/writes are themselves
+// plain REST -- this follows the same SDK admission bar set by the Feishu precedent.
 //
-// 写操作只做两个日常的：**重启 deployment**（rollout restart）与**扩缩副本数**。
-// 删 pod/删 deployment/drain 节点这类高危不做 typed——RBAC 里也别给这份
-// kubeconfig 对应的主体这些权限（权限控制点在集群 RBAC，插件不自造）。
+// Write operations only cover the two everyday ones: restarting a deployment (rollout restart)
+// and scaling replica count. High-risk actions like deleting a pod/deployment or draining a
+// node aren't made typed operations -- and RBAC shouldn't grant this kubeconfig's principal
+// those permissions either (the permission control point is cluster RBAC; the plugin doesn't
+// invent its own).
 package schema
 
 import (
@@ -18,12 +22,12 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// nsField 命名空间字段（多数操作共用）。
+// nsField is the namespace field (shared by most operations).
 func nsField() contract.FieldSpec {
 	return field.String("namespace").Label("命名空间").Desc("留空用凭证里的默认命名空间（再没有则 default）").Optional()
 }
 
-// Pods 列 pod。
+// Pods lists pods.
 type Pods struct{}
 
 func (Pods) Meta() contract.Meta {
@@ -46,7 +50,7 @@ func (Pods) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Pod 一个 pod 的概要。
+// Pod is a single pod's summary.
 type Pod struct {
 	Name     string `sokel:"name" label:"名称"`
 	Phase    string `sokel:"phase" label:"状态" desc:"Running/Pending/Failed/…"`
@@ -55,18 +59,20 @@ type Pod struct {
 	Node     string `sokel:"node,optional" label:"节点"`
 	Age      string `sokel:"age,optional" label:"存活时长"`
 	Reason   string `sokel:"reason,optional" label:"异常原因" desc:"CrashLoopBackOff / ImagePullBackOff 等；正常为空"`
-	// LastTerminatedReason：**上一次**容器是怎么结束的。
+	// LastTerminatedReason: how the container ended the previous time.
 	//
-	// 这一条单独存在，是因为 OOMKilled 多半**只出现在这里**：容器被 OOM 杀掉后会被立刻拉起，
-	// 于是当前 state 是 Running（或 Waiting/CrashLoopBackOff），reason 里根本看不到 OOM。
-	// 只看 restarts 的话，你知道它在反复重启，但不知道是内存不够、还是崩了、还是被驱逐——
-	// 而这三者的处理完全不同（加内存 / 修代码 / 看节点）。
+	// This field exists on its own because OOMKilled mostly only shows up here: after being
+	// OOM-killed, the container is restarted immediately, so the current state is Running (or
+	// Waiting/CrashLoopBackOff), with no sign of OOM in reason at all. Looking only at restarts
+	// tells you it's restarting repeatedly, but not whether it's out of memory, crashed, or
+	// evicted -- and these three need completely different handling (add memory / fix code / look
+	// at the node).
 	LastTerminatedReason string `sokel:"last_terminated_reason,optional" label:"上次结束原因" desc:"OOMKilled / Error / Completed…；从没重启过则为空"`
 	LastExitCode         int    `sokel:"last_exit_code,optional" label:"上次退出码" desc:"137 常见于 OOM 或被 SIGKILL；0 = 正常退出"`
 	LastTerminatedAt     string `sokel:"last_terminated_at,optional" label:"上次结束时间" desc:"用它判断是刚刚发生还是历史遗留"`
 }
 
-// PodLogs 看日志。
+// PodLogs views logs.
 type PodLogs struct{}
 
 func (PodLogs) Meta() contract.Meta {
@@ -91,7 +97,7 @@ func (PodLogs) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Deployments 列 deployment。
+// Deployments lists deployments.
 type Deployments struct{}
 
 func (Deployments) Meta() contract.Meta {
@@ -110,7 +116,7 @@ func (Deployments) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Deployment 一个 deployment 的概要。
+// Deployment is a single deployment's summary.
 type Deployment struct {
 	Name      string   `sokel:"name" label:"名称"`
 	Replicas  int      `sokel:"replicas" label:"期望副本"`
@@ -119,7 +125,7 @@ type Deployment struct {
 	Images    []string `sokel:"images,optional" label:"镜像"`
 }
 
-// DeploymentRestart 滚动重启。
+// DeploymentRestart performs a rolling restart.
 type DeploymentRestart struct{}
 
 func (DeploymentRestart) Meta() contract.Meta {
@@ -141,7 +147,7 @@ func (DeploymentRestart) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeploymentScale 扩缩副本。
+// DeploymentScale scales replica count.
 type DeploymentScale struct{}
 
 func (DeploymentScale) Meta() contract.Meta {
@@ -164,7 +170,7 @@ func (DeploymentScale) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Events 事件列表。
+// Events lists events.
 type Events struct{}
 
 func (Events) Meta() contract.Meta {
@@ -198,7 +204,7 @@ func (Events) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Event 一条事件。
+// Event is a single event.
 type Event struct {
 	Type      string `sokel:"type" label:"级别" desc:"Normal/Warning"`
 	Reason    string `sokel:"reason" label:"原因"`
@@ -209,7 +215,7 @@ type Event struct {
 	FirstSeen string `sokel:"first_seen,optional" label:"首次发生"`
 }
 
-// Nodes 节点列表。
+// Nodes lists nodes.
 type Nodes struct{}
 
 func (Nodes) Meta() contract.Meta {
@@ -227,14 +233,16 @@ func (Nodes) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Node 一个节点。
+// Node is a single node.
 type Node struct {
 	Name  string `sokel:"name" label:"名称"`
 	Ready bool   `sokel:"ready" label:"就绪"`
-	// ReadyStatus：Ready 条件的**原值**，不是布尔。
-	// False（节点自报不健康）与 Unknown（kubelet 干脆不上报了，多半是失联或宕机）
-	// 在布尔上都是「不就绪」，但处理完全不同：前者去看节点上发生了什么，
-	// 后者要先确认机器还在不在。压成布尔就把这个区别丢了。
+	// ReadyStatus: the Ready condition's raw value, not a boolean.
+	// False (the node self-reports unhealthy) and Unknown (kubelet simply stopped reporting,
+	// usually meaning it's unreachable or down) are both "not ready" as a boolean, but need
+	// completely different handling: the former means go look at what's happening on the node,
+	// the latter means first confirm the machine is even there. Collapsing it to a boolean loses
+	// this distinction.
 	ReadyStatus string `sokel:"ready_status,optional" label:"Ready 原值" desc:"True / False / Unknown"`
 	Reason      string `sokel:"reason,optional" label:"原因" desc:"如 KubeletNotReady / NodeStatusUnknown"`
 	Version     string `sokel:"version,optional" label:"kubelet 版本"`
@@ -243,7 +251,7 @@ type Node struct {
 	Taints      int    `sokel:"taints,optional" label:"污点数"`
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform's standard credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -261,7 +269,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeployWorkload 创建/更新 Deployment。
+// DeployWorkload creates or updates a Deployment.
 type DeployWorkload struct{}
 
 func (DeployWorkload) Meta() contract.Meta {
@@ -294,7 +302,7 @@ func (DeployWorkload) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeploymentStatus 就绪状态。
+// DeploymentStatus is the readiness status.
 type DeploymentStatus struct{}
 
 func (DeploymentStatus) Meta() contract.Meta {
@@ -320,7 +328,7 @@ func (DeploymentStatus) Outputs() []contract.FieldSpec {
 	}
 }
 
-// RunJob 一次性任务。
+// RunJob runs a one-off task.
 type RunJob struct{}
 
 func (RunJob) Meta() contract.Meta {
@@ -350,7 +358,7 @@ func (RunJob) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ApplyManifest 通用 YAML 兜底。
+// ApplyManifest is the generic YAML catch-all.
 type ApplyManifest struct{}
 
 func (ApplyManifest) Meta() contract.Meta {
@@ -374,7 +382,7 @@ func (ApplyManifest) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DeleteObject 通用删除。
+// DeleteObject is the generic delete.
 type DeleteObject struct{}
 
 func (DeleteObject) Meta() contract.Meta {
@@ -398,7 +406,7 @@ func (DeleteObject) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential：一条凭证 = 一个集群的一份 kubeconfig。
+// Credential: one credential = one cluster's kubeconfig.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

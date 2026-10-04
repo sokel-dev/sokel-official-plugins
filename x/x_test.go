@@ -1,8 +1,9 @@
 package main
 
-// 假 X 上游。钉的是**别处看不出来的那几件事**：归一化（作者/媒体/转推判定）、
-// 增量游标（since_id 进、newest_id 出、空结果不冲游标）、推串的串接与中断、
-// 媒体分片的片序、以及限流头是绝对时间戳而不是秒数。
+// A fake X upstream. Pins down **the things that aren't visible anywhere else**: normalization
+// (author/media/retweet determination), the incremental cursor (since_id in, newest_id out, an
+// empty result doesn't clobber the cursor), thread chaining and interruption, media chunk
+// ordering, and the rate-limit header being an absolute timestamp rather than a number of seconds.
 
 import (
 	"context"
@@ -19,7 +20,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— 假上下文 ——
+// —— Fake context ——
 
 type fakeCtx struct {
 	context.Context
@@ -42,8 +43,9 @@ func ctxTo(t *testing.T, url string) *fakeCtx {
 	return &fakeCtx{Context: context.Background(), cred: map[string]string{"access_token": "tok_" + url}}
 }
 
-// resetCaches：me 是按 token 缓存的，测试之间必须清掉，
-// 否则第二个用例拿到的是第一个假服务器的账号（这类串味最难查）。
+// resetCaches: me is cached per token, and this must be cleared between tests, otherwise the
+// second test case gets the first fake server's account (this kind of cross-contamination is the
+// hardest to track down).
 func resetCaches(_ string) {
 	meMu.Lock()
 	meCache = map[string]rawUser{}
@@ -51,7 +53,7 @@ func resetCaches(_ string) {
 	postFieldsParam.Store("")
 }
 
-// —— 假上游 ——
+// —— Fake upstream ——
 
 type capture struct {
 	paths   []string
@@ -59,7 +61,7 @@ type capture struct {
 	bodies  []string
 }
 
-// fakeX：按「方法 + 路径前缀」匹配路由；/users/me 总是内置的。
+// fakeX matches routes by "method + path prefix"; /users/me is always built in.
 func fakeX(t *testing.T, cap *capture, routes map[string]string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,14 +86,14 @@ func fakeX(t *testing.T, cap *capture, routes map[string]string) *httptest.Serve
 		io.WriteString(w, `{"title":"Not Found Error","detail":"没有这条路由: `+r.URL.Path+`"}`)
 	}))
 	t.Cleanup(srv.Close)
-	// xAPI 是包级常量，测试里指到假服务器上。
+	// xAPI is a package-level variable; point it at the fake server for the test.
 	old := xAPI
 	xAPI = srv.URL
 	t.Cleanup(func() { xAPI = old })
 	return srv
 }
 
-// —— 归一化 ——
+// —— Normalization ——
 
 const searchResp = `{
   "data": [
@@ -110,7 +112,8 @@ const searchResp = `{
   "meta": {"result_count":2,"newest_id":"201","oldest_id":"200"}
 }`
 
-// 作者、媒体、外链都在 includes/entities 里，画布上引用不到——归一化必须在插件里做完。
+// Author, media, and links all live in includes/entities, unreachable from the canvas —
+// normalization has to be done entirely in the plugin.
 func TestSearchNormalizesIncludes(t *testing.T) {
 	var cap capture
 	srv := fakeX(t, &cap, map[string]string{"GET /tweets/search/recent": searchResp})
@@ -122,7 +125,7 @@ func TestSearchNormalizesIncludes(t *testing.T) {
 	if out.Count != 2 {
 		t.Fatalf("拿到 %d 条", out.Count)
 	}
-	// 正序：老的在前
+	// Ascending order: oldest first
 	first, second := out.Items[0], out.Items[1]
 	if first.ID != "200" || second.ID != "201" {
 		t.Errorf("应当按 id 正序给出，得到 %s,%s", first.ID, second.ID)
@@ -133,7 +136,7 @@ func TestSearchNormalizesIncludes(t *testing.T) {
 	if first.URL != "https://x.com/alice/status/200" {
 		t.Errorf("链接 = %q", first.URL)
 	}
-	// 转推判定：X 不给这个字段，靠 referenced_tweets 推
+	// Retweet detection: X doesn't give us this field; it's derived from referenced_tweets
 	if first.Kind != "retweeted" || first.RefPostID != "100" {
 		t.Errorf("转推没认出来: kind=%s ref=%s", first.Kind, first.RefPostID)
 	}
@@ -143,7 +146,7 @@ func TestSearchNormalizesIncludes(t *testing.T) {
 	if second.Kind != "original" {
 		t.Errorf("原创被判成了 %s", second.Kind)
 	}
-	// t.co 短链下游用不了，必须展开
+	// A t.co short link is useless downstream and must be expanded
 	if len(second.Links) != 1 || second.Links[0] != "https://example.com/post" {
 		t.Errorf("外链没展开: %v", second.Links)
 	}
@@ -155,7 +158,7 @@ func TestSearchNormalizesIncludes(t *testing.T) {
 	}
 }
 
-// 游标：传进去的是 since_id，回来的是本批最新 id。
+// Cursor: what goes in is since_id, what comes back is the newest id across this batch.
 func TestSearchCursorIsSinceID(t *testing.T) {
 	var cap capture
 	srv := fakeX(t, &cap, map[string]string{"GET /tweets/search/recent": searchResp})
@@ -175,7 +178,8 @@ func TestSearchCursorIsSinceID(t *testing.T) {
 	}
 }
 
-// 一轮没有新推文时**不能把游标冲掉**——冲掉就等于下一轮从头再拉一遍（还要再花一遍钱）。
+// When a round has no new tweets, **the cursor must not be clobbered** — clobbering it would mean
+// the next round fetches everything from scratch again (and pays for it all over again too).
 func TestSearchEmptyKeepsCursor(t *testing.T) {
 	var cap capture
 	srv := fakeX(t, &cap, map[string]string{
@@ -194,8 +198,8 @@ func TestSearchEmptyKeepsCursor(t *testing.T) {
 	}
 }
 
-// 每页条数有下限（搜索 10、提及 5），低于下限 X 直接 400——
-// 「我只要 3 条」这种再正常不过的配置不该失败。
+// Per-page count has a floor (search: 10, mentions: 5); going below it is a flat 400 from X — an
+// entirely reasonable config like "I just want 3" shouldn't fail.
 func TestPageSizeRespectsEndpointFloor(t *testing.T) {
 	if got := pageSize(3, "/tweets/search/recent"); got != 10 {
 		t.Errorf("搜索的下限是 10，得到 %d", got)
@@ -208,7 +212,7 @@ func TestPageSizeRespectsEndpointFloor(t *testing.T) {
 	}
 }
 
-// —— 发布 ——
+// —— Publishing ——
 
 func TestPostCreateBody(t *testing.T) {
 	var cap capture
@@ -234,7 +238,7 @@ func TestPostCreateBody(t *testing.T) {
 	if media == nil || len(media["media_ids"].([]any)) != 2 {
 		t.Errorf("媒体没带上: %v", body)
 	}
-	// everyone 是 X 的默认值，显式传反而被某些档位拒
+	// everyone is X's default value; sending it explicitly gets rejected on some tiers
 	if _, ok := body["reply_settings"]; ok {
 		t.Error("reply_settings=everyone 不该发出去")
 	}
@@ -258,7 +262,7 @@ func TestPostCreateRejectsPollWithMedia(t *testing.T) {
 	}
 }
 
-// 推串：后一条必须回复前一条，否则发出去的是 N 条互不相干的推文。
+// Thread: each tweet must reply to the previous one, otherwise what gets posted is N unrelated tweets.
 func TestPostThreadChains(t *testing.T) {
 	var cap capture
 	n := 0
@@ -267,7 +271,8 @@ func TestPostThreadChains(t *testing.T) {
 			io.WriteString(w, `{"data":{"id":"9001","username":"acme_bot"}}`)
 			return
 		}
-		// 只记发推的 body：查账号那次（拼链接用）混进来会把下面的下标全带偏。
+		// Only record the post bodies: letting the account lookup call (used to build a link)
+		// mix in would throw off all the indices below.
 		body, _ := io.ReadAll(r.Body)
 		cap.paths = append(cap.paths, r.Method+" "+r.URL.Path)
 		cap.bodies = append(cap.bodies, string(body))
@@ -290,7 +295,7 @@ func TestPostThreadChains(t *testing.T) {
 	if out.Count != 3 || len(out.IDs) != 3 {
 		t.Fatalf("应当发出 3 条: %+v", out)
 	}
-	// 第 2、3 条的 in_reply_to 必须是前一条的 id
+	// The 2nd and 3rd tweets' in_reply_to must be the previous one's id
 	var second, third map[string]any
 	_ = json.Unmarshal([]byte(cap.bodies[len(cap.bodies)-2]), &second)
 	_ = json.Unmarshal([]byte(cap.bodies[len(cap.bodies)-1]), &third)
@@ -302,7 +307,8 @@ func TestPostThreadChains(t *testing.T) {
 	}
 }
 
-// 推串中途失败：**不回滚**，但已发出的 id 必须出现在错误里，否则人不知道断在哪、从哪接。
+// A mid-thread failure: **doesn't roll back**, but the ids already posted must appear in the
+// error, otherwise there's no way to know where it broke or where to pick it back up.
 func TestPostThreadReportsWhatWasSent(t *testing.T) {
 	var cap capture
 	n := 0
@@ -338,9 +344,10 @@ func TestPostThreadReportsWhatWasSent(t *testing.T) {
 	}
 }
 
-// —— 互动 ——
+// —— Engagement ——
 
-// 这四对挂在**授权账号自己**身上，路径里的 id 是 me 的不是被操作对象的。
+// These four pairs hang off **the authorized account itself**; the id in the path is me's, not
+// the target's.
 func TestEngageUsesMyID(t *testing.T) {
 	var cap capture
 	srv := fakeX(t, &cap, map[string]string{
@@ -366,9 +373,10 @@ func TestEngageUsesMyID(t *testing.T) {
 	}
 }
 
-// —— 媒体 ——
+// —— Media ——
 
-// 分片：片序必须从 0 连续递增，错一片整个文件就废了（X 只在 FINALIZE 时才报错）。
+// Chunking: chunk indices must be contiguous starting at 0 — get one wrong and the whole file is
+// ruined (X only reports the error at FINALIZE).
 func TestMediaUploadChunks(t *testing.T) {
 	var segs []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -408,7 +416,8 @@ func TestMediaUploadChunks(t *testing.T) {
 	}
 }
 
-// 转码没完就返回 media_id 的话，下游发推会得到「media not found」，看起来像 id 错了。
+// If media_id is returned before transcoding finishes, posting downstream gets "media not found",
+// which looks like a wrong id.
 func TestMediaUploadWaitsForProcessing(t *testing.T) {
 	polls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -451,7 +460,8 @@ func TestMediaUploadWaitsForProcessing(t *testing.T) {
 	}
 }
 
-// 用途决定 media_category，填错要到发布那一步才被拒——那时已经传完一个几十兆的视频了。
+// The purpose determines media_category; get it wrong and it's only rejected at the publish step
+// — by which point a tens-of-megabytes video has already finished uploading.
 func TestMediaCategory(t *testing.T) {
 	cases := map[[2]string]string{
 		{"image/jpeg", "post"}: "tweet_image",
@@ -471,9 +481,10 @@ func TestMediaCategory(t *testing.T) {
 	}
 }
 
-// —— 错误 ——
+// —— Errors ——
 
-// x-rate-limit-reset 是**绝对 epoch 秒**。当成「等几秒」用会等到明年。
+// x-rate-limit-reset is an **absolute epoch-seconds timestamp**. Treating it as "wait this many
+// seconds" would wait until next year.
 func TestRateLimitResetIsAbsolute(t *testing.T) {
 	reset := time.Now().Add(90 * time.Second).Unix()
 	resp := &http.Response{StatusCode: 429, Header: http.Header{}}
@@ -491,7 +502,8 @@ func TestRateLimitResetIsAbsolute(t *testing.T) {
 	}
 }
 
-// 403 是 X 上最难查的错：原文从不说是权限、作用域还是档位。
+// A 403 is the hardest error to debug on X: the raw message never says whether it's permissions,
+// scope, or tier.
 func TestForbiddenExplainsThreeCauses(t *testing.T) {
 	e := &apiError{Status: 403, Detail: "Unsupported Authentication"}
 	msg := e.Error()
@@ -502,7 +514,8 @@ func TestForbiddenExplainsThreeCauses(t *testing.T) {
 	}
 }
 
-// 没授权的凭证要在发请求之前就说清楚，而不是让 X 回一个空 Bearer 的 401。
+// An unauthorized credential should be spelled out before the request is even sent, rather than
+// letting X return a 401 for an empty Bearer token.
 func TestUnauthorizedCredentialIsExplained(t *testing.T) {
 	_, err := accessToken(Cred{})
 	if err == nil || !strings.Contains(err.Error(), "授权") {
@@ -510,9 +523,10 @@ func TestUnauthorizedCredentialIsExplained(t *testing.T) {
 	}
 }
 
-// —— 事件源 ——
+// —— Event source ——
 
-// 轮询间隔有下限：X 的读按条计费，一个手滑的 10 秒轮询就是一天几万条的账单。
+// The polling interval has a floor: X charges per read, and an accidental 10-second poll turns
+// into a bill for tens of thousands of calls a day.
 func TestPollIntervalFloor(t *testing.T) {
 	if got := pollInterval("10"); got != minPollSeconds*time.Second {
 		t.Errorf("10 秒应当被抬到下限，得到 %s", got)
@@ -533,7 +547,8 @@ func TestCursorsRoundTrip(t *testing.T) {
 	if got := parseCursors(""); got != (cursors{}) {
 		t.Errorf("空游标应当是零值: %+v", got)
 	}
-	// 坏数据不该让事件源崩掉，当成「没有游标」即可（下一轮会重新记位置）
+	// Bad data must not crash the event source — treating it as "no cursor" is fine (the next
+	// round will record the position fresh)
 	if got := parseCursors("{坏的"); got != (cursors{}) {
 		t.Errorf("坏游标应当退化成零值: %+v", got)
 	}

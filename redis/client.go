@@ -1,10 +1,12 @@
 package main
 
-// 连接层：凭证 → *redis.Client。
+// Connection layer: credential → *redis.Client.
 //
-// **一份凭证一个 client，全进程复用**：go-redis 自带连接池，而每次调用新建 client
-// 等于每条命令前先做一次 TCP 握手 + AUTH（+ TLS 握手），密集写入时开销比命令本身还大。
-// 缓存键是凭证内容的指纹（sha256），不是明文——map 的键会在崩溃转储里露脸。
+// **One client per credential, reused for the whole process**: go-redis already pools connections, and
+// building a new client on every call would mean a TCP handshake + AUTH (+ TLS handshake) before every
+// single command — under heavy write load that overhead would dwarf the commands themselves. The cache
+// key is a fingerprint (sha256) of the credential contents, not the plaintext — a map key would show up
+// in a crash dump.
 
 import (
 	"crypto/sha256"
@@ -27,7 +29,7 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// redisClient 只是 *redis.Client 的别名，给缓存与测试一个短名字。
+// redisClient is just an alias for *redis.Client, giving the cache and tests a short name.
 type redisClient = redis.Client
 
 var (
@@ -35,7 +37,8 @@ var (
 	pool   = map[string]*redisClient{}
 )
 
-// optionsOf 凭证 → 连接参数。地址不带端口时补 6379（云控制台复制出来的常见形态）。
+// optionsOf converts a credential into connection options. When the address has no port, 6379 is
+// appended (a common shape when copying from a cloud console).
 func optionsOf(c Cred) (*redis.Options, error) {
 	addr := strings.TrimSpace(c.Addr)
 	if addr == "" {
@@ -69,8 +72,9 @@ func optionsOf(c Cred) (*redis.Options, error) {
 		host, _, _ := strings.Cut(addr, ":")
 		opt.TLSConfig = &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
 	case "on_insecure":
-		// 自签证书的自建实例：连接仍加密，但不校验对端身份——凭证里把这件事说清楚了。
-		opt.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // 凭证显式选择
+		// Self-hosted instances with a self-signed certificate: the connection is still encrypted, but
+		// the peer's identity isn't verified — the credential UI spells this out explicitly.
+		opt.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // explicitly chosen via the credential
 	default:
 		return nil, fmt.Errorf("凭证里的 TLS 取值 %q 不认识（off / on / on_insecure）", c.TLS)
 	}
@@ -82,7 +86,7 @@ func fingerprint(o *redis.Options) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-// clientOf 取（或建）该凭证的 client。
+// clientOf gets (or creates) the client for this credential.
 func clientOf(c Cred) (*redis.Client, error) {
 	opt, err := optionsOf(c)
 	if err != nil {
@@ -101,9 +105,10 @@ func clientOf(c Cred) (*redis.Client, error) {
 
 func clientFor(ctx plugin.Ctx) (*redis.Client, error) { return clientOf(credOf(ctx)) }
 
-// pairs 把契约里的对象字段摊平成 go-redis 的可变参数（k1, v1, k2, v2, …）。
-// 值统一按字符串写入：Redis 侧本来就只存字符串，数字/布尔在这里定型能少一类
-// 「取出来和存进去长得不一样」的困惑。
+// pairs flattens a contract object field into go-redis's variadic argument form (k1, v1, k2, v2, …).
+// Values are always written as strings: Redis itself only ever stores strings, and normalizing
+// numbers/booleans here avoids a whole class of "it doesn't look the same coming out as it did going in"
+// confusion.
 func pairs(m map[string]any) []any {
 	out := make([]any, 0, len(m)*2)
 	for k, v := range m {
@@ -119,7 +124,7 @@ func asString(v any) string {
 	case string:
 		return x
 	case float64:
-		// JSON 数字统一走这里：整数别打成 1e+06。
+		// All JSON numbers go through here: integers shouldn't come out formatted as 1e+06.
 		if x == float64(int64(x)) {
 			return strconv.FormatInt(int64(x), 10)
 		}
@@ -131,7 +136,7 @@ func asString(v any) string {
 	}
 }
 
-// strMap map[string]string → 契约的对象字段。
+// strMap converts a map[string]string into a contract object field.
 func strMap(m map[string]string) map[string]any {
 	out := make(map[string]any, len(m))
 	for k, v := range m {
@@ -140,7 +145,8 @@ func strMap(m map[string]string) map[string]any {
 	return out
 }
 
-// splitList 逗号分隔的凭证字段 → 去空白去空项。
+// splitList converts a comma-separated credential field into a list, trimming whitespace and dropping
+// empty entries.
 func splitList(s string) []string {
 	var out []string
 	for _, p := range strings.Split(s, ",") {

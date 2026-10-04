@@ -1,9 +1,12 @@
-// kbstore-pgvector 的操作契约 —— **与 kbstore-es 逐字相同**。
+// kbstore-pgvector's operation contracts — **identical, byte for byte, to kbstore-es's**.
 //
-// 相同是刻意的:平台侧(pipeline_provider.go)只认这 8 个操作,换存储引擎不该改平台一行。
-// 差异只允许出现在**凭证**(连的是 Postgres 不是 ES)与实现里。
-// 抄的过程本身就是一次契约体检:哪个字段是 ES 才有的概念,抄到这儿会立刻硌手
-// (硌到的都记在 docs/contract-notes.md)。
+// The sameness is deliberate: the platform side (pipeline_provider.go) only recognizes these 8
+// operations, and swapping the storage engine shouldn't require changing a single line of the
+// platform. Differences are only allowed to show up in the **credential** (connecting to Postgres,
+// not ES) and in the implementation.
+// The act of copying is itself a contract health check: whichever field turns out to be an
+// ES-only concept will snag immediately when copied here (whatever snags gets recorded in
+// docs/contract-notes.md).
 package schema
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// ChunksBrowse （迁移自旧契约）
+// ChunksBrowse (migrated from the legacy contract)
 type ChunksBrowse struct{}
 
 func (ChunksBrowse) Meta() contract.Meta {
@@ -34,7 +37,7 @@ func (ChunksBrowse) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ChunksUpsert （迁移自旧契约）
+// ChunksUpsert (migrated from the legacy contract)
 type ChunksUpsert struct{}
 
 func (ChunksUpsert) Meta() contract.Meta {
@@ -46,8 +49,9 @@ func (ChunksUpsert) Inputs() []contract.FieldSpec {
 		field.String("kb_id"),
 		field.String("doc_id"),
 		field.Array("chunks", []Chunk{}),
-		// append=true：不先删该 doc 的既有 chunk。平台按 NATS 单帧上限分批时，
-		// 只有第一批是 false——每批都替换的话，后一批会把前一批刚写的删掉。
+		// append=true: don't delete the doc's existing chunks first. When the platform batches by
+		// the NATS single-frame size limit, only the first batch is false — replacing on every
+		// batch would delete what the previous batch just wrote.
 		field.Bool("append").Optional(),
 	}
 }
@@ -59,7 +63,7 @@ func (ChunksUpsert) Outputs() []contract.FieldSpec {
 	}
 }
 
-// DocDelete （迁移自旧契约）
+// DocDelete (migrated from the legacy contract)
 type DocDelete struct{}
 
 func (DocDelete) Meta() contract.Meta {
@@ -79,7 +83,7 @@ func (DocDelete) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KbCreate （迁移自旧契约）
+// KbCreate (migrated from the legacy contract)
 type KbCreate struct{}
 
 func (KbCreate) Meta() contract.Meta {
@@ -100,7 +104,7 @@ func (KbCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KbDrop （迁移自旧契约）
+// KbDrop (migrated from the legacy contract)
 type KbDrop struct{}
 
 func (KbDrop) Meta() contract.Meta {
@@ -121,7 +125,7 @@ func (KbDrop) Outputs() []contract.FieldSpec {
 	}
 }
 
-// KeywordQuery （迁移自旧契约）
+// KeywordQuery (migrated from the legacy contract)
 type KeywordQuery struct{}
 
 func (KeywordQuery) Meta() contract.Meta {
@@ -146,7 +150,7 @@ func (KeywordQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Mget （迁移自旧契约）
+// Mget (migrated from the legacy contract)
 type Mget struct{}
 
 func (Mget) Meta() contract.Meta {
@@ -166,7 +170,7 @@ func (Mget) Outputs() []contract.FieldSpec {
 	}
 }
 
-// VectorQuery （迁移自旧契约）
+// VectorQuery (migrated from the legacy contract)
 type VectorQuery struct{}
 
 func (VectorQuery) Meta() contract.Meta {
@@ -189,9 +193,9 @@ func (VectorQuery) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：Postgres(pgvector) 连接（平台凭证下发）。
+// Credential: a Postgres (pgvector) connection (issued by the platform's credential manager).
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {
@@ -201,12 +205,16 @@ func (Credential) CredentialFields() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck：体检这条凭证 —— 连一下库，报 PostgreSQL 版本与关键扩展。
+// HealthCheck checks this credential — connects to the database and reports the PostgreSQL version
+// and key extensions.
 //
-// 平台侧的约定：操作 id 必须是 health_check，凭证页的「检查」按钮据此判断这个插件能不能
-// 验活；出参 ok=false + message 表示不可用（而不是抛错——抛错在界面上只剩一个红叉，
-// 说不出是连不上、密码错，还是**没装 vector 扩展**，而最后那条正是本插件最常见的部署故障：
-// 不体检的话要等到建知识库那一刻才炸，那时人已经在怀疑是自己流程写错了）。
+// Platform-side convention: the operation id must be health_check; the "check" button on the
+// credential page relies on it to decide whether this plugin can be health-checked. An output of
+// ok=false + message means unavailable (rather than throwing an error — an error would leave only
+// a red X on the UI, unable to say whether it's a connection failure, a wrong password, or
+// **a missing vector extension**, and that last one is this plugin's most common deployment
+// failure: without this check it wouldn't blow up until the moment a knowledge base gets created,
+// by which point people are already second-guessing their own workflow).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {

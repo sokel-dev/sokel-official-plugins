@@ -1,51 +1,67 @@
-# bluesky — Bluesky 发布器插件
+# bluesky — Bluesky publisher plugin
 
-发帖、发帖串、删帖。**统一 publish 契约的第一个样板**（见
-[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3）：
-发布类操作一律回 `id` + `url`，长内容分段归插件，媒体随发布一起走。
+Post, thread, and delete. **The first template for the unified publish contract** (see
+[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md) §3): publish
+operations always return `id` + `url`, the plugin owns splitting long content, and media
+travels along with the publish call.
 
-面向用户的说明书是 [docs/bluesky.md](docs/bluesky.md)（随握手上报，界面上「使用说明」即是它）。
+The user-facing guide is [docs/bluesky.md](docs/bluesky.md) (shipped with the handshake;
+it's what shows as "usage doc" in the UI).
 
-## 为什么选它当第一个
+## Why it was chosen first
 
-零审批、零费用、无按次计费——接入成本近乎为零，正好用来把「publish 契约 + 凭证 +
-通道限流 + 发布台账 + 失败重试」这条链路验穿。这五样在任何平台上都一样，
-才是这批发布器插件的真正工作量（X 那种按次计费的、微信那种要认证服务号的，
-都不适合用来定契约）。
+Zero approval process, zero cost, no per-call billing — onboarding cost is close to zero,
+making it a good way to validate the whole chain end to end: "publish contract +
+credential + channel rate limiting + publish ledger + retry on failure". These five things
+are the same on any platform, and are the real work behind this batch of publisher plugins
+(something like X, which bills per call, or WeChat, which requires a verified official
+account, isn't a good fit for nailing down the contract).
 
-## 四条设计判断
+## Four design decisions
 
-1. **facets 按 UTF-8 字节偏移算**（[richtext.go](richtext.go)）。Bluesky 不自动识别正文里的
-   URL，要显式给富文本标注；而标注下标是字节偏移，中英混排时按字符数算会整体错位
-   （每个中文差 2 字节）。自己拼接口的人十有八九栽在这儿，所以插件包掉。
-2. **链接卡片默认做**（[embed.go](embed.go)）。财经内容十条有八条是「一句话 + 一个链接」，
-   没有卡片就是一串裸 URL。抓 OG 失败**不算发布失败**——退回纯文本链接照样发得出去。
-3. **图片随发布传**，不单列上传操作：blob 不被记录引用就会被回收，中间隔一个人工节点
-   等半天必然失效。（X 的视频要分片+转码，那才值得独立成操作。）
-4. **会话插件自管**：`accessJwt` 只活几分钟，`refreshJwt` 才是长期凭据。凭证里存的是
-   「账号 + 应用专用密码」，短期会话缓存在进程内，401 时先 refresh、再退回重新登录。
+1. **facets are computed by UTF-8 byte offset** ([richtext.go](richtext.go)). Bluesky
+   doesn't auto-detect URLs in the text, so rich-text annotations must be given
+   explicitly; and an annotation's index is a byte offset — indexing by character count
+   misplaces everything when CJK and ASCII are mixed (each CJK character is off by 2
+   bytes). Anyone hand-rolling this integration trips over it nine times out of ten, so
+   the plugin handles it.
+2. **Link cards are built by default** ([embed.go](embed.go)). Eight times out of ten,
+   financial content is "one sentence + one link", and without a card it's just a bare
+   URL. A failed OG fetch **does not count as a publish failure** — falling back to a
+   plain text link still gets it sent.
+3. **Images are sent along with the publish call**, not as a separate upload operation:
+   an unreferenced blob gets garbage collected, so waiting behind a human-approval node in
+   between would always fail. (X's video needs chunking + transcoding, which is what would
+   justify a standalone operation.)
+4. **The session is self-managed by the plugin**: `accessJwt` only lives a few minutes,
+   while `refreshJwt` is the long-lived credential. The credential stores "identifier +
+   app password"; the short-lived session is cached in-process, and a 401 first tries a
+   refresh, falling back to a fresh login.
 
-## 文件
+## Files
 
-| 文件 | 干什么 |
+| File | What it does |
 |---|---|
-| `schema/schema.go` | 操作与凭证契约（**事实源**，改完 `go generate`） |
-| `client.go` | 会话（登录/续期/缓存）、XRPC、错误翻译、地址互转 |
-| `richtext.go` | facets：链接/话题/提及，字节偏移 |
-| `embed.go` | 图片 blob 上传、链接卡片（OG 抓取） |
-| `post.go` | 发帖/帖串/删帖/健康检查 |
+| `schema/schema.go` | Operation and credential contracts (**source of truth**; run `go generate` after editing) |
+| `client.go` | Session (login/renewal/caching), XRPC, error translation, address conversion |
+| `richtext.go` | Facets: links/hashtags/mentions, by byte offset |
+| `embed.go` | Image blob upload, link card (OG fetching) |
+| `post.go` | Post/thread/delete/health check |
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试用假 PDS（[bluesky_test.go](bluesky_test.go)），钉的是四件不测就一定错的事：
-字节偏移、帖串的 root/parent 引用、会话过期自动续期、卡片抓不到不阻断发布。
+Tests use a fake PDS ([bluesky_test.go](bluesky_test.go)), pinning down four things that
+would definitely be wrong without a test: byte offsets, a thread's root/parent refs,
+automatic renewal after session expiry, and a failed card fetch not blocking the publish.
 
-## 没做的
+## Not done
 
-- **视频**：Bluesky 支持 100MB/3 分钟，但要另一套上传与转码等待，等有场景再加。
-- **读**（搜索/时间线/通知）：本插件定位是发布器。要做舆情监测再单独扩，
-  形状照 `plugin-builtin/x` 的增量游标来。
+- **Video**: Bluesky supports up to 100MB/3 minutes, but that needs a separate upload and
+  transcoding wait — add it once there's an actual use case.
+- **Reads** (search/timeline/notifications): this plugin is positioned as a publisher.
+  If sentiment monitoring is needed, extend it separately, shaped like
+  `plugin-builtin/x`'s incremental cursor.

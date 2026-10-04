@@ -1,7 +1,8 @@
 package main
 
-// 测的是这个插件里**有判断**的地方，不是 HTTP 转发本身。
-// 每条对应 schema 包顶注或代码注释里点名的一个坑——那些坑的共同点是「错了不报错」。
+// These tests cover the places in this plugin that **make decisions**, not plain HTTP
+// forwarding. Each one corresponds to a pitfall called out in the schema package's top
+// comment or in code comments — what they have in common is "fails silently, not loudly".
 
 import (
 	"context"
@@ -38,12 +39,12 @@ func (f *fakeCtx) UploadReader(string, string, io.Reader) (*plugin.File, error) 
 }
 func (f *fakeCtx) Fetch(*plugin.File) ([]byte, error) { return nil, nil }
 
-// fakeSourceCtx 记录 Trigger，用来断言「推了哪个事件、带了什么」。
+// fakeSourceCtx records Trigger calls so tests can assert "which event fired, with what payload".
 type fakeSourceCtx struct {
 	*fakeCtx
-	fired map[string]any // 事件 id → payload
+	fired map[string]any // event id → payload
 	ids   map[string]string
-	order []string // 「事件名|event_id」，按推送顺序——次数与先后只有它看得见
+	order []string // "event name|event_id", in fire order — this is the only place count and order are visible
 }
 
 func newSource(cred map[string]string) *fakeSourceCtx {
@@ -59,7 +60,7 @@ func (f *fakeSourceCtx) Trigger(event, eventID string, payload any) error {
 func (f *fakeSourceCtx) UpdateCredential(map[string]string) error { return nil }
 func (f *fakeSourceCtx) ReportStatus(string, string)              {}
 
-// —— 验签：安全边界，错了会放进伪造的事件 ——
+// —— Signature verification: a security boundary — get it wrong and forged events get through ——
 
 func sign(secret string, body []byte) string {
 	m := hmac.New(sha256.New, []byte(secret))
@@ -67,8 +68,9 @@ func sign(secret string, body []byte) string {
 	return "sha256=" + hex.EncodeToString(m.Sum(nil))
 }
 
-// GitHub 用 HMAC-SHA256 签**原始请求体**，不是 GitLab 那种明文 token 比对。
-// 照抄 GitLab 的写法会永远验不过；而更糟的方向是「验不过就放行」。
+// GitHub signs the **raw request body** with HMAC-SHA256, unlike GitLab's plain-text
+// token comparison. Copying GitLab's approach will never verify successfully — and the
+// worse failure mode is "let it through when verification fails".
 func TestWebhookSignature(t *testing.T) {
 	body := []byte(`{"zen":"x"}`)
 	cases := []struct {
@@ -81,7 +83,7 @@ func TestWebhookSignature(t *testing.T) {
 		{"签名错误", "s3cret", sign("wrong", body), false},
 		{"配了 secret 但请求没带签名", "s3cret", "", false},
 		{"凭证没配 secret 就跳过校验", "", "", true},
-		// 大小写与前缀都不能宽容：sha1= 是 GitHub 的老签名头，安全性已不够
+		// Case and prefix must both be strict: sha1= is GitHub's old signature header, no longer secure enough
 		{"拿 sha1 的形状冒充", "s3cret", "sha1=" + hex.EncodeToString([]byte("x")), false},
 	}
 	for _, c := range cases {
@@ -99,10 +101,11 @@ func TestWebhookSignature(t *testing.T) {
 	}
 }
 
-// 签名算的必须是**原始字节**。重新编码过的 JSON（键序、空格都会变）算出来的签名对不上，
-// 而症状是「所有 webhook 都 401」——很容易被误当成 secret 填错。
+// The signature must be computed over the **raw bytes**. Re-encoded JSON (key order and
+// spacing can both change) produces a signature that won't match, and the symptom is
+// "every webhook gets 401" — easy to mistake for a wrong secret.
 func TestWebhookSignatureUsesRawBody(t *testing.T) {
-	raw := []byte(`{"b":1,  "a":2}`) // 故意留多余空格且键无序
+	raw := []byte(`{"b":1,  "a":2}`) // deliberately left with extra spaces and unordered keys
 	ctx := newSource(map[string]string{"webhook_secret": "k"})
 	req := &sokel.WebhookRequest{
 		Body:    raw,
@@ -113,7 +116,7 @@ func TestWebhookSignatureUsesRawBody(t *testing.T) {
 	}
 }
 
-// —— /issues 会连 PR 一起返回：GitHub API 最经典的坑 ——
+// —— /issues also returns PRs: the most classic GitHub API pitfall ——
 
 func TestIssuesListDropsPullRequests(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +141,7 @@ func TestIssuesListDropsPullRequests(t *testing.T) {
 			t.Errorf("剔完还剩 PR：%+v", is)
 		}
 	}
-	// 打开开关就该保留，并且如实标记 is_pr
+	// Turning on the switch should keep them, and mark is_pr truthfully
 	out2, err := opIssuesList(ctx, &IssuesListIn{Repo: "o/r", IncludePrs: true})
 	if err != nil {
 		t.Fatal(err)
@@ -151,9 +154,10 @@ func TestIssuesListDropsPullRequests(t *testing.T) {
 	}
 }
 
-// —— webhook 分发：三条「不判会派错活」的分支 ——
+// —— webhook dispatch: three branches that misroute work if left unchecked ——
 
-// closed 不等于 merged：关掉不合也是 closed。判错的话「PR 合并后发布」会在每次关闭 PR 时误触发。
+// closed does not mean merged: closing without merging is also "closed". Getting this wrong
+// means "publish after PR merge" fires spuriously on every PR close.
 func TestWebhookClosedNotMerged(t *testing.T) {
 	for _, c := range []struct{ merged, wantFire bool }{{true, true}, {false, false}} {
 		ctx := newSource(nil)
@@ -178,8 +182,8 @@ func TestWebhookClosedNotMerged(t *testing.T) {
 	}
 }
 
-// PR 下的评论走的是同一个 issue_comment 事件——不区分的话
-// 「在 PR 里说句话」会去派 Issue 的活。
+// Comments on a PR go through the same issue_comment event — without distinguishing them,
+// "commenting on a PR" would dispatch to the Issue path instead.
 func TestWebhookCommentRoutesByTarget(t *testing.T) {
 	mk := func(isPR bool) map[string]any {
 		iss := map[string]any{"number": 3, "title": "t"}
@@ -217,7 +221,7 @@ func TestWebhookCommentRoutesByTarget(t *testing.T) {
 	}
 }
 
-// 机器人自己的评论必须能被认出来——否则 ChatOps 会自我唤醒成死循环。
+// A bot's own comments must be recognizable — otherwise ChatOps can wake itself up into an infinite loop.
 func TestBotDetection(t *testing.T) {
 	cases := []struct {
 		user map[string]any
@@ -225,9 +229,9 @@ func TestBotDetection(t *testing.T) {
 	}{
 		{map[string]any{"login": "alice", "type": "User"}, false},
 		{map[string]any{"login": "dependabot[bot]", "type": "Bot"}, true},
-		// type 缺席的老 payload 靠名字后缀兜住
+		// Old payloads missing type fall back to the name suffix
 		{map[string]any{"login": "renovate[bot]"}, true},
-		{map[string]any{"login": "botanist", "type": "User"}, false}, // 名字里有 bot 不算
+		{map[string]any{"login": "botanist", "type": "User"}, false}, // having "bot" in the name doesn't count
 	}
 	for _, c := range cases {
 		if got := isBot(c.user); got != c.want {
@@ -236,7 +240,8 @@ func TestBotDetection(t *testing.T) {
 	}
 }
 
-// event_id 用 X-GitHub-Delivery：GitHub 重投时沿用同一个，正好是平台去重要的语义。
+// event_id uses X-GitHub-Delivery: GitHub reuses the same value on redelivery, which is
+// exactly the dedup semantics the platform needs.
 func TestWebhookUsesDeliveryAsEventID(t *testing.T) {
 	ctx := newSource(nil)
 	body, _ := json.Marshal(map[string]any{
@@ -252,7 +257,7 @@ func TestWebhookUsesDeliveryAsEventID(t *testing.T) {
 	}
 }
 
-// GitHub 保存 webhook 配置时立刻发一条 ping——不回 200 的话配置页显示成失败。
+// GitHub sends a ping immediately when a webhook config is saved — if we don't return 200, the config page shows it as failed.
 func TestWebhookPing(t *testing.T) {
 	ctx := newSource(nil)
 	resp := handleWebhook(ctx, &sokel.WebhookRequest{
@@ -264,7 +269,7 @@ func TestWebhookPing(t *testing.T) {
 	}
 }
 
-// 认不出的事件类型也要回 200：非 2xx 会让 GitHub 反复重试，连错几次后它会把 webhook 停掉。
+// Unrecognized event types must also get a 200: a non-2xx makes GitHub retry repeatedly, and after enough failures it disables the webhook.
 func TestWebhookUnknownEventStill200(t *testing.T) {
 	ctx := newSource(nil)
 	resp := handleWebhook(ctx, &sokel.WebhookRequest{
@@ -279,14 +284,14 @@ func TestWebhookUnknownEventStill200(t *testing.T) {
 	}
 }
 
-// —— 地址拼接：GHES 的 GraphQL 端点不跟 REST 的 /api/v3 ——
+// —— URL assembly: GHES's GraphQL endpoint does not follow REST's /api/v3 ——
 
 func TestBaseURLs(t *testing.T) {
 	cases := []struct{ base, rest, gql string }{
 		{"", "https://api.github.com", "https://api.github.com/graphql"},
 		{"https://gh.example.com", "https://gh.example.com/api/v3", "https://gh.example.com/api/graphql"},
 		{"https://gh.example.com/", "https://gh.example.com/api/v3", "https://gh.example.com/api/graphql"},
-		// 用户把 /api/v3 一起填进来是很常见的——不去重会拼成 /api/v3/api/v3
+		// It's common for users to include /api/v3 in the base URL themselves — without dedup this becomes /api/v3/api/v3
 		{"https://gh.example.com/api/v3", "https://gh.example.com/api/v3", "https://gh.example.com/api/graphql"},
 	}
 	for _, c := range cases {
@@ -320,7 +325,7 @@ func TestRepoSplit(t *testing.T) {
 	}
 }
 
-// GitHub 不回总数，翻页只能看 Link 头。
+// GitHub doesn't return a total count; pagination can only be determined from the Link header.
 func TestHasNext(t *testing.T) {
 	h := http.Header{}
 	if hasNext(h) {
@@ -336,7 +341,8 @@ func TestHasNext(t *testing.T) {
 	}
 }
 
-// 403 有两种含义，混为一谈会让人拿着「权限不够」去反复检查 scope，而其实只要等几分钟。
+// 403 has two meanings; conflating them sends people chasing "insufficient permission" by
+// repeatedly checking scopes, when really they just need to wait a few minutes.
 func TestRateLimitVsPermission(t *testing.T) {
 	limited := http.Header{}
 	limited.Set("X-RateLimit-Remaining", "0")
@@ -350,14 +356,15 @@ func TestRateLimitVsPermission(t *testing.T) {
 	if strings.Contains(err.Error(), "限流") {
 		t.Errorf("有余量的 403 是权限问题，不该说成限流：%v", err)
 	}
-	// 404 要说清「没权限也回 404」，否则用户会一直核对路径
+	// The 404 message must spell out "no permission also returns 404", otherwise users keep re-checking the path
 	err = ghErr(404, []byte(`{"message":"Not Found"}`), "/repos/o/r", http.Header{})
 	if !strings.Contains(err.Error(), "404") || !strings.Contains(err.Error(), "权限") {
 		t.Errorf("404 要提示可能是权限问题：%v", err)
 	}
 }
 
-// 提交状态的说明有 140 字上限，按字符截而不是按字节——按字节会把多字节字符切成乱码。
+// The commit status description has a 140-character cap, truncated by character, not by
+// byte — truncating by byte would cut multi-byte characters into garbage.
 func TestClipRunes(t *testing.T) {
 	s := strings.Repeat("中", 200)
 	got := clipRunes(s, 140)
@@ -372,7 +379,8 @@ func TestClipRunes(t *testing.T) {
 	}
 }
 
-// 轮询游标：活动流 id 是递增数字串，可能超出 int64——按长度+字典序比。
+// Polling cursor: activity feed ids are increasing numeric strings that may exceed
+// int64 — compare by length, then lexicographically.
 func TestNewerThan(t *testing.T) {
 	cases := []struct {
 		id, last string
@@ -382,7 +390,7 @@ func TestNewerThan(t *testing.T) {
 		{"101", "100", true},
 		{"100", "100", false},
 		{"99", "100", false},
-		{"1000", "999", true}, // 位数多的更新
+		{"1000", "999", true}, // more digits means newer
 		{"999", "1000", false},
 	}
 	for _, c := range cases {
@@ -392,7 +400,7 @@ func TestNewerThan(t *testing.T) {
 	}
 }
 
-// GitHub 把协作者权限回成一张布尔表，取最高那档才是人想看的角色。
+// GitHub returns collaborator permissions as a table of booleans; taking the highest tier is the role people actually want to see.
 func TestHighestPermission(t *testing.T) {
 	all := map[string]any{"admin": true, "maintain": true, "push": true, "pull": true}
 	if got := highestPermission(all); got != "admin" {
@@ -407,7 +415,7 @@ func TestHighestPermission(t *testing.T) {
 	}
 }
 
-// 写文件必须带 blob sha，否则 422。这条测的是「有没有先探一次」。
+// Writing a file must include the blob sha, or it's a 422. This test checks whether we probe first.
 func TestFileWriteFetchesShaFirst(t *testing.T) {
 	var sawGet bool
 	var putBody map[string]any
@@ -448,11 +456,12 @@ func keysOf(m map[string]any) []string {
 	return out
 }
 
-// —— 轮询源：这条路以前一行测试都没有 ——
+// —— Poll sources: this path had zero test coverage before ——
 //
-// 不是疏忽是签名：三个 poll 函数原先收 sokel.SourceCtx（结构体，假不出 Trigger）。
-// webhook 有测试纯属运气——sokel.WebhookCtx 恰好是 plugin.SourceCtx 的别名，是接口。
-// 收窄成接口之后才有了下面这些。
+// It wasn't an oversight, it was the signature: the three poll functions originally took
+// sokel.SourceCtx (a struct, which can't be faked to assert Trigger calls). The webhook path
+// only had tests by luck — sokel.WebhookCtx happens to be an alias for plugin.SourceCtx, an
+// interface. Only after narrowing to an interface did the tests below become possible.
 
 func pollSrv(t *testing.T, body string) (*httptest.Server, *fakeSourceCtx) {
 	t.Helper()
@@ -463,7 +472,7 @@ func pollSrv(t *testing.T, body string) (*httptest.Server, *fakeSourceCtx) {
 	return srv, newSource(map[string]string{"base_url": srv.URL, "token": "t"})
 }
 
-// 活动流是新→旧排的，GitHub 一次给 30 条。
+// The activity feed is ordered newest-to-oldest, and GitHub gives 30 items per page.
 func activityFeed(ids ...string) string {
 	var parts []string
 	for _, id := range ids {
@@ -473,9 +482,10 @@ func activityFeed(ids ...string) string {
 	return "[" + strings.Join(parts, ",") + "]"
 }
 
-// **首轮只记游标不推**：轮询第一次拉到的是仓库近期全部活动。
-// 照发的话，插件一装上就有几十条陈年提交/Issue 涌进工作流，
-// 用户的第一反应是把触发器关掉——那比没有更糟。
+// **The first round only records the cursor, it doesn't fire**: the first poll pulls in the
+// repo's whole recent activity. Firing all of it would flood the workflow with dozens of
+// stale commits/issues the moment the plugin is installed, and the user's first reaction
+// would be to turn the trigger off — which is worse than not having it at all.
 func TestPollFirstRoundDoesNotFire(t *testing.T) {
 	_, ctx := pollSrv(t, activityFeed("300", "299", "298"))
 
@@ -491,9 +501,10 @@ func TestPollFirstRoundDoesNotFire(t *testing.T) {
 	}
 }
 
-// **按时间顺序推，旧的先**：活动流是新→旧排的，得倒着遍历。
-// 顺着推的话，工作流收到的是「先看到最新一条，再看到更早的」——
-// 任何按顺序累积状态的流程（比如按提交顺序发布）都会被搞反，且不会有任何东西报错。
+// **Fire in chronological order, oldest first**: the activity feed is newest-to-oldest, so
+// it must be iterated in reverse. Firing in feed order would mean the workflow sees the
+// newest item first and older ones after — any process that accumulates state in order
+// (e.g. publishing in commit order) would be reversed, with no error reported anywhere.
 func TestPollFiresOldestFirst(t *testing.T) {
 	_, ctx := pollSrv(t, activityFeed("103", "102", "101"))
 
@@ -507,8 +518,9 @@ func TestPollFiresOldestFirst(t *testing.T) {
 	}
 }
 
-// **只推游标之后的**：每轮都会重新拉到 30 条，其中大部分上一轮已经推过。
-// 不过滤的话，一条提交每分钟触发一次工作流，直到它被挤出这 30 条。
+// **Only fire items after the cursor**: every round re-fetches 30 items, most of which were
+// already fired last round. Without filtering, a single commit would trigger the workflow
+// once per minute until it gets pushed out of those 30 items.
 func TestPollSkipsAlreadySeen(t *testing.T) {
 	_, ctx := pollSrv(t, activityFeed("103", "102", "101"))
 
@@ -524,9 +536,10 @@ func TestPollSkipsAlreadySeen(t *testing.T) {
 	}
 }
 
-// **id 是数字串，不能按字典序直接比**：位数一变，"9" > "10" 就成立了。
-// 真出这个错的表现是：id 进位的那一刻起，之后的事件**全部被判为更旧**，
-// 轮询从此彻底哑掉——而日志里一条错都没有。
+// **ids are numeric strings and cannot be compared lexicographically**: once the digit
+// count changes, "9" > "10" becomes true. When this bug actually happens, the symptom is
+// that from the moment the id gains a digit, every subsequent event **gets judged as
+// older**, and polling goes permanently silent — with not a single error in the logs.
 func TestPollEventIDComparesNumerically(t *testing.T) {
 	if !newerThan("10", "9") {
 		t.Fatal("10 比 9 新——按字典序直接比会判反，一进位轮询就永久哑掉")
@@ -548,8 +561,9 @@ func TestPollEventIDComparesNumerically(t *testing.T) {
 	}
 }
 
-// **活动流的 payload 与 webhook 的形状不同**，所以分派得单独写一份。
-// 这里钉住最容易漂的两处：ref 要去掉 refs/heads/，提交信息取**最后一条**。
+// **The activity feed payload has a different shape from the webhook payload**, so the
+// dispatch logic has to be written separately. This pins down the two spots most likely
+// to drift: ref must have refs/heads/ stripped, and the commit message must be the **last** one.
 func TestPollActivityPayloadShape(t *testing.T) {
 	_, ctx := pollSrv(t, `[{"id":"200","type":"PushEvent","actor":{"login":"alice"},
 	 "payload":{"ref":"refs/heads/release/1.0","head":"abc",
@@ -574,8 +588,9 @@ func TestPollActivityPayloadShape(t *testing.T) {
 	}
 }
 
-// **重试失败是一次新的真事件**：去重键必须带 attempt。
-// 只按 run_id 去重的话，「重跑还是挂了」永远不会通知——而那恰恰是要人管的那次。
+// **A retried failure is a new, real event**: the dedup key must include attempt.
+// Deduping by run_id alone means "still failing after a rerun" never gets notified — and
+// that's exactly the case that needs someone's attention.
 func TestPollFailedRunRetryIsNewEvent(t *testing.T) {
 	runs := func(attempt string) string {
 		return `{"workflow_runs":[{"id":77,"name":"CI","run_attempt":` + attempt + `,
@@ -589,7 +604,7 @@ func TestPollFailedRunRetryIsNewEvent(t *testing.T) {
 	ctx := newSource(map[string]string{"base_url": srv.URL, "token": "t"})
 
 	seen := map[string]bool{}
-	for i := 0; i < 2; i++ { // 同一次失败连着看到两轮
+	for i := 0; i < 2; i++ { // see the same failure across two consecutive rounds
 		if err := pollFailedRuns(ctx, "o/r", seen, true); err != nil {
 			t.Fatal(err)
 		}
@@ -611,8 +626,9 @@ func TestPollFailedRunRetryIsNewEvent(t *testing.T) {
 	}
 }
 
-// **没开 Actions 的仓库这里返回 404**，不能让它把整轮轮询带崩——
-// 同一个凭证盯好几个仓库，一个没开 Actions 就会让**其余仓库的事件全部停摆**。
+// **A repo with Actions disabled returns 404 here**, and that must not crash the whole poll
+// round — one credential can watch several repos, and one without Actions enabled would
+// otherwise **stop all events from every other repo**.
 func TestPollFailedRunsToleratesActionsDisabled(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

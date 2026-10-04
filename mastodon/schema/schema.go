@@ -1,21 +1,29 @@
-// Package schema 声明 mastodon 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the mastodon plugin.
 //
-// 与 bluesky 同一套 publish 契约（docs/social-publishing-plugins.md §3）：
-// 发布回 id + url、长内容分段归插件、媒体随发布走。差异全在这四条上：
+// Uses the same publish contract as bluesky (docs/social-publishing-plugins.md §3): publishing
+// returns id + url, chunking long content is the plugin's job, media travels with publishing. The
+// differences all come down to these four points:
 //
-//  1. **字数上限由实例说了算，不是 500**。Mastodon 是联邦网络，每个实例自己配
-//     （mastodon.social 是 500，不少中文实例是 5000，有的到 11000）。写死 500 会把
-//     一条本可以发的长文拦下来，所以插件去问实例（/api/v2/instance）并缓存。
+//  1. **The character limit is whatever the instance says, not 500**. Mastodon is a federated
+//     network, and every instance configures its own (mastodon.social uses 500, many
+//     Chinese-language instances use 5000, some go up to 11000). Hardcoding 500 would reject a
+//     long post the user could otherwise send, so the plugin asks the instance
+//     (/api/v2/instance) and caches the answer.
 //
-//  2. **发布带幂等键**。工作流会重试（网络抖动、节点重跑），而 Mastodon 恰好提供了
-//     Idempotency-Key（一小时内同键只落一条）。不带的话，一次超时重试就是时间线上两条一样的嘟文。
+//  2. **Publishing carries an idempotency key**. Workflows retry (network hiccups, node reruns),
+//     and Mastodon conveniently provides Idempotency-Key (the same key within an hour lands only
+//     one post). Without it, a single timeout-and-retry turns into two identical posts on the
+//     timeline.
 //
-//  3. **内容警告（CW）是一等公民**。联邦圈的惯例是敏感/长内容折在 CW 后面，
-//     财经观点尤其常见。不给这个字段，插件就只能发「裸嘟」，会被当成不懂规矩。
+//  3. **A content warning (CW) is a first-class citizen**. The convention across the fediverse is
+//     to fold sensitive/long content behind a CW, which is especially common for financial
+//     commentary. Without this field, the plugin could only post "bare", which gets read as not
+//     knowing the etiquette.
 //
-//  4. **可见性要能选，且回复默认继承**。公开/不列出/仅关注者/私信四档；
-//     帖串的后续条目默认跟随首条——不跟随的话，一串里混进公开与不列出，
-//     读者只能看到断断续续的半串。
+//  4. **Visibility must be selectable, and replies inherit it by default**. Four levels: public /
+//     unlisted / followers-only / direct; later entries in a thread follow the first one by
+//     default — without that, mixing public and unlisted in one thread leaves readers seeing only
+//     a disjointed half.
 package schema
 
 import (
@@ -32,7 +40,7 @@ func visibilityField() contract.FieldSpec {
 		Label("可见性").Default("public")
 }
 
-// StatusCreate 发一条嘟文。
+// StatusCreate posts a single status.
 type StatusCreate struct{}
 
 func (StatusCreate) Meta() contract.Meta {
@@ -65,7 +73,7 @@ func (StatusCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// StatusThread 发一串嘟文。
+// StatusThread posts a chain of statuses.
 type StatusThread struct{}
 
 func (StatusThread) Meta() contract.Meta {
@@ -94,7 +102,7 @@ func (StatusThread) Outputs() []contract.FieldSpec {
 	}
 }
 
-// StatusDelete 删一条嘟文。
+// StatusDelete deletes a single status.
 type StatusDelete struct{}
 
 func (StatusDelete) Meta() contract.Meta {
@@ -110,7 +118,7 @@ func (StatusDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform-mandated operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -128,7 +136,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

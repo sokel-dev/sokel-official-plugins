@@ -1,6 +1,6 @@
 package main
 
-// 四个操作：建草稿、发布草稿、上传图片、健康检查。
+// Four operations: create draft, publish draft, upload image, health check.
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func opDraftAdd(ctx plugin.Ctx, in *MpDraftAddIn) (*MpDraftAddOut, error) {
 	case content == "":
 		return nil, fmt.Errorf("正文是空的")
 	case thumb == "":
-		// 微信这时回的是一句语焉不详的 41005，不如在这儿说清楚。
+		// WeChat would otherwise return a cryptic 41005 here — better to say it plainly ourselves.
 		return nil, fmt.Errorf("封面图是必填的：先用「上传图片」（用途选「封面」）拿一个 thumb_media_id")
 	}
 	if n := len([]rune(title)); n > maxTitle {
@@ -35,7 +35,8 @@ func opDraftAdd(ctx plugin.Ctx, in *MpDraftAddIn) (*MpDraftAddOut, error) {
 	if n := len([]rune(digest)); n > maxDigest {
 		digest = string([]rune(digest)[:maxDigest])
 	}
-	// 外链图在正文里一律显示不出来（防盗链），提前提醒——发出去之后才发现是一篇没有图的文章。
+	// Hotlinked images never display in the body (anti-hotlinking) — warn about this up front,
+	// rather than discovering after publishing that the article has no images.
 	if warn := foreignImages(content); warn != "" {
 		return nil, fmt.Errorf("正文里有非微信域名的图片（%s）：微信会屏蔽它们，"+
 			"先用「上传图片」（用途选「正文配图」）换成 mp.weixin.qq.com 的地址再拼进 HTML", warn)
@@ -93,10 +94,11 @@ func opPublish(ctx plugin.Ctx, in *MpPublishIn) (*MpPublishOut, error) {
 	return waitPublished(ctx, pubID)
 }
 
-// waitPublished：轮询发布结果。
+// waitPublished polls for the publish result.
 //
-// **submit 成功只代表任务提交了**：还可能卡在原创声明或平台审核上，最终失败。
-// 不等的话，工作流会把一次「其实没发出去」当成成功，而那篇文章永远不会出现。
+// **submit succeeding only means the job was submitted**: it can still get stuck on the originality
+// declaration or platform review and ultimately fail. Without waiting, the workflow would treat an
+// "actually never published" case as a success, and the article would simply never show up.
 func waitPublished(ctx plugin.Ctx, pubID string) (*MpPublishOut, error) {
 	deadline := time.Now().Add(4 * time.Minute)
 	out := &MpPublishOut{PublishID: pubID, Status: "publishing"}
@@ -121,11 +123,12 @@ func waitPublished(ctx plugin.Ctx, pubID string) (*MpPublishOut, error) {
 			out.ArticleURL = st.ArticleDetail.Item[0].ArticleURL
 		}
 		switch st.PublishStatus {
-		case 0: // 成功
+		case 0: // success
 			return out, nil
-		case 1: // 发布中
+		case 1: // publishing
 		default:
-			// 失败的几种：把状态原样带出去，让画布上的分支自己决定怎么办。
+			// The various failure cases: pass the status through as-is, and let a branch on the
+			// canvas decide what to do with it.
 			return out, fmt.Errorf("发布未成功（%s）：到公众号后台看这篇的详情", out.Status)
 		}
 		t := time.NewTimer(3 * time.Second)
@@ -139,7 +142,7 @@ func waitPublished(ctx plugin.Ctx, pubID string) (*MpPublishOut, error) {
 	return out, fmt.Errorf("等发布结果超时（publish_id=%s，当前 %s）：可稍后用这个 id 去后台查", pubID, out.Status)
 }
 
-// publishStatus：微信的数字状态 → 人话。
+// publishStatus turns WeChat's numeric status into a human-readable one.
 func publishStatus(code int) string {
 	switch code {
 	case 0:
@@ -147,17 +150,17 @@ func publishStatus(code int) string {
 	case 1:
 		return "publishing"
 	case 2:
-		return "original_failed" // 原创审核不通过
+		return "original_failed" // failed originality review
 	case 3:
-		return "audit_failed" // 常规审核不通过
+		return "audit_failed" // failed general review
 	case 4:
 		return "all_failed"
 	case 5:
 		return "partial_failed"
 	case 6:
-		return "deleted" // 已删除
+		return "deleted" // deleted
 	case 9:
-		return "banned" // 无发布能力
+		return "banned" // no publishing capability
 	}
 	return fmt.Sprintf("unknown_%d", code)
 }
@@ -179,7 +182,7 @@ func opImageUpload(ctx plugin.Ctx, in *MpImageUploadIn) (*MpImageUploadOut, erro
 		mime = "image/jpeg"
 	}
 	if in.Purpose == "cover" {
-		// 永久素材：封面图要的是 media_id。
+		// Permanent material: a cover image needs a media_id.
 		if len(data) > 10<<20 {
 			return nil, fmt.Errorf("封面图 %.1fMB，超过微信的 10MB 上限", float64(len(data))/(1<<20))
 		}
@@ -192,7 +195,7 @@ func opImageUpload(ctx plugin.Ctx, in *MpImageUploadIn) (*MpImageUploadOut, erro
 		}
 		return &MpImageUploadOut{MediaID: out.MediaID, URL: out.URL}, nil
 	}
-	// 正文配图：只回地址，不占素材库配额。
+	// Inline body images: only a URL comes back, doesn't count against the material library quota.
 	if len(data) > 1<<20 {
 		return nil, fmt.Errorf("正文配图 %.1fMB，超过微信的 1MB 上限（封面图才是 10MB）", float64(len(data))/(1<<20))
 	}
@@ -209,8 +212,10 @@ func opImageUpload(ctx plugin.Ctx, in *MpImageUploadIn) (*MpImageUploadOut, erro
 }
 
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
-	// 查草稿数：一次调用同时验出三件事——AppSecret 对不对、IP 在不在白名单、
-	// 这个账号有没有发布权限。只换 token 的话，白名单和权限要等到真发布那一刻才暴露。
+	// Checking the draft count validates three things in one call: whether AppSecret is correct,
+	// whether the IP is in the allowlist, and whether this account has publishing permission. Just
+	// refreshing the token alone wouldn't surface the allowlist or permission issue until the actual
+	// publish attempt.
 	var out struct {
 		TotalCount int `json:"total_count"`
 	}
@@ -221,9 +226,10 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		Message: fmt.Sprintf("正常，草稿箱 %d 篇", out.TotalCount)}, nil
 }
 
-// —— 小工具 ——
+// —— Small helpers ——
 
-// foreignImages：正文里有没有非微信域名的图片。返回第一个，空串表示没有。
+// foreignImages checks whether the body has any image from a non-WeChat domain. Returns the first
+// one found; an empty string means none.
 func foreignImages(html string) string {
 	rest := html
 	for {
@@ -275,7 +281,7 @@ func boolInt(b bool) int {
 	return 0
 }
 
-// asString：publish_id 微信有时给数字有时给字符串。
+// asString handles that WeChat sometimes returns publish_id as a number and sometimes as a string.
 func asString(v any) string {
 	switch t := v.(type) {
 	case string:

@@ -1,40 +1,53 @@
-# wechat-mp — 微信公众号发布器插件（P1 第一个）
+# wechat-mp — WeChat Official Account publisher plugin (the first P1 one)
 
-与 [bluesky](../bluesky/README.md) / mastodon / discord 同一套 publish 契约。
-面向用户的说明书是 [docs/wechat-mp.md](docs/wechat-mp.md)。
+Uses the same publish contract as [bluesky](../bluesky/README.md) / mastodon / discord.
+The user-facing manual is [docs/wechat-mp.md](docs/wechat-mp.md).
 
-## 为什么它是 P1 的第一个
+## Why it's the first P1 plugin
 
-**国内唯一一条「API 正经、金融内容可做、覆盖面够」的主渠道**——雪球/股吧/同花顺/富途/知乎/
-头条号一个都没有官方发布 API，微博只剩分享链接，抖音/视频号/小红书卡在财经资质上
-（见 [docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md)）。
+**The only mainstream channel in China with "a legitimate API, financial content is allowed, and
+reach is good enough"** — Xueqiu/Guba/10jqka/Futu/Zhihu/Toutiao all lack an official publishing
+API, Weibo is down to share links only, and Douyin/Channels/Xiaohongshu are blocked on financial
+content qualifications (see
+[docs/social-publishing-plugins.md](../../docs/social-publishing-plugins.md)).
 
-## 公众号的四件特殊事（每件都会让人「配好了却发不出去」）
+## Four quirks of Official Accounts (each one causes "it's configured but won't publish")
 
-1. **两步发布**：建草稿 → 发布草稿，中间隔一个 media_id。做成两个操作而不是一个「发文章」，
-   是因为草稿建完可以在后台肉眼复核——金融内容该有这个卡点，画布上要不要接人工节点由你定。
-2. **封面图必填**，且必须是永久素材的 media_id。不给时微信回一句语焉不详的 41005，
-   所以插件在发出去之前就拦下并说清楚。
-3. **正文外链图一律被屏蔽**（防盗链）。插件建草稿前扫一遍正文，发现非微信域名的 `<img src>`
-   就拦下——否则你会发出一篇没有图的文章，且事后无法修改。
-4. **IP 白名单**：调用服务器的公网出口 IP 不在白名单里，一切接口回 40164。
-   容器部署时最容易漏，错误信息里直接教怎么查真实出口。
+1. **Two-step publishing**: create draft → publish draft, with a media_id in between. This is built
+   as two operations rather than one "post article" because a draft can be eyeballed in the backend
+   once created — financial content should have this checkpoint, and whether to wire up a human
+   review node on the canvas is up to you.
+2. **A cover image is mandatory**, and it must be a permanent material's media_id. Without one,
+   WeChat returns a cryptic 41005, so the plugin catches this and explains clearly before even
+   sending the request.
+3. **Hotlinked images in the body are always blocked** (anti-hotlinking). The plugin scans the body
+   before creating the draft, and catches any `<img src>` not on a WeChat domain — otherwise you'd
+   publish an article with no images, with no way to fix it afterward.
+4. **IP allowlist**: if the calling server's public egress IP isn't allowlisted, every endpoint
+   returns 40164. This is easiest to miss in a container deployment, so the error message tells you
+   directly how to check the real egress IP.
 
-另有两条容易误判的边界：**2025-07 起个人主体与未认证企业号已被收回发布权限**（48001）；
-`freepublish` 发出的文章**不进历史消息流**，是永久链接，不等于群发。
+Two more boundaries that are easy to get wrong: **as of 2025-07, personal accounts and unverified
+enterprise accounts have had publishing permission revoked** (48001); an article sent via
+`freepublish` **doesn't enter the message history feed** — it's a permanent link, not the same
+thing as a mass send.
 
-## 两个实现细节
+## Two implementation details
 
-- **业务错误装在 HTTP 200 里**（`errcode != 0`）。只看状态码的话，「IP 不在白名单」
-  会被当成成功，然后在下一步以莫名其妙的方式失败。
-- **access_token 全局唯一**：同一个 AppID 再换一次，上一个立刻作废。进程内按 appid 缓存
-  （提前 5 分钟续），40001 时清缓存重试一次；**多副本会互相顶掉 token**，所以单副本跑。
+- **Business errors are packed inside an HTTP 200** (`errcode != 0`). Checking only the status code
+  would treat "IP not in the allowlist" as success, and it would then fail in some mysterious way
+  at the next step.
+- **access_token is globally unique**: refreshing it again for the same AppID immediately
+  invalidates the previous one. It's cached in-process by appid (renewed 5 minutes early), and on a
+  40001 the cache is cleared and retried once; **multiple replicas would keep invalidating each
+  other's token**, so run a single replica.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试（假微信）钉的是：200 里的业务错误、token 失效重试、封面/外链图提前拦下、
-发布异步要等终态、健康检查一次验出「密钥/白名单/权限」三件事。
+The tests (against a fake WeChat) pin down: business errors inside a 200, retrying once on an
+invalid token, catching a missing cover/hotlinked images early, waiting for a terminal state since
+publishing is asynchronous, and a single health check validating "credentials/allowlist/permission".

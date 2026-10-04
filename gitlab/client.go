@@ -1,8 +1,8 @@
 package main
 
-// GitLab REST v4 调用层。纯 HTTP：PRIVATE-TOKEN 头 + JSON，无 SDK 可省。
+// GitLab REST v4 call layer. Plain HTTP: PRIVATE-TOKEN header + JSON, no SDK needed.
 //
-// 自建 CE 与 gitlab.com 同一套 API——差别只在 base_url，凭证里配。
+// Self-hosted CE uses the same API as gitlab.com -- the only difference is base_url, set in the credential.
 
 import (
 	"bytes"
@@ -35,8 +35,8 @@ func baseOf(cred Cred) string {
 
 var httpClient = &http.Client{Timeout: 50 * time.Second}
 
-// glCall 一次 API 调用。query 与 body 二选一由 method 决定（GET 走 query）。
-// 返回原始字节 + 应答头（分页信息在头里）。
+// glCall makes one API call. Whether query or body is used is decided by method (GET uses query).
+// Returns the raw bytes plus response headers (pagination info lives in the headers).
 func glCall(ctx plugin.Ctx, method, path string, params map[string]any) ([]byte, http.Header, error) {
 	cred := credOf(ctx)
 	token := strings.TrimSpace(cred.Token)
@@ -89,7 +89,7 @@ func glCall(ctx plugin.Ctx, method, path string, params map[string]any) ([]byte,
 	return raw, resp.Header, nil
 }
 
-// glErr 高频错误 → 下一步。GitLab 的报错体是 {"message": ...}（message 可能是串/对象/数组）。
+// glErr maps common errors to next steps. GitLab's error body is {"message": ...} (message may be a string/object/array).
 func glErr(code int, raw []byte, path string) error {
 	var e struct {
 		Message any    `json:"message"`
@@ -106,7 +106,7 @@ func glErr(code int, raw []byte, path string) error {
 	case http.StatusForbidden:
 		return fmt.Errorf("token 权限不够（403：%s）——scope 要含 api，且账号要有该项目的对应角色", msg)
 	case http.StatusNotFound:
-		// GitLab 对无权限的项目也回 404（防探测）——话要说全。
+		// GitLab also returns 404 for projects you lack access to (to prevent probing) -- spell this out.
 		return fmt.Errorf("找不到（404：%s）——路径 %s 核对；**没权限的项目 GitLab 也回 404**，确认 token 的账号在项目里", msg, path)
 	case http.StatusMethodNotAllowed:
 		return fmt.Errorf("方法不对（405）——%s 核对 API 文档", path)
@@ -118,7 +118,7 @@ func glErr(code int, raw []byte, path string) error {
 	return fmt.Errorf("GitLab 返回 HTTP %d：%s", code, msg)
 }
 
-// pid 项目双形态：数字原样，路径 URL 编码。
+// pid handles the two project forms: a numeric id is passed through, a path is URL-encoded.
 func pid(project string) (string, error) {
 	p := strings.TrimSpace(project)
 	if p == "" {
@@ -127,7 +127,7 @@ func pid(project string) (string, error) {
 	return url.PathEscape(p), nil
 }
 
-// digList 解 JSON 数组应答。
+// digList parses a JSON array response.
 func digList(raw []byte) []map[string]any {
 	var out []map[string]any
 	_ = json.Unmarshal(raw, &out)
@@ -153,7 +153,7 @@ func boolean(m map[string]any, k string) bool {
 	return v
 }
 
-// nested 取 m[k1][k2] 的字符串（author.name 这类）。
+// nested reads the string at m[k1][k2] (things like author.name).
 func nested(m map[string]any, k1, k2 string) string {
 	if mm, ok := m[k1].(map[string]any); ok {
 		return str(mm, k2)
@@ -161,7 +161,7 @@ func nested(m map[string]any, k1, k2 string) string {
 	return ""
 }
 
-// digObj 单对象应答 → map。
+// digObj turns a single-object response into a map.
 func digObj(raw []byte) map[string]any {
 	var m map[string]any
 	if json.Unmarshal(raw, &m) != nil {
@@ -170,7 +170,7 @@ func digObj(raw []byte) map[string]any {
 	return m
 }
 
-// digStrings 字符串数组字段（labels 这类）。
+// digStrings reads a string-array field (things like labels).
 func digStrings(v any) []string {
 	arr, _ := v.([]any)
 	out := make([]string, 0, len(arr))
@@ -182,12 +182,15 @@ func digStrings(v any) []string {
 	return out
 }
 
-// pageInfo 从 GitLab 的分页响应头取总数与「还有没有下一页」。
+// pageInfo reads the total count and "is there another page" from GitLab's pagination
+// response headers.
 //
-// 列表只回「本页条数」是**静默截断**：正好 50 条时,调用方无从知道是刚好这么多
-// 还是被截了。GitLab 把答案放在头里（X-Total / X-Next-Page）,glCall 一直在返回 header,
-// 只是从来没人读。超大结果集上 GitLab 会省略 X-Total（算总数太贵）,那时 total=0,
-// 但 X-Next-Page 仍在——所以「还有没有下一页」比总数可靠,判翻页要看它。
+// A list that only returns "items on this page" is a silent truncation: with exactly 50
+// items, the caller has no way to tell whether that's really all of them or the list got cut
+// off. GitLab puts the answer in the headers (X-Total / X-Next-Page); glCall has always
+// returned the header, it just never got read. On very large result sets GitLab omits X-Total
+// (computing the total is too expensive), so total=0 then, but X-Next-Page is still present --
+// so "is there another page" is more reliable than the total; use it to decide on paging.
 func pageInfo(h http.Header) (total int, hasMore bool) {
 	if h == nil {
 		return 0, false
@@ -198,7 +201,8 @@ func pageInfo(h http.Header) (total int, hasMore bool) {
 	return total, strings.TrimSpace(h.Get("X-Next-Page")) != ""
 }
 
-// clip 截断长文本。搜索片段/正文一条动辄几 KB，几十条命中就能把下游上下文吃满。
+// clip truncates long text. A single search snippet/body can easily be several KB, and dozens
+// of hits can fill up downstream context.
 func clip(s string, n int) string {
 	if len(s) <= n {
 		return s

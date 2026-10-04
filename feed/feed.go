@@ -1,6 +1,6 @@
 package main
 
-// 操作层：按来源分发 → 过游标 → 交出统一形状。
+// Operation layer: dispatch by source -> filter through the cursor -> hand back a uniform shape.
 
 import (
 	"fmt"
@@ -50,7 +50,8 @@ func opFetch(ctx plugin.Ctx, in *FeedFetchIn) (*FeedFetchOut, error) {
 }
 
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
-	// 本插件多数来源不需要凭证，这里验的是「出站通不通 + 雪球令牌拿不拿得到」。
+	// Most sources in this plugin don't need a credential; what's checked here is whether
+	// outbound requests work and whether the Xueqiu token can be obtained.
 	if _, err := xueqiuCookie(ctx); err != nil {
 		return &HealthCheckOut{OK: false, Message: err.Error()}, nil
 	}

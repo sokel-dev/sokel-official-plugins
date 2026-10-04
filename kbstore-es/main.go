@@ -1,11 +1,15 @@
-// kbstore-es：知识库存储引擎插件（Elasticsearch 8）。
-// v4 契约（aicraft-hub docs/knowledge-base-rag.md §0.5）：只做存取——切分/embedding/融合/rerank 全在平台。
-// 8 个 Internal 操作：kb_create/kb_drop/chunks_upsert/doc_delete/vector_query/keyword_query/chunks_browse/mget。
-// mapping/查询构造移植自 rag-prototype v2（一库一索引+别名、扁平字段、ik 回退链、distance_feature 时效）。
+// kbstore-es: a knowledge-base storage engine plugin (Elasticsearch 8).
+// v4 contract (aicraft-hub docs/knowledge-base-rag.md §0.5): storage and retrieval only — chunking
+// /embedding/fusion/rerank all live on the platform.
+// 8 Internal operations: kb_create/kb_drop/chunks_upsert/doc_delete/vector_query/keyword_query/
+// chunks_browse/mget.
+// The mapping/query construction is ported from rag-prototype v2 (one index + alias per knowledge
+// base, flattened fields, the ik fallback chain, distance_feature recency).
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
-// 契约由 zz_sokel.go 提供（AST 生成，非运行时反射）。改了入/出参 struct 或其 tag 后须重新生成。
+// The contract is provided by zz_sokel.go (AST-generated, not runtime reflection). Regenerate after
+// changing an input/output struct or its tags.
 
 import (
 	"bytes"
@@ -33,14 +37,15 @@ func main() {
 		Token:    token,
 		Name:     "kbstore-es",
 	})
-	RegisterCredential(p) // 凭证契约（schema 声明生成；Cred 在 zz_credential.go）
-	// 能力自报：ES 这套四项全支持（ik 分词的 BM25、distance_feature 时效、
-	// range 时间过滤、multi_match 字段加权）。如实报出来，选型时才比得了。
+	RegisterCredential(p) // credential contract (generated from the schema declaration; Cred lives in zz_credential.go)
+	// Self-reported capabilities: ES supports all four here (BM25 with ik tokenization,
+	// distance_feature recency, range time filtering, multi_match field boosting). Reporting this
+	// honestly is what makes comparing storage engines possible.
 	p.SetCapabilities(map[string]bool{
 		sokel.CapKeywordBM25: true, sokel.CapRecency: true, sokel.CapTimeRange: true, sokel.CapFieldBoosts: true,
 		sokel.CapArrayFilters: true, // term queries match any element of an array field
 	})
-	p.SetDoc(usageDoc, "") // 使用说明（docs/*.md）：随握手上报给平台
+	p.SetDoc(usageDoc, "") // usage doc (docs/*.md): reported to the platform with the handshake
 	reg := func(id, label string, h any) {}
 	_ = reg
 	OnHealthCheck(p, opHealthCheck)
@@ -64,7 +69,7 @@ func env(k, d string) string {
 	return d
 }
 
-// —— ES REST 客户端 ——
+// —— ES REST client ——
 
 type es struct {
 	base string
@@ -139,7 +144,9 @@ func (e *es) bulk(ctx context.Context, lines []any) (map[string]any, error) {
 	return out, nil
 }
 
-// firstBulkError：从 bulk 响应提取首个失败项的 id+原因(整段响应几十万字符,截断后连错因都看不到)。
+// firstBulkError extracts the id+reason of the first failed item from a bulk response (the whole
+// response can run to hundreds of thousands of characters, and truncating it blindly would hide
+// even the reason for the failure).
 func firstBulkError(out map[string]any, raw []byte) string {
 	items, _ := out["items"].([]any)
 	for _, it := range items {
@@ -159,7 +166,7 @@ func firstBulkError(out map[string]any, raw []byte) string {
 func (e *es) phys(kb string) string  { return e.ns + ".kb." + kb + ".v1" }
 func (e *es) alias(kb string) string { return e.ns + ".kb." + kb }
 
-// —— 过滤构造（契约 Filter → ES bool）——
+// —— Filter construction (contract Filter → ES bool) ——
 
 var coreFields = map[string]bool{"doc_id": true, "role": true, "parent_no": true, "child_no": true, "parent_id": true}
 
@@ -217,7 +224,7 @@ func buildBool(filters []schema.Filter, timeRange schema.TimeRange) map[string]a
 	return map[string]any{"bool": b}
 }
 
-// —— 操作实现 ——
+// —— Operation implementations ——
 
 var analyzerChain = [][2]string{{"ik_max_word", "ik_smart"}, {"smartcn", "smartcn"}, {"standard", "standard"}}
 
@@ -229,7 +236,7 @@ func opKBCreate(ctx sokel.Ctx, in *KbCreateIn) (*KbCreateOut, error) {
 	idx := e.phys(in.KbID)
 	if out, _ := e.do(ctx, "HEAD", "/"+idx, nil); out != nil {
 	}
-	// HEAD 无 body：用 exists 检查
+	// HEAD has no body: use exists to check instead
 	if _, err := e.do(ctx, "GET", "/"+idx, nil); err == nil {
 		return &KbCreateOut{OK: true}, nil
 	}
@@ -256,8 +263,9 @@ func opKBCreate(ctx sokel.Ctx, in *KbCreateIn) (*KbCreateOut, error) {
 			"settings": map[string]any{"number_of_shards": 1, "number_of_replicas": 0},
 			"mappings": map[string]any{
 				"_meta": map[string]any{"kbstore": "es", "analyzer": an[0]},
-				// 未声明的元数据字段动态落 keyword——保证「后补声明的字段」term 过滤可用
-				// (ES 默认把动态 string 猜成 text,terms 过滤会失灵)。
+				// Undeclared metadata fields dynamically map to keyword — this guarantees that term
+				// filtering works for "fields declared after the fact" (ES's default guess for a
+				// dynamic string is text, which breaks terms filtering).
 				"dynamic_templates": []any{map[string]any{
 					"meta_fields_as_keyword": map[string]any{
 						"path_match": "fields.*", "match_mapping_type": "string",
@@ -274,11 +282,11 @@ func opKBCreate(ctx sokel.Ctx, in *KbCreateIn) (*KbCreateOut, error) {
 					"child_no":      map[string]any{"type": "integer"},
 					"page_no":       map[string]any{"type": "integer"},
 					"fields":        map[string]any{"properties": fieldProps, "dynamic": true},
-					"images":        map[string]any{"type": "object", "enabled": false},             // 旧字段(读兼容)
-					"assets":        map[string]any{"type": "object", "enabled": false},             // 块级资产({kind,url,…}),只存不索引
-					"source_blocks": map[string]any{"type": "object", "enabled": false},             // 溯源引用(块id/type/bbox),只存不索引
-					"content_html":  map[string]any{"type": "text", "index": false, "norms": false}, // 表格原始HTML(返回表示),只存不索引
-					"boundary":      map[string]any{"type": "keyword"},                              // 跨界子块方向(prev/next)
+					"images":        map[string]any{"type": "object", "enabled": false},             // legacy field (kept for read compatibility)
+					"assets":        map[string]any{"type": "object", "enabled": false},             // block-level assets ({kind,url,…}), stored but not indexed
+					"source_blocks": map[string]any{"type": "object", "enabled": false},             // provenance refs (block id/type/bbox), stored but not indexed
+					"content_html":  map[string]any{"type": "text", "index": false, "norms": false}, // raw table HTML (for display), stored but not indexed
+					"boundary":      map[string]any{"type": "keyword"},                              // cross-boundary child chunk direction (prev/next)
 					"embedding":     map[string]any{"type": "dense_vector", "dims": in.Dims, "index": true, "similarity": "cosine"},
 				},
 			},
@@ -315,8 +323,9 @@ func opUpsert(ctx sokel.Ctx, in *ChunksUpsertIn) (*ChunksUpsertOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 整篇替换：先清掉该 doc 的既有 chunk。
-	// append 时跳过——那是同一篇的后续批次，删了就等于把前面刚写的抹掉。
+	// Whole-document replacement: clear the doc's existing chunks first.
+	// Skipped when append — that's a later batch of the same document, and deleting would wipe out
+	// what the earlier batch just wrote.
 	if !in.Append {
 		_, _ = e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_delete_by_query?conflicts=proceed&refresh=false",
 			map[string]any{"query": map[string]any{"term": map[string]any{"doc_id": in.DocID}}})
@@ -453,7 +462,8 @@ func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// _mget 的 _source 过滤只能走 query 参数(请求体顶层 _source 是 parsing_exception)
+	// _mget's _source filtering can only go through the query parameter (a top-level _source in the
+	// request body triggers a parsing_exception)
 	out, err := e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_mget?_source="+strings.Join(srcFields, ","),
 		map[string]any{"ids": in.IDs})
 	if err != nil {
@@ -470,9 +480,10 @@ func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
 	return &MgetOut{Chunks: chunks}, nil
 }
 
-// —— 结构 ⇄ ES 文档的桥接 ——
-// ES 的读写面天然是 map（_source 什么形状由索引决定），而契约这边是具体类型。
-// 把转换集中在这里，业务代码就不必再散落 c["id"].(string) 这类断言。
+// —— Bridging between structs and ES documents ——
+// ES's read/write surface is naturally a map (the shape of _source is whatever the index decides),
+// while the contract side uses concrete types. Centralizing the conversion here means business code
+// doesn't have to scatter assertions like c["id"].(string) everywhere.
 
 func asStr(v any) string {
 	s, _ := v.(string)
@@ -484,7 +495,7 @@ func asFloat(v any) float64 {
 	return f
 }
 
-// chunkDoc：Chunk → ES 文档（去掉 id，它是 _id 不进 _source）。
+// chunkDoc: Chunk → ES document (drops id, since it's the _id and doesn't go into _source).
 func chunkDoc(c schema.Chunk) map[string]any {
 	b, _ := json.Marshal(c)
 	var m map[string]any
@@ -493,7 +504,8 @@ func chunkDoc(c schema.Chunk) map[string]any {
 	return m
 }
 
-// chunkOf：ES 文档 → Chunk。未声明的字段落在 Fields 里由知识库配置解释。
+// chunkOf: ES document → Chunk. Undeclared fields land in Fields, interpreted per the knowledge
+// base's configuration.
 func chunkOf(m map[string]any) schema.Chunk {
 	b, _ := json.Marshal(m)
 	var c schema.Chunk
@@ -501,11 +513,14 @@ func chunkOf(m map[string]any) schema.Chunk {
 	return c
 }
 
-// opHealthCheck：凭证体检 —— 连一下集群，报版本/集群名/健康色。
+// opHealthCheck checks the credential — connects to the cluster and reports version/cluster
+// name/health color.
 //
-// 不可用时返回 ok=false + message 而**不是** error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」——后者才是这里要说的话，且 message 里那句上游原文
-// （连不上 / 401 / 证书错）正是人排查时唯一有用的东西。
+// When unavailable, returns ok=false + message, **not** an error: the platform treats an error as
+// "this plugin can't run its health check", and ok=false as "the check concluded the plugin is
+// unavailable" — the latter is what should be said here, and the raw upstream message (connection
+// refused / 401 / certificate error) is the one genuinely useful thing for a human troubleshooting
+// this.
 func opHealthCheck(ctx sokel.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	e, err := esOf(ctx)
 	if err != nil {
@@ -520,7 +535,8 @@ func opHealthCheck(ctx sokel.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		out.Version, _ = v["number"].(string)
 	}
 	out.ClusterName, _ = root["cluster_name"].(string)
-	// 集群健康是**额外情报**：取不到不影响「连得上」这个结论（权限收紧的集群可能不给这个接口）。
+	// Cluster health is **extra intel**: failing to fetch it doesn't overturn the "it connects"
+	// conclusion (a cluster with tightened permissions might not expose this endpoint).
 	if h, herr := e.do(ctx, http.MethodGet, "/_cluster/health", nil); herr == nil {
 		out.Status, _ = h["status"].(string)
 	}

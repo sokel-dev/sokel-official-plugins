@@ -1,8 +1,8 @@
-// kubernetes —— Sokel 第一方插件：通用 K8s 工作负载操作（不绑任何云）。
+// kubernetes -- a first-party Sokel plugin: generic K8s workload operations (not tied to any cloud).
 //
-// 凭证 = kubeconfig。设计判断见 schema/schema.go 顶注。
+// Credential = kubeconfig. Design decisions are documented at the top of schema/schema.go.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./kubernetes
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./kubernetes
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -41,8 +41,9 @@ func main() {
 	OnApplyManifest(p, opApplyManifest)
 	OnDeleteObject(p, opDeleteObject)
 
-	// 事件源：把集群异常推成工作流触发（凭证填了 watch_namespaces 才启动）。
-	// **只有轮询这一条来路**——k8s 不会主动往外发 HTTP，所以没有「平台代收 webhook」。
+	// Event source: turns cluster anomalies into workflow triggers (only starts if the
+	// credential has watch_namespaces set). Polling is the only path here -- k8s never
+	// initiates outbound HTTP, so there's no "platform receives the webhook" option.
 	DeclareEvents(p)
 	sokel.RegisterSource(p, sokel.Source{ID: "poll", Label: "K8s 异常轮询"}, runEvents)
 

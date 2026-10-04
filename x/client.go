@@ -1,11 +1,13 @@
 package main
 
-// 出站：一条请求要过的四道关——认证、代理、限流、错误翻译。
+// Outbound requests pass through four gates: auth, proxy, rate limiting, error translation.
 //
-// 认证只有 OAuth 注入的 access_token（平台代刷，插件不碰 refresh_token）。
-// 后两道是 X 的实况：**限流按端点分桶**（搜索 15 分钟 300 次、发推 15 分钟 100 次…），
-// 撞上回 429 并带 x-rate-limit-reset（一个绝对时间戳，不是秒数——按 Retry-After 那套读会等错时长）；
-// 以及一套 detail 里才有人话的错误。
+// Auth is only the OAuth-injected access_token (the platform handles refreshing it; the plugin
+// never touches refresh_token). The other two are X facts of life: **rate limits are bucketed per
+// endpoint** (search: 300 per 15 minutes, post: 100 per 15 minutes, ...); hitting one returns a 429
+// with x-rate-limit-reset (an absolute timestamp, not a number of seconds — reading it like a
+// Retry-After header waits the wrong amount of time); plus a set of errors whose only human-readable
+// part is the detail field.
 
 import (
 	"bytes"
@@ -27,19 +29,21 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// xAPI：X 的 API 根地址。**是 var 不是 const**——测试要把它指到假上游上。
+// xAPI is X's API root. **It's a var, not a const** — tests need to point it at a fake upstream.
 var xAPI = "https://api.x.com/2"
 
 const (
-	// maxRetries：429 与 5xx 的重试次数。X 的限流窗口是 15 分钟，等满一个窗口没有意义
-	// （工作流早超时了），所以只等 waitCap 那么久，超过就把「什么时候恢复」写进错误里让人看见。
+	// maxRetries: how many times to retry a 429 or 5xx. X's rate-limit window is 15 minutes, and
+	// waiting out a full window is pointless (the workflow would have timed out long before), so
+	// this only waits up to waitCap, and beyond that surfaces "when it recovers" in the error for
+	// a human to see.
 	maxRetries = 3
 	waitCap    = 60 * time.Second
 )
 
-// —— 凭证 ——
+// —— Credentials ——
 
-// Cred 见 zz_credential.go（schema 声明生成）。
+// Cred is in zz_credential.go (generated from the schema declaration).
 
 func accessToken(cred Cred) (string, error) {
 	if t := strings.TrimSpace(cred.AccessToken); t != "" {
@@ -49,15 +53,16 @@ func accessToken(cred Cred) (string, error) {
 		"（X 的写操作必须是用户身份，没有「填个密钥就能用」的路）")
 }
 
-// —— HTTP 客户端（按代理缓存）——
+// —— HTTP client (cached per proxy) ——
 
 var (
 	clientMu sync.Mutex
 	clients  = map[string]*http.Client{}
 )
 
-// clientFor：按代理地址缓存客户端。代理按凭证配而不是靠进程级 HTTP_PROXY——
-// 后者是全局的，为一个插件让所有出站绕道，内网调用会跟着遭殃。
+// clientFor caches an HTTP client per proxy address. The proxy is configured per credential rather
+// than via a process-wide HTTP_PROXY — the latter is global, so routing all outbound traffic for
+// one plugin through it would also drag internal-network calls through the proxy.
 func clientFor(proxy string) *http.Client {
 	proxy = strings.TrimSpace(proxy)
 	clientMu.Lock()
@@ -65,7 +70,7 @@ func clientFor(proxy string) *http.Client {
 	if c, ok := clients[proxy]; ok {
 		return c
 	}
-	c := &http.Client{Timeout: 120 * time.Second} // 视频分片上传要久一点
+	c := &http.Client{Timeout: 120 * time.Second} // Chunked video upload needs a bit longer
 	if proxy != "" {
 		if u, err := url.Parse(proxy); err == nil {
 			tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -77,15 +82,16 @@ func clientFor(proxy string) *http.Client {
 	return c
 }
 
-// —— 错误 ——
+// —— Errors ——
 
-// apiError：X 的错误应答。X 有两套错误形状（RFC7807 的 title/detail，和老的 errors[].message），
-// 两套都要认——只认一套的话，另一套过来时错误信息是空的。
+// apiError is X's error response. X has two error shapes (RFC7807's title/detail, and the older
+// errors[].message) — both must be handled, or the message comes back empty whenever the other
+// shape is used.
 type apiError struct {
 	Status int
 	Title  string
 	Detail string
-	Reset  time.Time // 限流恢复时刻（x-rate-limit-reset）
+	Reset  time.Time // When the rate limit recovers (x-rate-limit-reset)
 }
 
 func (e *apiError) Error() string {
@@ -93,7 +99,7 @@ func (e *apiError) Error() string {
 	case http.StatusUnauthorized:
 		return fmt.Sprintf("X 拒绝了这个令牌（401 %s）：授权可能已被撤销，到凭证页重新授权一次", e.Detail)
 	case http.StatusForbidden:
-		// 403 在 X 上几乎总是这三件事之一，而它的原文从不提哪一件。
+		// A 403 on X is almost always one of these three things, and its own message never says which.
 		return fmt.Sprintf("X 拒绝了这个操作（403 %s）：常见原因是"+
 			"① 开发者后台的 App permissions 不是 Read and write（改完必须**重新授权**，光改设置不生效）；"+
 			"② 授权时少勾了作用域（如发私信要 dm.write）；"+
@@ -114,14 +120,14 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("X 返回 HTTP %d", e.Status)
 }
 
-// —— 请求 ——
+// —— Requests ——
 
 type reqOpts struct {
 	method string
-	path   string // /tweets，不含 /2
+	path   string // /tweets, without the /2 prefix
 	query  url.Values
 	body   any
-	// raw：非 JSON 的请求体（媒体分片上传用）。给了 raw 就不看 body。
+	// raw: a non-JSON request body (used for chunked media upload). When raw is set, body is ignored.
 	raw     []byte
 	rawType string
 }
@@ -168,7 +174,8 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 		}
 		resp, err := hc.Do(req)
 		if err != nil {
-			// X 在境外：国内部署不配代理就是这一类。说清楚，否则会被当成 id 写错。
+			// X is hosted abroad: a deployment with no proxy configured hits exactly this. Spell
+			// it out, otherwise it gets mistaken for a wrong id.
 			return fmt.Errorf("连接 X 失败（在境外，部署环境可能要在凭证里配出站代理）: %w", err)
 		}
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
@@ -178,7 +185,8 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 			e := parseError(resp, raw)
 			lastErr = e
 			wait := backoff(e, attempt)
-			// 等不起就别硬等：把「几点恢复」写进错误里，比让工作流卡到超时有用得多。
+			// Don't force a wait that's too long: putting "recovers at what time" in the error is
+			// far more useful than letting the workflow hang until it times out.
 			if wait > waitCap {
 				return e
 			}
@@ -198,7 +206,7 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 			return nil
 		}
 		if len(raw) == 0 {
-			return nil // 204：删除类接口不回 body
+			return nil // 204: delete-style endpoints return no body
 		}
 		if err := json.Unmarshal(raw, out); err != nil {
 			return fmt.Errorf("X 应答无法解析: %w", err)
@@ -208,7 +216,7 @@ func doWithRetry(ctx context.Context, hc *http.Client, tok, method, uri string, 
 	return lastErr
 }
 
-// parseError：把两套错误形状归一。
+// parseError normalizes X's two error shapes into one.
 func parseError(resp *http.Response, raw []byte) *apiError {
 	e := &apiError{Status: resp.StatusCode}
 	var body struct {
@@ -228,7 +236,8 @@ func parseError(resp *http.Response, raw []byte) *apiError {
 			}
 		}
 	}
-	// x-rate-limit-reset 是**绝对 epoch 秒**，不是「等几秒」。当成秒数用会等到明年。
+	// x-rate-limit-reset is an **absolute epoch-seconds timestamp**, not "wait this many seconds".
+	// Treating it as a duration would wait until next year.
 	if v := resp.Header.Get("x-rate-limit-reset"); v != "" {
 		if ts, err := strconv.ParseInt(v, 10, 64); err == nil && ts > 0 {
 			e.Reset = time.Unix(ts, 0)
@@ -246,12 +255,14 @@ func backoff(e *apiError, attempt int) time.Duration {
 	return time.Duration(1<<attempt) * time.Second
 }
 
-// —— 读接口的公共参数 ——
+// —— Common parameters for read endpoints ——
 //
-// 字段参数**用 tweet.fields 还是 post.fields**：X 把文档里的名字改成了 post.fields，
-// 但 tweet.fields 是 v2 从第一天起的名字、至今仍被接受。这里先发 tweet.fields，
-// 万一某天 X 真把它下掉（应答是 400 且抱怨这个参数名），自动改用 post.fields 并记住——
-// 否则那一天的表现是「所有读操作同时 400」，而没人会想到是参数改名。
+// **tweet.fields vs. post.fields** for the fields parameter: X renamed it to post.fields in its
+// docs, but tweet.fields is the name v2 has used since day one and is still accepted. This sends
+// tweet.fields first, and if X ever actually removes it (the response is a 400 complaining about
+// this parameter name), it automatically switches to post.fields and remembers the choice —
+// otherwise the symptom that day would be "every read operation 400s at once", and nobody would
+// think to suspect a renamed parameter.
 var postFieldsParam atomic.Value // string
 
 func fieldsParamName() string {
@@ -267,7 +278,8 @@ const (
 	mediaFieldSet = "media_key,type,url,preview_image_url,alt_text"
 )
 
-// readQuery：读接口的公共查询参数（展开作者与媒体，否则拿回来的只有 author_id 和 media_key）。
+// readQuery builds the common query parameters for read endpoints (expands author and media;
+// otherwise all that comes back is author_id and media_key).
 func readQuery() url.Values {
 	q := url.Values{}
 	q.Set(fieldsParamName(), postFieldList)
@@ -277,7 +289,7 @@ func readQuery() url.Values {
 	return q
 }
 
-// callRead：带字段参数名回退的读请求。
+// callRead is a read request with fallback for the fields parameter name.
 func callRead(ctx plugin.Ctx, o reqOpts, out any) error {
 	err := callAPI(ctx, o, out)
 	var ae *apiError

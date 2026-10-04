@@ -1,9 +1,10 @@
-// linkedin —— Sokel 第一方发布器插件：发个人动态。
+// linkedin — a Sokel first-party publisher plugin: posting personal updates.
 //
-// 与三个 P0 发布器同一套 publish 契约。四件特殊事见 schema/schema.go 顶部：
-// 只做个人号（公司页要合作伙伴审批）、正文是纯文本、图片三步走、令牌 60 天到期。
+// Uses the same publish contract as the three P0 publishers. The four quirks are covered at the
+// top of schema/schema.go: personal profiles only (a company page needs partner approval), plain
+// text body, a three-step image flow, and a 60-day token.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./linkedin
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./linkedin
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -28,7 +29,7 @@ func main() {
 
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
-	RegisterAuth(p) // LinkedIn OAuth：openid + profile + w_member_social
+	RegisterAuth(p) // LinkedIn OAuth: openid + profile + w_member_social
 
 	OnLiPostCreate(p, opPostCreate)
 	OnLiPostDelete(p, opPostDelete)

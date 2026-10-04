@@ -1,10 +1,11 @@
 package main
 
-// Gmail API 出站。
+// Outbound requests to the Gmail API.
 //
-// 鉴权：**平台注入的 access_token**（本插件自有凭证的 access_token 字段）。
-// 插件既没有 client_secret 也不经手 refresh_token——换 token 是平台的事，
-// 这里拿到的永远是一个现成可用、随时可能被换掉的短期 token。
+// Auth: **the access_token injected by the platform** (the access_token field of this plugin's
+// own credential). The plugin has neither a client_secret nor ever handles a refresh_token —
+// rotating the token is the platform's job; what we get here is always a ready-to-use,
+// short-lived token that can be swapped out at any time.
 
 import (
 	"context"
@@ -21,10 +22,11 @@ import (
 
 const gmailBase = "https://gmail.googleapis.com/gmail/v1/users/me"
 
-// httpClient：出站客户端。超时给足——附件可能几十 MB。
+// httpClient is the outbound client. Timeout is generous — attachments can be tens of MB.
 var httpClient = &http.Client{Timeout: 120 * time.Second}
 
-// apiError：带上 HTTP 状态码，让调用方能区分「授权失效」与「参数错」。
+// apiError carries the HTTP status code so the caller can distinguish "authorization expired"
+// from "bad parameters."
 type apiError struct {
 	Status int
 	Body   string
@@ -33,7 +35,8 @@ type apiError struct {
 func (e *apiError) Error() string {
 	switch e.Status {
 	case http.StatusUnauthorized:
-		// 401 在这条链路上几乎只有一个含义，直接说出来，省得人去猜作用域还是网络
+		// On this path, 401 almost always means one specific thing, so say it directly
+		// instead of leaving people to guess whether it's scopes or the network
 		return "Gmail 拒绝访问（401）：授权已失效，请到凭证页重新授权"
 	case http.StatusForbidden:
 		return "Gmail 拒绝访问（403）：可能是未启用 Gmail API 或作用域不足 —— " + trunc(e.Body, 200)
@@ -50,7 +53,8 @@ func trunc(s string, n int) string {
 	return s[:n] + "…"
 }
 
-// gmailGet：GET 一个 Gmail 端点并解进 out。token 由调用方从凭证取。
+// gmailGet does a GET against a Gmail endpoint and decodes into out. The caller is responsible
+// for getting the token from the credential.
 func gmailGet(ctx context.Context, token, path string, q url.Values, out any) error {
 	if token == "" {
 		return fmt.Errorf("缺少 Google 授权：请到凭证页点「授权」完成一次 Google 同意")
@@ -82,10 +86,11 @@ func gmailGet(ctx context.Context, token, path string, q url.Values, out any) er
 	return nil
 }
 
-// listQuery：把节点入参拼成 messages.list 的查询串。
+// listQuery builds the messages.list query string from the node's inputs.
 //
-// max_results 兜底与封顶都在这儿：不给上限的话，一次 500 封再逐封拉详情
-// 就是把当天的配额烧光（Gmail 每天有配额，且 messages.get 按封计费）。
+// The default and the cap for max_results both live here: without a cap, listing 500 messages
+// and then fetching each one's detail would burn through the whole day's quota (Gmail has a
+// daily quota, and messages.get is billed per message).
 func listQuery(query, labelIDs string, maxResults int) url.Values {
 	q := url.Values{}
 	if query != "" {
@@ -106,7 +111,7 @@ func listQuery(query, labelIDs string, maxResults int) url.Values {
 	return q
 }
 
-// messageSummary：列表里每一项（with_detail=false 时只有这两个字段）。
+// messageSummary is one entry in a list (only these two fields when with_detail=false).
 type messageSummary struct {
 	ID       string `json:"id"`
 	ThreadID string `json:"threadId"`
@@ -118,10 +123,13 @@ type listResponse struct {
 	ResultSizeEstimate int              `json:"resultSizeEstimate"`
 }
 
-// toDetail：一封邮件 → 契约里的元素类型（正文/附件/头都摊平，下游按契约直接引用）。
+// toDetail converts one message into the contract's element type (body/attachments/headers all
+// flattened, so downstream consumers can reference them directly per the contract).
 //
-// 直接产 schema.MessageItem 而不是 map：字段名由契约定死，拼错编译期就报。
-// 早先是 map，于是还得有个 remapDetail 把键名再搬一遍——两处手写迟早对不上。
+// Producing a schema.MessageItem directly instead of a map: field names are fixed by the
+// contract, so a typo is caught at compile time. It used to be a map, which meant there also
+// had to be a remapDetail to shuffle the keys over again — two hand-written copies were bound
+// to drift apart eventually.
 func toDetail(m gmailMessage) schema.MessageItem {
 	text, html := extractBodies(m.Payload)
 	return schema.MessageItem{

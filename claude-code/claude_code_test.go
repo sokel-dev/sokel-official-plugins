@@ -7,8 +7,9 @@ import (
 	"testing"
 )
 
-// 行解析。夹具是**实机 Claude Code 2.1.38 的原文**（截短了噪音字段）——
-// 合成语料在这里会骗人：字段名、嵌套层级、哪一行才带 session_id，都是猜不准的。
+// Line parsing. The fixture is **actual output from a real Claude Code 2.1.38 run** (with noisy fields
+// trimmed) — synthetic fixtures would be misleading here: field names, nesting depth, and which line
+// actually carries session_id are all things you can't just guess at.
 func TestApplyLineOnRealOutput(t *testing.T) {
 	lines := []string{
 		`{"type":"system","subtype":"hook_started","hook_name":"SessionStart:startup","session_id":"1cf78139"}`,
@@ -39,17 +40,19 @@ func TestApplyLineOnRealOutput(t *testing.T) {
 	if len(tools) != 1 || tools[0] != "Bash" {
 		t.Errorf("tool_use 块该报出工具名，got %+v", tools)
 	}
-	// 被权限拦下的工具必须出得来：任务没做完时这是第一个要看的地方
+	// A tool blocked by permissions must come through: when a task isn't finished, this is the first
+	// thing to check
 	if len(res.DeniedTools) != 1 || res.DeniedTools[0] != "WebFetch" {
 		t.Errorf("permission_denials 该解出工具名，got %+v", res.DeniedTools)
 	}
-	// hook 噪音行不能影响任何东西（CC 会吐一堆 hook/mcp 行）
+	// hook noise lines must not affect anything (CC emits plenty of hook/mcp lines)
 	if len(texts) > 1 {
 		t.Error("hook 行不该被当成过程文字")
 	}
 }
 
-// 脏行不能把整条流判死——一行不是 JSON 就丢掉，后面的照常解析。
+// A bad line must not kill the whole stream — a line that isn't JSON gets dropped, and parsing continues
+// normally afterward.
 func TestApplyLineSurvivesGarbage(t *testing.T) {
 	var res ccResult
 	applyLine(`Debugger attached.`, &res, nil, nil)
@@ -59,9 +62,10 @@ func TestApplyLineSurvivesGarbage(t *testing.T) {
 	}
 }
 
-// 参数拼装。这几个开关的拼法是照本机 claude --help 核过的：
-// --allowedTools 是驼峰、过滤语法用冒号、成本上限叫 --max-budget-usd。
-// 文档里流传的 --bare / --max-turns 在 2.1.38 根本不存在，拼进去就是跑不起来。
+// Argument assembly. These flag spellings were checked against the local `claude --help`:
+// --allowedTools is camelCase, the filter syntax uses a colon, and the cost cap flag is --max-budget-usd.
+// The --bare / --max-turns flags that float around in docs simply don't exist in 2.1.38 — using them
+// just fails to run.
 func TestCCArgs(t *testing.T) {
 	args := strings.Join(ccArgs(ccOptions{
 		Task: "修一下", Model: "opus", Effort: "high", MaxBudgetUSD: 2.5,
@@ -71,7 +75,7 @@ func TestCCArgs(t *testing.T) {
 
 	for _, want := range []string{
 		"-p 修一下", "--output-format stream-json", "--verbose",
-		"--permission-mode acceptEdits", // 没给就用这个默认，不是 bypassPermissions
+		"--permission-mode acceptEdits", // this is the default when none is given, not bypassPermissions
 		"--allowedTools Read,Edit,Bash(git:*)",
 		"--model opus", "--effort high", "--max-budget-usd 2.5",
 		"--append-system-prompt 别改 vendor/",
@@ -103,8 +107,9 @@ func TestCCArgsResumeAndModeOverride(t *testing.T) {
 	}
 }
 
-// 令牌不能落进仓库配置：clean URL 是写进 .git/config 的那个，必须不含令牌。
-// 工作树是 CC 能读的目录——令牌躺在那儿等于交出去了。
+// The token must never land in the repo config: the clean URL is the one written into .git/config, and
+// it must not contain the token. The worktree is a directory CC can read — a token sitting there is a
+// token handed over.
 func TestRepoURLKeepsTokenOutOfConfig(t *testing.T) {
 	cfg = deployEnv{GitBase: "https://git.example.com", GitToken: "glpat-secret"}
 	t.Cleanup(func() { cfg = loadEnv() })
@@ -123,13 +128,14 @@ func TestRepoURLKeepsTokenOutOfConfig(t *testing.T) {
 	}
 }
 
-// 目录名：group/name 直接当路径会多挖一层目录，两个项目的工作树就会互相嵌套。
+// Directory name: using group/name directly as a path would dig an extra directory level, nesting two
+// projects' worktrees inside each other.
 func TestSlugFlattens(t *testing.T) {
 	for in, want := range map[string]string{
 		"backend/server":  "backend_server",
 		"cc/2026-fix":     "cc_2026-fix",
 		"/leading/slash/": "leading_slash",
-		"a/../../etc/pwd": "a_____etc_pwd", // 斜杠与 .. 各占一个下划线，穿不出目录
+		"a/../../etc/pwd": "a_____etc_pwd", // each slash and .. gets its own underscore, can't escape the directory
 	} {
 		if got := slug(in); got != want {
 			t.Errorf("slug(%q) = %q, want %q", in, got, want)
@@ -137,21 +143,24 @@ func TestSlugFlattens(t *testing.T) {
 	}
 }
 
-// 代理只给 CC：git 的环境必须把代理变量剥干净，否则 clone 内网仓库会卡在代理上超时，
-// 而报错长得像网络抖动，很难往代理上想。
+// The proxy goes only to CC: git's environment must have the proxy variables stripped clean, otherwise
+// cloning an internal repo hangs on the proxy until it times out, and the error looks exactly like
+// network flakiness, which makes it hard to even suspect the proxy.
 func TestProxySplit(t *testing.T) {
 	t.Setenv("http_proxy", "http://proxy:8118")
 	t.Setenv("HTTPS_PROXY", "http://proxy:8118")
 
 	for _, kv := range gitEnv() {
 		k := strings.ToLower(kv[:strings.IndexByte(kv, '=')+1])
-		// 只看真正的出站代理变量：GOPROXY 是 Go 模块源，剥掉它反而会让 go 命令失灵
+		// Only check the actual outbound proxy variables: GOPROXY is the Go module source, and
+		// stripping it would break go commands instead
 		if k == "http_proxy=" || k == "https_proxy=" || k == "all_proxy=" {
 			t.Errorf("git 环境里不该有代理: %s", kv)
 		}
 	}
-	// CC 直接继承进程环境（它本来就读标准 http_proxy/https_proxy），
-	// 不再由插件从凭证里转发——代理是「这台机器怎么出网」，是部署属性。
+	// CC directly inherits the process environment (it already reads the standard
+	// http_proxy/https_proxy on its own) — the plugin no longer forwards it from the credential, since
+	// the proxy is "how this machine reaches the outside", a deployment property.
 	ccHas, keyed := false, false
 	for _, kv := range ccEnv(Cred{APIKey: "k"}) {
 		if kv == "https_proxy=http://proxy:8118" || kv == "HTTPS_PROXY=http://proxy:8118" {
@@ -169,8 +178,9 @@ func TestProxySplit(t *testing.T) {
 	}
 }
 
-// 「接管外部目录」是插件里唯一一处让工作流入参决定 CC 在哪干活的地方——
-// 等于把爆炸半径从工作区扩到整机。闸门必须真的关得住。
+// "Take over an external directory" is the only place in the plugin where a workflow input decides
+// where CC operates — which expands the blast radius from the workspace to the whole machine. The gate
+// must actually hold.
 func TestExternalTreeGate(t *testing.T) {
 	dir := t.TempDir()
 
@@ -191,7 +201,8 @@ func TestExternalTreeGate(t *testing.T) {
 	if _, err := externalTree(filepath.Join(dir, "不存在")); err == nil {
 		t.Error("目录不存在该拒绝，而不是让 CC 在一个空路径上跑")
 	}
-	// 文件不是目录：CC 的 cwd 只能是目录，放过去会得到一个晦涩的 exec 错误
+	// A file is not a directory: CC's cwd must be a directory, letting this through would produce an
+	// obscure exec error
 	f := filepath.Join(dir, "a.txt")
 	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -201,9 +212,10 @@ func TestExternalTreeGate(t *testing.T) {
 	}
 }
 
-// API Key 是可选的：留空就用机器上 CC 自己的登录态（订阅制常见）。
-// **空值绝不能注入环境**——ANTHROPIC_API_KEY= 摆在那儿会盖掉登录态，
-// 把这条合法路径堵死，而且报错很难懂。
+// The API key is optional: leave it empty to use CC's own login state on the machine (common with
+// subscription plans). **An empty value must never be injected into the environment** — a bare
+// ANTHROPIC_API_KEY= would shadow the login state, blocking that legitimate path, with a confusing error
+// on top.
 func TestAPIKeyOptional(t *testing.T) {
 	var injected, present int
 	for _, kv := range ccEnv(Cred{}) {
@@ -222,7 +234,7 @@ func TestAPIKeyOptional(t *testing.T) {
 	if present != 1 {
 		t.Error("给了 key 就该注入")
 	}
-	// 只有空白也算没给
+	// whitespace-only also counts as not given
 	for _, kv := range ccEnv(Cred{APIKey: "   "}) {
 		if strings.HasPrefix(kv, "ANTHROPIC_API_KEY=") {
 			t.Error("全空白该当成没给")
@@ -230,8 +242,8 @@ func TestAPIKeyOptional(t *testing.T) {
 	}
 }
 
-// 清理的两道保险：不点名分支又不给闲置天数 = 删光，必须拒绝；
-// 有未提交改动的默认保护。
+// Two safeguards for cleanup: neither naming a branch nor giving an idle-days threshold means "delete
+// everything", which must be rejected; worktrees with uncommitted changes are protected by default.
 func TestCleanupGuards(t *testing.T) {
 	if _, err := opCleanup(nil, &CleanupIn{}); err == nil {
 		t.Fatal("既没分支又没闲置天数该被拒绝——那等于删光所有工作树")
@@ -239,19 +251,20 @@ func TestCleanupGuards(t *testing.T) {
 	if _, err := opCleanup(nil, &CleanupIn{Project: "x/y"}); err == nil {
 		t.Fatal("只给项目同样是删光那个项目的全部，也该拒绝")
 	}
-	// 给了分支就放行（工作区是空的，删 0 个，不报错）
+	// giving a branch is allowed through (workspace is empty, removes 0, no error)
 	out, err := opCleanup(nil, &CleanupIn{Project: "x/y", Branch: "cc/1"})
 	if err != nil || out.Removed != 0 {
 		t.Fatalf("点名分支该放行: %+v err=%v", out, err)
 	}
 }
 
-// result 为空时用最后一段助手正文兜底（用户实报 2026-08-25）。
+// When result is empty, fall back to the last assistant text block (reported by a user on 2026-08-25).
 //
-// 现场：一次 MR 评审 ok=true、turns=25、log 里 4KB 评审正文俱在，**conclusion 却是空的**。
-// 因为 Claude Code 的最后一轮是工具调用（TodoWrite）而不是说话，result 字段就没有内容。
-// 下游把 conclusion 贴成 MR 评论 → 评论是空的，而界面上只显示「运行成功」，
-// 人完全不知道结论去哪了。
+// Observed: an MR review with ok=true, turns=25, and the full 4KB review body sitting right there in the
+// log, yet **conclusion was empty**. Because Claude Code's last turn was a tool call (TodoWrite) rather
+// than text, the result field ended up with no content. Downstream pasted conclusion as the MR comment
+// → the comment was blank, while the UI only showed "run succeeded", leaving the person with no idea
+// where the conclusion went.
 func TestConclusionFallsBackToLastText(t *testing.T) {
 	var res ccResult
 	lines := []string{
@@ -271,7 +284,7 @@ func TestConclusionFallsBackToLastText(t *testing.T) {
 	}
 }
 
-// 有 result 时以 result 为准——兜底不能反过来盖掉正牌结论。
+// When result is present, trust it — the fallback must never override the real conclusion.
 func TestConclusionPrefersResult(t *testing.T) {
 	var res ccResult
 	for _, l := range []string{

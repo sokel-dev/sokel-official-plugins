@@ -7,8 +7,9 @@ import (
 	"github.com/sokel-dev/sokel-official-plugins/youtube-transcript/schema"
 )
 
-// 用户是**从地址栏直接粘**的。只认 watch?v= 的话，手机分享出来的 youtu.be、Shorts、
-// 直播回放全都会得到一句「视频 id 不合法」，而他看着自己粘的明明是个好链接。
+// Users **paste straight from the address bar**. If only watch?v= were recognized, the youtu.be links
+// shared from phones, Shorts links, and live-replay links would all get a "video id is invalid" error,
+// while the user is staring at a link they're sure is perfectly valid.
 func TestExtractVideoID(t *testing.T) {
 	const want = "dQw4w9WgXcQ"
 	ok := []struct{ name, in string }{
@@ -49,12 +50,14 @@ func TestExtractVideoID(t *testing.T) {
 	}
 }
 
-// 样本按 YouTube **真实的双重转义**写：`<b>` 在文件里是 `&amp;lt;b&amp;gt;`，
-// 语音里的 `&` 是 `&amp;amp;`。encoding/xml 解掉第一层，cleanText 解第二层。
+// The sample is written to match YouTube's **actual double-escaping**: `<b>` is `&amp;lt;b&amp;gt;` in
+// the file, and `&` in speech is `&amp;amp;`. encoding/xml unescapes the first layer, cleanText unescapes
+// the second.
 //
-// 第一版我把顺序写反了（先去标签再解实体），断言也照着错的写，于是「测试通过」
-// 只证明了实现与我的误解一致。是这几条撞出来的：先去标签时标签还是 `&lt;b&gt;`，
-// 一个都删不掉，preserve_formatting 两档产出完全一样。
+// In the first version I had the order backwards (strip tags, then unescape entities), and the
+// assertions were written to match that mistake, so "tests pass" only proved the implementation matched
+// my misunderstanding. These cases are what exposed it: stripping tags first leaves them as `&lt;b&gt;`,
+// none of them get removed, and the two preserve_formatting settings produce identical output.
 const sampleXML = `<?xml version="1.0" encoding="utf-8" ?><transcript>
 <text start="0.5" dur="1.2">Hello &amp;amp; welcome</text>
 <text start="2.0" dur="3.4">line with &amp;lt;b&amp;gt;bold&amp;lt;/b&amp;gt; markup</text>
@@ -68,7 +71,8 @@ func TestParseTimedText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("解析失败: %v", err)
 	}
-	// 只有换行的占位条目要丢掉：留着会让 count 虚高、拼出来的全文多一堆空格。
+	// Newline-only placeholder entries should be dropped: keeping them would inflate the count and
+	// leave extra spaces scattered through the joined text.
 	if len(got) != 3 {
 		t.Fatalf("应剩 3 句（空白句被丢），实际 %d：%+v", len(got), got)
 	}
@@ -78,7 +82,8 @@ func TestParseTimedText(t *testing.T) {
 	if got[0].Start != 0.5 || got[0].Duration != 1.2 {
 		t.Errorf("时间轴要照抄，实际 start=%v dur=%v", got[0].Start, got[0].Duration)
 	}
-	// 双重转义的 <b> 是**格式标签**，默认档要删掉（不是当字面量留着）。
+	// The double-escaped <b> is a **formatting tag**, and the default setting should strip it (not keep
+	// it as a literal string).
 	if got[1].Text != "line with bold markup" {
 		t.Errorf("默认应去掉内联标签，实际 %q", got[1].Text)
 	}
@@ -92,8 +97,9 @@ func TestParseTimedTextPreserveFormatting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 白名单里的 <b> 留下来 —— 这正是 preserve_formatting 与默认档的唯一区别。
-	// 两档产出相同就说明解转义那步没生效（第一版就是这样）。
+	// The allowlisted <b> is kept — this is exactly the only difference between preserve_formatting and
+	// the default setting. If both settings produced the same output, it would mean the unescape step
+	// wasn't taking effect (which is exactly what the first version did).
 	if got[1].Text != "line with <b>bold</b> markup" {
 		t.Errorf("保留格式时白名单标签应留下，实际 %q", got[1].Text)
 	}
@@ -102,7 +108,7 @@ func TestParseTimedTextPreserveFormatting(t *testing.T) {
 	}
 }
 
-// 不在白名单里的标签，两档都得删。
+// A tag that's not in the allowlist must be stripped in both settings.
 func TestParseTimedTextDropsNonWhitelistTags(t *testing.T) {
 	const withFont = `<transcript><text start="0" dur="1">a &amp;lt;font color="#fff"&amp;gt;see&amp;lt;/font&amp;gt; b</text></transcript>`
 	for _, preserve := range []bool{false, true} {
@@ -116,7 +122,7 @@ func TestParseTimedTextDropsNonWhitelistTags(t *testing.T) {
 	}
 }
 
-// 空轨是正常结果（直播刚开始时常见），不该报错。
+// An empty track is a normal result (common right after a livestream starts), and shouldn't be an error.
 func TestParseTimedTextEmpty(t *testing.T) {
 	for _, in := range []string{"", "   ", "<transcript></transcript>"} {
 		got, err := ParseTimedText(in, false)
@@ -133,8 +139,9 @@ func tr(code string, generated bool) track {
 	return track{Info: schema.TrackInfo{LanguageCode: code, IsGenerated: generated, Language: code}}
 }
 
-// 选轨的判据顺序是**语言优先于类型**：用户写 `zh-Hans,en` 的意思是「中文比英文重要」，
-// 有中文机翻时就不该因为「英文有人工字幕」而跳去英文。
+// Track-picking criteria are ordered **language before kind**: when a user writes `zh-Hans,en`, they mean
+// "Chinese matters more than English", so when a Chinese machine translation exists, it shouldn't be
+// skipped in favor of English just because "English has a manual transcript".
 func TestPickTrackLanguageBeatsKind(t *testing.T) {
 	tracks := []track{tr("en", false), tr("zh-Hans", true)}
 	got, err := pickTrack(tracks, []string{"zh-Hans", "en"}, "any")
@@ -160,7 +167,7 @@ func TestPickTrackManualFirstWithinLanguage(t *testing.T) {
 func TestPickTrackHardFilters(t *testing.T) {
 	tracks := []track{tr("en", true), tr("ja", false)}
 
-	// manual 是硬过滤：en 只有自动的 → 跳过 en，继续找下一个语言。
+	// manual is a hard filter: en only has an auto-generated one → skip en, move on to the next language.
 	got, err := pickTrack(tracks, []string{"en", "ja"}, "manual")
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +176,8 @@ func TestPickTrackHardFilters(t *testing.T) {
 		t.Errorf("限定人工时应跳过只有自动字幕的 en，实际选了 %s", got.Info.LanguageCode)
 	}
 
-	// 一个都不满足 → 报错，且必须把现有的列出来（否则用户不知道该改成什么）。
+	// None of them satisfy it → error, and the existing ones must be listed (otherwise the user has no
+	// idea what to change it to).
 	_, err = pickTrack(tracks, []string{"de"}, "manual")
 	if err == nil {
 		t.Fatal("没有匹配应报错")
@@ -209,23 +217,25 @@ func TestSortTracksManualFirst(t *testing.T) {
 	for i, x := range got {
 		order[i] = x.LanguageCode
 	}
-	// 人工在前，且**同类内保持原顺序**（YouTube 给的顺序有含义：默认轨在前）。
+	// Manual ones come first, and **the original order within each kind is preserved** (YouTube's order
+	// carries meaning: the default track comes first).
 	if strings.Join(order, ",") != "ja,fr,en,de" {
 		t.Errorf("want ja,fr,en,de got %s", strings.Join(order, ","))
 	}
 }
 
 func TestJoinText(t *testing.T) {
-	// 用空格而不是换行：timedtext 是按显示时长切的，不是按语义，
-	// 换行会让下游 LLM 以为那是段落边界。
+	// Space, not newline: timedtext line breaks are cut by display width, not by meaning, and a newline
+	// would make a downstream LLM think it's a paragraph boundary.
 	got := JoinText([]schema.Snippet{{Text: " a "}, {Text: "b"}, {Text: "c "}})
 	if got != "a b c" {
 		t.Errorf("want %q got %q", "a b c", got)
 	}
 }
 
-// **句内**的换行也要压平。真实样本（冒烟测试里取到的）就长这样：
-// 播放器一行显示不下就断行，与语义无关。
+// Newlines **within a line** must be flattened too. A real sample (pulled from a smoke test) looks
+// exactly like this: the player breaks the line when it doesn't fit on one display line, unrelated to
+// meaning.
 func TestJoinTextFlattensNewlinesInsideSnippet(t *testing.T) {
 	in := []schema.Snippet{
 		{Text: "♪ A full commitment's\n        what I'm thinking of ♪"},
@@ -237,7 +247,8 @@ func TestJoinTextFlattensNewlinesInsideSnippet(t *testing.T) {
 	}
 }
 
-// snippets 那一份不受影响：换行是原始数据，压掉就还原不回去了。
+// The snippets field is unaffected: the newline is part of the original data, and flattening it there
+// couldn't be undone.
 func TestSnippetsKeepRawWhitespace(t *testing.T) {
 	const x = `<transcript><text start="0" dur="1">a
         b</text></transcript>`
@@ -250,36 +261,40 @@ func TestSnippetsKeepRawWhitespace(t *testing.T) {
 	}
 }
 
-// 语言匹配必须认「地区变体」。
+// Language matching must accept "regional variants".
 //
-// 实报（2026-08-26，用户第一次用就撞上）：
+// Reported in practice (2026-08-26, a user hit this on their very first use):
 //
 //	插件执行失败: 没有匹配的字幕（要的是 en）。这个视频现有：en-US(人工)
+//	("plugin execution failed: no matching transcript (wanted en). This video has: en-US (manual)")
 //
-// 而 `en` 恰恰是默认值 —— 也就是说**只要视频的轨是 en-US，默认配置就必挂**，
-// 而用户没做错任何事。参考项目（Python 版）是精确匹配 dict 查找，同样的坑；
-// 这一条我们不照抄。
+// And `en` is exactly the default value — meaning **as soon as a video's track is en-US, the default
+// config always fails**, through no fault of the user's. The reference project (Python version) does an
+// exact dict lookup and hits the same pitfall; we deliberately don't copy that.
 //
-// 判据：请求语言与轨语言按**主子标签**（`-` 之前那段）同族即可命中；
-// 同族之内，先按人工/自动排（prefer=any 时人工优先），再拿「代码完全相同」当同分时的胜负手。
+// Criteria: the requested language and a track's language match as long as they share the same **primary
+// subtag** (the part before `-`); within the same family, manual/auto-generated is ranked first
+// (prefer=any favors manual), then an exact code match breaks a tie.
 func TestPickTrackMatchesRegionalVariants(t *testing.T) {
 	cases := []struct {
 		name   string
 		tracks []track
-		want   []string // 请求语言
+		want   []string // requested languages
 		prefer string
 		expect string
 	}{
 		{"要 en，只有 en-US（实报）", []track{tr("en-US", false)}, []string{"en"}, "any", "en-US"},
 		{"要 en-US，只有 en", []track{tr("en", false)}, []string{"en-US"}, "any", "en"},
 		{"要 en，只有 en-GB 自动", []track{tr("en-GB", true)}, []string{"en"}, "any", "en-GB"},
-		// 同族之内仍是人工优先——这是 prefer=any 的全部意义。
+		// Within the same family, manual still wins — that's the entire point of prefer=any.
 		{"同族内人工优先于精确", []track{tr("en", true), tr("en-US", false)}, []string{"en"}, "any", "en-US"},
-		// 类型相同时，精确代码赢：用户写 en 就是更想要 en。
+		// When the kind is the same, the exact code wins: a user writing en wants en specifically.
 		{"同为人工时精确码胜出", []track{tr("en-GB", false), tr("en", false)}, []string{"en"}, "any", "en"},
-		// 跨语言的优先级不受影响：zh 排在 en 前面，就不该因为 en 有人工字幕而跳过去。
+		// Cross-language priority is unaffected: zh ranked ahead of en shouldn't be skipped just because
+		// en has a manual transcript.
 		{"语言优先级仍高于一切", []track{tr("en", false), tr("zh-Hans", true)}, []string{"zh", "en"}, "any", "zh-Hans"},
-		// 硬过滤照旧：en 族只有自动的 → 跳过整族，去下一个语言。
+		// Hard filter still applies: the en family only has an auto-generated one → skip the whole
+		// family, move to the next language.
 		{"限定人工时同族没有就跳族", []track{tr("en-US", true), tr("ja", false)}, []string{"en", "ja"}, "manual", "ja"},
 	}
 	for _, c := range cases {
@@ -294,7 +309,8 @@ func TestPickTrackMatchesRegionalVariants(t *testing.T) {
 	}
 }
 
-// 同族也没有时才算没有，且报错仍要列出现有的。
+// Only counts as "no match" when not even the same family exists, and the error must still list what's
+// available.
 func TestPickTrackStillFailsOnDifferentLanguage(t *testing.T) {
 	_, err := pickTrack([]track{tr("ja", false), tr("ko", false)}, []string{"en"}, "any")
 	if err == nil {

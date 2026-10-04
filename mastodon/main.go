@@ -1,9 +1,11 @@
-// mastodon —— Sokel 第一方发布器插件：发嘟 / 嘟串 / 删嘟。
+// mastodon — a Sokel first-party publisher plugin: post / thread / delete on Mastodon.
 //
-// 与 bluesky 同一套 publish 契约。四条差异见 schema/schema.go 顶部：
-// 字数上限问实例（不是写死 500）、发布带幂等键、CW 是一等公民、可见性整串继承。
+// Uses the same publish contract as bluesky. The four differences are covered at the top of
+// schema/schema.go: the character limit is asked from the instance (not hardcoded to 500),
+// publishing carries an idempotency key, CW is a first-class citizen, and visibility is inherited
+// across a whole thread.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./mastodon
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./mastodon
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

@@ -1,11 +1,13 @@
 package main
 
-// 假微信。钉五件事：
-//   - **业务错误装在 HTTP 200 里**（errcode != 0），只看状态码会把「IP 不在白名单」当成成功；
-//   - token 失效（40001）要清缓存重试一次，别让调用方看见；
-//   - 封面图缺失与正文外链图要在**建草稿之前**拦下（否则发出去才发现是一篇没有图的文章）；
-//   - 发布是异步的，submit 成功不等于发布成功；
-//   - 健康检查一次验出「密钥/白名单/权限」三件事。
+// A fake WeChat. Pins down five things:
+//   - **Business errors are packed inside an HTTP 200** (errcode != 0); checking only the status
+//     code would treat "IP not in the allowlist" as success;
+//   - An invalid token (40001) should clear the cache and retry once, without the caller seeing it;
+//   - A missing cover image and foreign images in the body must be caught **before creating the
+//     draft** (otherwise you only find out after publishing that the article has no images);
+//   - Publishing is asynchronous, and submit succeeding doesn't mean publishing succeeded;
+//   - A single health check validates three things: "credentials / allowlist / permission".
 
 import (
 	"context"
@@ -71,12 +73,13 @@ func ctxTo(t *testing.T, cap *capture, routes map[string]func(http.ResponseWrite
 		cred: map[string]string{"app_id": "wx1", "app_secret": "sec"}}
 }
 
-// 微信把业务错误装在 HTTP 200 里。只看状态码的话，「IP 不在白名单」会被当成成功。
+// WeChat packs business errors inside an HTTP 200. Checking only the status code would treat
+// "IP not in the allowlist" as success.
 func TestBusinessErrorInsideHTTP200(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
 		"/cgi-bin/draft/count": func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK) // 200！
+			w.WriteHeader(http.StatusOK) // 200!
 			io.WriteString(w, `{"errcode":40164,"errmsg":"invalid ip 1.2.3.4 not in whitelist"}`)
 		},
 	})
@@ -93,7 +96,8 @@ func TestBusinessErrorInsideHTTP200(t *testing.T) {
 	}
 }
 
-// 未认证号发布权限被收回（48001）要说清楚，否则没人知道该去认证。
+// An unverified account's revoked publishing permission (48001) must be spelled out, or nobody
+// would know to go get verified.
 func TestUnauthorizedAccountIsExplained(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -107,7 +111,8 @@ func TestUnauthorizedAccountIsExplained(t *testing.T) {
 	}
 }
 
-// token 失效（40001）清缓存重试一次——多副本互相顶掉 token 时靠它自愈。
+// An invalid token (40001) clears the cache and retries once — this is what self-heals when
+// multiple replicas keep invalidating each other's token.
 func TestExpiredTokenIsRetriedOnce(t *testing.T) {
 	cap := &capture{}
 	first := true
@@ -140,7 +145,8 @@ func TestExpiredTokenIsRetriedOnce(t *testing.T) {
 	}
 }
 
-// 封面图必填：微信这时回一句语焉不详的 41005，不如在发出去之前说清楚。
+// The cover image is mandatory: WeChat would otherwise return a cryptic 41005 — better to say it
+// plainly before even sending the request.
 func TestMissingCoverIsRejectedEarly(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -159,7 +165,8 @@ func TestMissingCoverIsRejectedEarly(t *testing.T) {
 	}
 }
 
-// 正文里的外链图会被微信屏蔽——发出去才发现是一篇没有图的文章。要在建草稿前拦下。
+// A hotlinked image in the body gets blocked by WeChat — you'd only discover after publishing that
+// the article has no images. This must be caught before creating the draft.
 func TestForeignImageIsRejectedEarly(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -174,7 +181,7 @@ func TestForeignImageIsRejectedEarly(t *testing.T) {
 	if !strings.Contains(err.Error(), "上传图片") {
 		t.Errorf("要指出路: %v", err)
 	}
-	// 微信自己域名的图不该被误伤
+	// An image already on WeChat's own domain shouldn't get caught by mistake
 	if _, err := opDraftAdd(ctx, &MpDraftAddIn{
 		Title: "标题", ThumbMediaID: "m_cover",
 		Content: `<img src="https://mmbiz.qpic.cn/x.jpg" alt="ok">`,
@@ -183,7 +190,7 @@ func TestForeignImageIsRejectedEarly(t *testing.T) {
 	}
 }
 
-// 建草稿的请求形状：articles 数组 + 必填三件套。
+// The shape of a create-draft request: an articles array + the three required fields.
 func TestDraftAddShape(t *testing.T) {
 	cap := &capture{}
 	var body string
@@ -208,13 +215,15 @@ func TestDraftAddShape(t *testing.T) {
 	if !strings.Contains(body, `"articles"`) || !strings.Contains(body, `"thumb_media_id":"m_cover"`) {
 		t.Errorf("请求形状不对: %s", body)
 	}
-	// 中文不该被转义成 \uXXXX（微信各接口对此处理不一致，发原文最稳）
+	// Chinese characters shouldn't be escaped to \uXXXX (WeChat endpoints handle this
+	// inconsistently; sending the raw text is the safest option)
 	if !strings.Contains(body, "A股复盘") {
 		t.Errorf("中文被转义了: %s", body)
 	}
 }
 
-// 发布是异步的：submit 成功不等于发布成功，要等到终态并把状态翻译成人话。
+// Publishing is asynchronous: submit succeeding doesn't mean publishing succeeded; it has to wait
+// for a terminal state and translate that status into something human-readable.
 func TestPublishWaitsForResult(t *testing.T) {
 	cap := &capture{}
 	polls := 0
@@ -222,7 +231,7 @@ func TestPublishWaitsForResult(t *testing.T) {
 		"/cgi-bin/freepublish/get": func(w http.ResponseWriter, r *http.Request) {
 			polls++
 			if polls < 2 {
-				io.WriteString(w, `{"publish_status":1}`) // 发布中
+				io.WriteString(w, `{"publish_status":1}`) // publishing
 				return
 			}
 			io.WriteString(w, `{"publish_status":0,"article_id":"art1",
@@ -245,12 +254,13 @@ func TestPublishWaitsForResult(t *testing.T) {
 	}
 }
 
-// 审核不通过要报错**并带上人话状态**，不能当成发布成功。
+// A failed review must report an error **with a human-readable status attached**, not be treated as
+// a successful publish.
 func TestPublishFailureSurfaces(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
 		"/cgi-bin/freepublish/get": func(w http.ResponseWriter, r *http.Request) {
-			io.WriteString(w, `{"publish_status":3}`) // 审核不通过
+			io.WriteString(w, `{"publish_status":3}`) // failed review
 		},
 	})
 
@@ -263,7 +273,8 @@ func TestPublishFailureSurfaces(t *testing.T) {
 	}
 }
 
-// 两种用途的产出不一样：封面要 media_id，正文要地址；大小上限也不同。
+// The two purposes produce different outputs: cover needs a media_id, body needs a URL; the size
+// limits differ too.
 func TestImageUploadPurposes(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -285,7 +296,8 @@ func TestImageUploadPurposes(t *testing.T) {
 		t.Errorf("正文配图只回地址: %+v", inline)
 	}
 
-	// 正文配图的上限是 1MB（不是封面的 10MB），要在传之前拦下
+	// The limit for an inline body image is 1MB (not the cover's 10MB), and must be caught before
+	// uploading
 	big := &fakeCtx{Context: context.Background(), cred: ctx.cred, file: make([]byte, (1<<20)+1)}
 	if _, err := opImageUpload(big, &MpImageUploadIn{
 		File: &plugin.File{ID: "f3", Name: "big.jpg", Mime: "image/jpeg"}, Purpose: "inline"}); err == nil {

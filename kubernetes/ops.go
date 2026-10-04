@@ -1,7 +1,8 @@
 package main
 
-// 操作实现：7 个 REST 路径。应答只解我们要的字段（K8s 对象几百个字段，
-// 全量建模是 typed clientset 的事，不是这 7 个操作的事）。
+// Operation implementations: 7 REST paths. Responses only parse the fields we need (K8s
+// objects have hundreds of fields; modeling all of them is typed clientset's job, not these 7
+// operations').
 
 import (
 	"encoding/json"
@@ -15,7 +16,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// —— pods ——
+// -- pods --
 
 type podList struct {
 	Items []struct {
@@ -39,8 +40,9 @@ type podList struct {
 						Reason string `json:"reason"`
 					} `json:"terminated"`
 				} `json:"state"`
-				// lastState：**上一次**结束的样子。OOMKilled 多半只在这里——
-				// 被杀掉后容器会被立刻拉起，当前 state 已经是 Running/Waiting 了。
+				// lastState: what the previous termination looked like. OOMKilled mostly only
+				// shows up here -- after being killed, the container is immediately restarted, and
+				// the current state is already Running/Waiting.
 				LastState struct {
 					Terminated *struct {
 						Reason     string `json:"reason"`
@@ -85,10 +87,11 @@ func opPods(ctx plugin.Ctx, in *PodsIn) (*PodsOut, error) {
 			if cs.State.Terminated != nil && cs.State.Terminated.Reason != "" && cs.State.Terminated.Reason != "Completed" {
 				reason = cs.State.Terminated.Reason
 			}
-			// 多容器时取**最近结束的那个**：一个 pod 里两个容器先后挂过，
-			// 报最早那次会把人指向已经修好的问题。
+			// With multiple containers, take the most recently terminated one: if two containers
+			// in a pod crashed one after another, reporting the earliest one would point someone
+			// at a problem that's already fixed.
 			if t := cs.LastState.Terminated; t != nil && t.Reason != "" {
-				if lastAt == "" || t.FinishedAt > lastAt { // RFC3339 字典序即时间序
+				if lastAt == "" || t.FinishedAt > lastAt { // RFC3339 lexical order is time order
 					lastReason, lastExit, lastAt = t.Reason, t.ExitCode, t.FinishedAt
 				}
 			}
@@ -158,7 +161,7 @@ func opPodLogs(ctx plugin.Ctx, in *PodLogsIn) (*PodLogsOut, error) {
 	return &PodLogsOut{Logs: logs, Lines: strings.Count(logs, "\n")}, nil
 }
 
-// —— deployments ——
+// -- deployments --
 
 type deployList struct {
 	Items []struct {
@@ -219,7 +222,7 @@ func opDeploymentRestart(ctx plugin.Ctx, in *DeploymentRestartIn) (*DeploymentRe
 	if err != nil {
 		return nil, err
 	}
-	// kubectl rollout restart 的实现就是改这个注解：模板变了 → 滚动替换。
+	// kubectl rollout restart is implemented by changing this annotation: the template changed -> rolling replacement.
 	now := time.Now().Format(time.RFC3339)
 	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`, now)
 	if _, err := k.do(ctx, "PATCH",
@@ -244,7 +247,7 @@ func opDeploymentScale(ctx plugin.Ctx, in *DeploymentScaleIn) (*DeploymentScaleO
 		return nil, err
 	}
 	path := "/apis/apps/v1/namespaces/" + nsOf(cred, in.Namespace) + "/deployments/" + name + "/scale"
-	// 先读原值——「从几调到几」是审计与回滚都要的信息。
+	// Read the previous value first -- "scaled from N to M" is information needed for both auditing and rollback.
 	prev := 0
 	if raw, gerr := k.do(ctx, "GET", path, nil, nil, ""); gerr == nil {
 		var sc struct {
@@ -262,14 +265,15 @@ func opDeploymentScale(ctx plugin.Ctx, in *DeploymentScaleIn) (*DeploymentScaleO
 	return &DeploymentScaleOut{OK: true, Previous: prev}, nil
 }
 
-// —— events ——
+// -- events --
 
 type eventList struct {
 	Items []eventItem `json:"items"`
 }
 
-// eventItem 一条事件。**三个时间字段都要留着**：老 API 给 first/lastTimestamp，
-// 新版 events.k8s.io 给 eventTime，集群版本不同给的不一样（见 eventNewerThan）。
+// eventItem is a single event. All three time fields must be kept: the old API gives
+// first/lastTimestamp, the newer events.k8s.io gives eventTime, and different cluster versions
+// provide different ones (see eventNewerThan).
 type eventItem struct {
 	Type           string `json:"type"`
 	Reason         string `json:"reason"`
@@ -304,8 +308,9 @@ func opEvents(ctx plugin.Ctx, in *EventsIn) (*EventsOut, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	// checked_at 在**发请求之后**取：取在前面的话，这中间发生的事件会落进
-	// [checked_at, 实际返回] 这个缝里，下一轮用它当 since 就永远查不到——静默漏告警。
+	// checked_at is taken after the request completes: taking it before would let events that
+	// happen in between fall into the gap [checked_at, actual response], and using it as since
+	// on the next round would never find them -- a silent missed alert.
 	out := &EventsOut{CheckedAt: time.Now().UTC().Format(time.RFC3339)}
 	want := map[string]bool{}
 	for _, r := range in.Reasons {
@@ -314,18 +319,19 @@ func opEvents(ctx plugin.Ctx, in *EventsIn) (*EventsOut, error) {
 		}
 	}
 	since := strings.TrimSpace(in.Since)
-	// 倒着取：K8s 按时间正序给，最近的在最后，而看事件的人要的是最近的。
+	// Iterate in reverse: K8s returns events in ascending time order, most recent last, but someone looking at events wants the recent ones.
 	for i := len(list.Items) - 1; i >= 0; i-- {
 		e := list.Items[i]
 		if len(want) > 0 && !want[strings.ToLower(e.Reason)] {
 			continue
 		}
-		// 按**最近发生**比，不是首次发生：一条 Warning 会被 k8s 反复累加（count++、
-		// lastTimestamp 更新），拿首次发生比的话，一个持续两小时的故障只在第一轮报一次。
+		// Compare by most recent occurrence, not first occurrence: a Warning keeps getting
+		// accumulated by k8s (count++, lastTimestamp updated); comparing by first occurrence would
+		// mean a failure lasting two hours only gets reported once, in the first round.
 		if since != "" && !eventNewerThan(e, since) {
 			continue
 		}
-		// 命中的比 limit 多 → 明说被截了。此前静默截断，集群一忙就会悄悄漏掉告警。
+		// More matches than limit -> say explicitly that it was truncated. It used to truncate silently, which would quietly drop alerts whenever the cluster got busy.
 		if len(out.Events) >= limit {
 			out.Truncated = true
 			break
@@ -334,8 +340,9 @@ func opEvents(ctx plugin.Ctx, in *EventsIn) (*EventsOut, error) {
 			Type: e.Type, Reason: e.Reason,
 			Object:  e.InvolvedObject.Kind + "/" + e.InvolvedObject.Name,
 			Message: e.Message, Count: e.Count,
-			// 回落到 eventTime：新版 events.k8s.io 的集群不给 lastTimestamp，
-			// 照直取会让「最近发生」为空——而它正是调用方拿去当游标的那个字段。
+			// Fall back to eventTime: clusters on the newer events.k8s.io don't provide
+			// lastTimestamp, and taking it directly would leave "most recently occurred" empty --
+			// which is exactly the field the caller uses as a cursor.
 			LastSeen: firstNonEmpty(e.LastTimestamp, e.EventTime), FirstSeen: firstNonEmpty(e.FirstTimestamp, e.EventTime),
 		})
 	}
@@ -343,7 +350,7 @@ func opEvents(ctx plugin.Ctx, in *EventsIn) (*EventsOut, error) {
 	return out, nil
 }
 
-// —— nodes ——
+// -- nodes --
 
 type nodeList struct {
 	Items []struct {
@@ -402,7 +409,7 @@ func opNodes(ctx plugin.Ctx, _ *NodesIn) (*NodesOut, error) {
 	return out, nil
 }
 
-// —— health ——
+// -- health --
 
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	k, err := clientOf(credOf(ctx))
@@ -420,19 +427,22 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return &HealthCheckOut{OK: true, Version: v.GitVersion, Message: "集群可达：" + v.GitVersion}, nil
 }
 
-// eventNewerThan：这条事件比游标新吗。
+// eventNewerThan reports whether this event is newer than the cursor.
 //
-// 取「最近发生」而不是「首次发生」——k8s 对重复事件不是每次新建一条，而是把同一条的
-// count 加一、lastTimestamp 往前推。按首次发生比的话，一个持续两小时的故障只会在
-// 第一轮被报出来，之后永远比游标旧（用户实感：告警只响一次就再也不响了）。
+// Uses "most recently occurred" rather than "first occurred" -- k8s doesn't create a new entry
+// for a repeated event, it increments that entry's count and advances lastTimestamp. Comparing
+// by first occurrence would mean a failure lasting two hours only gets reported in the first
+// round, and forever looks older than the cursor after that (the user-visible symptom: the
+// alert fires once and never again).
 //
-// 两种时间字段都要认：老的 lastTimestamp 与新版 events.k8s.io 的 series/eventTime，
-// 集群版本不同给的不一样，只认一个会在另一半集群上恒为「不比它新」。
+// Both time field forms must be recognized: the old lastTimestamp and the newer
+// events.k8s.io's series/eventTime -- different cluster versions provide different ones, and
+// recognizing only one would make it permanently "not newer" on the other half of clusters.
 func eventNewerThan(e eventItem, since string) bool {
 	for _, t := range []string{e.LastTimestamp, e.EventTime, e.FirstTimestamp} {
 		if t != "" {
-			return t > since // RFC3339 字典序即时间序
+			return t > since // RFC3339 lexical order is time order
 		}
 	}
-	return true // 一个时间都没有：宁可多报一次，也不吞掉
+	return true // no time at all: better to over-report than to swallow it
 }

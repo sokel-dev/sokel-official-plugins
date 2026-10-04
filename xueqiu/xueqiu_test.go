@@ -1,10 +1,13 @@
 package main
 
-// 假雪球。这个插件打的是**没有文档的私有接口**，所以测试的重点与别家不同：
-//   - 请求得长得跟抓包里一模一样（表单字段、四个头），差一个就被 WAF 拦；
-//   - 应答形状是猜的 → 宽松提取要能扛住键名变化；
-//   - 被风控拦下时回的是**一整页 HTML**，不能报成「解析失败」；
-//   - 正文转 HTML 时必须先转义（一个 < 就能冲掉整段结构）。
+// A fake Xueqiu. This plugin calls **undocumented private endpoints**, so the tests
+// focus on different things than usual:
+//   - a request must look exactly like the one captured from the browser (form fields,
+//     four headers) — missing one gets blocked by the WAF;
+//   - the response shape is guesswork → loose extraction must hold up across key renames;
+//   - a WAF block returns **a full HTML page**, which must not be reported as "parse
+//     failed";
+//   - converting text to HTML must escape first (a single < can break the whole structure).
 
 import (
 	"bytes"
@@ -20,7 +23,7 @@ import (
 )
 
 const testCookie = "cookiesu=1; device_id=d1; xq_a_token=aaa; xqat=aaa; " +
-	// 载荷是 {"uid":6212100204}
+	// payload is {"uid":6212100204}
 	"xq_id_token=h.eyJ1aWQiOjYyMTIxMDAyMDR9.s; u=6212100204"
 
 type fakeCtx struct {
@@ -56,7 +59,7 @@ func ctxTo(t *testing.T, cap *capture, extra map[string]string,
 	routes map[string]func(http.ResponseWriter, *http.Request)) *fakeCtx {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 先读 body 会把它抽干，ParseForm 就啥也解不出来——读完得塞回去。
+		// Reading body first drains it, so ParseForm would get nothing — it must be put back after reading.
 		body, _ := io.ReadAll(r.Body)
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		_ = r.ParseForm()
@@ -90,7 +93,7 @@ func ctxTo(t *testing.T, cap *capture, extra map[string]string,
 	}))
 	t.Cleanup(srv.Close)
 	base = srv.URL
-	mpBase = srv.URL // 长文那套在 mp 子站上，测试里指同一个假服务器
+	mpBase = srv.URL // the long-form API lives on the mp subdomain; tests point both at the same fake server
 	tokMu.Lock()
 	tokCache = map[string]string{}
 	tokMu.Unlock()
@@ -101,7 +104,7 @@ func ctxTo(t *testing.T, cap *capture, extra map[string]string,
 	return &fakeCtx{Context: context.Background(), cred: cred, file: []byte("PNG")}
 }
 
-// 发帖请求得跟抓包里一样：表单字段齐、四个头齐。
+// A post request must match the captured one: all form fields present, all four headers present.
 func TestPostRequestShape(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -116,7 +119,7 @@ func TestPostRequestShape(t *testing.T) {
 	}
 	for k, want := range map[string]string{
 		"allow_reward":  "false",
-		"ai_disclose":   "1", // 打开了就必须是 1——这是合规字段
+		"ai_disclose":   "1", // must be 1 when enabled -- this is a compliance field
 		"post_position": "pc_home_post",
 		"session_token": "tok_from_page",
 	} {
@@ -141,13 +144,13 @@ func TestPostRequestShape(t *testing.T) {
 	if out.ID != "123456789" {
 		t.Errorf("帖子 id = %q", out.ID)
 	}
-	// uid 从 xq_id_token 的 JWT 载荷里解出来，用来拼链接
+	// uid is decoded from the xq_id_token JWT payload, used to build the link
 	if out.URL != "https://xueqiu.com/6212100204/123456789" {
 		t.Errorf("链接拼错了: %q", out.URL)
 	}
 }
 
-// 图片：先传图床，再按固定形状嵌进正文。少了那两个 class 雪球认不出它是图片。
+// Images: uploaded to the image host first, then embedded in the text in a fixed shape. Without those two classes, Xueqiu won't recognize it as an image.
 func TestImageUploadAndEmbed(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -181,12 +184,12 @@ func TestImageUploadAndEmbed(t *testing.T) {
 	}
 }
 
-// 应答形状是猜的：换个键名也要能认出图片地址（宽松提取的意义）。
+// The response shape is guesswork: the image address must still be recognized even with a different key name (the whole point of loose extraction).
 func TestUploadResponseShapeIsTolerated(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, map[string]func(http.ResponseWriter, *http.Request){
 		"/photo/upload.json": func(w http.ResponseWriter, r *http.Request) {
-			// 完全不同的形状：键名变了、嵌得更深
+			// a completely different shape: renamed keys, nested deeper
 			io.WriteString(w, `{"data":{"result":{"image_url":"https://xqimg.imedao.com/zzz.jpg"}}}`)
 		},
 	})
@@ -201,8 +204,9 @@ func TestUploadResponseShapeIsTolerated(t *testing.T) {
 	}
 }
 
-// 被风控拦下时雪球回的是一整页 HTML。按 JSON 解会得到「解析失败」，
-// 而真正的原因是风控——错误信息必须说到点子上。
+// When blocked by risk control, Xueqiu returns a full HTML page. Parsing it as JSON
+// would just say "parse failed", while the real cause is risk control — the error
+// message must get to the point.
 func TestWAFHtmlIsExplained(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, map[string]func(http.ResponseWriter, *http.Request){
@@ -221,12 +225,12 @@ func TestWAFHtmlIsExplained(t *testing.T) {
 	}
 }
 
-// Cookie 过期是最常见的失败，要说成人话而不是「HTTP 400」。
+// An expired cookie is the most common failure, and must be explained in plain language instead of "HTTP 400".
 func TestExpiredCookieIsExplained(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, map[string]func(http.ResponseWriter, *http.Request){
 		"/write/": func(w http.ResponseWriter, r *http.Request) {
-			// 没登录时雪球把写作页 302 到登录页，页面上没有那段脚本
+			// when not logged in, Xueqiu 302s the writer page to the login page, which doesn't have that script
 			io.WriteString(w, `<html><body>请登录</body></html>`)
 		},
 	})
@@ -241,13 +245,13 @@ func TestExpiredCookieIsExplained(t *testing.T) {
 	if !strings.Contains(out.Message, "重新登录") {
 		t.Errorf("要告诉人怎么办: %q", out.Message)
 	}
-	// 登录态没了也该从 cookie 的 JWT 里兜出 uid，方便人对号入座
+	// even with the session gone, uid should still be recovered from the cookie's JWT as a fallback, to help people identify the account
 	if out.UID != "6212100204" {
 		t.Errorf("uid 应当从 JWT 里兜底解出来: %q", out.UID)
 	}
 }
 
-// 健康检查**不能有副作用**：不许往时间线上发东西。
+// A health check **must have no side effects**: nothing may be posted to the timeline.
 func TestHealthCheckLeavesNoTrace(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -263,7 +267,7 @@ func TestHealthCheckLeavesNoTrace(t *testing.T) {
 	}
 }
 
-// session_token：凭证里粘了就用粘的，不必去抓页面。
+// session_token: if one is pasted into the credential, use it — no need to scrape the page.
 func TestSessionTokenFromCredentialWins(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]string{"session_token": "manual_tok"}, nil)
@@ -281,7 +285,7 @@ func TestSessionTokenFromCredentialWins(t *testing.T) {
 	}
 }
 
-// 抓不到 token 时要告诉人去哪儿复制，而不是发一个必然被拒的请求。
+// When the token can't be scraped, tell the user where to copy it from, rather than sending a request that's bound to be rejected.
 func TestMissingSessionTokenIsActionable(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, map[string]func(http.ResponseWriter, *http.Request){
@@ -304,7 +308,7 @@ func TestMissingSessionTokenIsActionable(t *testing.T) {
 	}
 }
 
-// 风控参数：凭证里填了才挂到 URL 上（默认不带，先试干净的）。
+// Risk-control param: only attached to the URL if it's set in the credential (off by default, try clean first).
 func TestRiskParamIsOptional(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -317,13 +321,13 @@ func TestRiskParamIsOptional(t *testing.T) {
 	if _, err := opHealthCheck(ctx2, &HealthCheckIn{}); err != nil {
 		t.Fatal(err)
 	}
-	// 第一次不带、第二次带——两次都要能跑通
+	// first without it, second with it -- both must succeed
 	if len(cap.paths) == 0 || len(cap2.paths) == 0 {
 		t.Fatal("请求没发出去")
 	}
 }
 
-// 正文必须先转义：一个 < 就能把整段 HTML 结构冲掉。
+// Text must be escaped first: a single < can break the whole HTML structure.
 func TestTextIsEscaped(t *testing.T) {
 	got := toXueqiuHTML(`风险提示 <script>alert(1)</script> 与 A<B`, nil)
 	if strings.Contains(got, "<script>") {
@@ -347,7 +351,7 @@ func TestMarkdownAndLinks(t *testing.T) {
 	}
 }
 
-// 已经是 HTML 的正文原样透传——用户自己拼好的排版不该被二次加工。
+// Text that's already HTML is passed through as-is -- a user's own hand-built markup shouldn't be reprocessed.
 func TestExistingHTMLPassesThrough(t *testing.T) {
 	src := `<p>我自己拼的<b>排版</b></p>`
 	if got := toXueqiuHTML(src, nil); got != src {
@@ -355,7 +359,7 @@ func TestExistingHTMLPassesThrough(t *testing.T) {
 	}
 }
 
-// Cookie 不全时在发请求之前就说清楚。
+// An incomplete cookie must be flagged clearly before a request is sent.
 func TestIncompleteCookieRejected(t *testing.T) {
 	if _, err := cookieOf(Cred{Cookie: "u=123; device_id=d"}); err == nil ||
 		!strings.Contains(err.Error(), "xq_a_token") {
@@ -366,9 +370,9 @@ func TestIncompleteCookieRejected(t *testing.T) {
 	}
 }
 
-// —— 长文（mp.xueqiu.com 那套）——
+// —— long-form articles (the mp.xueqiu.com API) ——
 
-// 长文接口**不要 session_token**，字段与短帖也不同：title + text + is_private。
+// The long-form endpoint **doesn't need session_token**, and its fields differ from short posts: title + text + is_private.
 func TestArticleDraftShape(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -400,7 +404,7 @@ func TestArticleDraftShape(t *testing.T) {
 	}
 }
 
-// 长文图床回的是 {url, filename} 两段，要拼起来并补上协议。
+// The long-form image host returns {url, filename} as two parts, which must be joined and given a protocol prefix.
 func TestArticleImageURLIsAssembled(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -415,13 +419,13 @@ func TestArticleImageURLIsAssembled(t *testing.T) {
 	if !strings.Contains(text, `<img src="https://xqimg.imedao.com/dir/pic.png">`) {
 		t.Errorf("图片地址没拼对（url + filename + 协议）: %q", text)
 	}
-	// 长文用普通 <img>，不是短帖那个 img-single-upload 的壳
+	// long-form uses a plain <img>, not the short-post img-single-upload wrapper
 	if strings.Contains(text, "img-single-upload") {
 		t.Error("长文不该套短帖的图片壳")
 	}
 }
 
-// 标题是长文的必填项——空标题在发出去之前拦下。
+// A title is required for long-form articles -- an empty title must be caught before sending.
 func TestArticleNeedsTitle(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)
@@ -436,7 +440,7 @@ func TestArticleNeedsTitle(t *testing.T) {
 	}
 }
 
-// 健康检查读写作页：拿到 uid 与昵称，且**不产生任何副作用**。
+// The health check reads the writer page: gets uid and display name, and **produces no side effects whatsoever**.
 func TestHealthCheckReadsWritePage(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil, nil)

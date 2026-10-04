@@ -1,21 +1,23 @@
 package schema
 
-// 事件契约 + 凭证契约。
+// Event contracts + credential contract.
 //
-// 事件有**两条来路**：平台代收 webhook（零延迟）与轮询源（约 1 分钟延迟，不用配 webhook）。
-// 两条路推的是同一批事件契约，出参里的 source 字段说明这一条是哪来的。
-// **文档写明二选一**：两条都开，同一个动作会各触发一次（event_id 不同域，见 webhook.go 顶注）。
+// Events have **two sources**: the platform receiving webhooks (zero latency) and a polling
+// source (about 1 minute of latency, no webhook setup needed). Both paths push the same set of
+// event contracts; the source field in the outputs says which one this event came from.
+// **The docs say to pick one**: if both are enabled, the same action fires once from each
+// (event_id is a separate namespace per source — see the top comment in webhook.go).
 //
-// 事件的选取对着机器人形态来：ChatOps 要评论事件、CI 看门狗要工作流失败、
-// triage 要新 Issue 与打标签、发布通知要 release。
+// Which events exist follows the bot shapes: ChatOps needs comment events, a CI watchdog needs
+// workflow failures, triage needs new-issue and labeled events, release notifications need release.
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// 事件的公共字段。所有事件都带 repo，平台会把它平铺到触发输入顶层，
-// 于是各分支共用同一个 {{触发器.repo}}。
+// Fields common to all events. Every event carries repo, and the platform flattens it into the
+// top level of the trigger input, so every branch can share the same {{trigger.repo}}.
 type Events struct{}
 
 func (Events) CommonFields() []string { return []string{"repo"} }
@@ -29,7 +31,7 @@ func sourceField() contract.FieldSpec {
 		Desc("webhook 或 poll——两条路都开时用它区分").Optional()
 }
 
-// CommitPushed 有新提交。
+// CommitPushed fires when there's a new commit.
 type CommitPushed struct{}
 
 func (CommitPushed) EventMeta() contract.EventMeta {
@@ -53,7 +55,7 @@ func (CommitPushed) Fields() []contract.FieldSpec {
 	}
 }
 
-// PrOpened 新 PR。
+// PrOpened fires when a new PR is opened.
 type PrOpened struct{}
 
 func (PrOpened) EventMeta() contract.EventMeta {
@@ -77,7 +79,7 @@ func (PrOpened) Fields() []contract.FieldSpec {
 	}
 }
 
-// PrMerged PR 被合并。
+// PrMerged fires when a PR is merged.
 type PrMerged struct{}
 
 func (PrMerged) EventMeta() contract.EventMeta {
@@ -100,7 +102,7 @@ func (PrMerged) Fields() []contract.FieldSpec {
 	}
 }
 
-// PrReviewSubmitted PR 有评审。
+// PrReviewSubmitted fires when a PR review is submitted.
 type PrReviewSubmitted struct{}
 
 func (PrReviewSubmitted) EventMeta() contract.EventMeta {
@@ -122,7 +124,7 @@ func (PrReviewSubmitted) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueOpened 新 Issue。
+// IssueOpened fires when a new Issue is opened.
 type IssueOpened struct{}
 
 func (IssueOpened) EventMeta() contract.EventMeta {
@@ -142,7 +144,7 @@ func (IssueOpened) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueLabeled Issue 被打标签。triage 流水线最常用的触发点。
+// IssueLabeled fires when an Issue is labeled. The most common trigger point for triage pipelines.
 type IssueLabeled struct{}
 
 func (IssueLabeled) EventMeta() contract.EventMeta {
@@ -166,7 +168,7 @@ func (IssueLabeled) Fields() []contract.FieldSpec {
 	}
 }
 
-// IssueCommented Issue 有新评论。ChatOps 的入口。
+// IssueCommented fires on a new Issue comment. The entry point for ChatOps.
 type IssueCommented struct{}
 
 func (IssueCommented) EventMeta() contract.EventMeta {
@@ -192,7 +194,8 @@ func (IssueCommented) Fields() []contract.FieldSpec {
 	}
 }
 
-// PrCommented PR 有新评论。与 Issue 评论分开成两个事件，免得「在 PR 里说句话」去派 Issue 的活。
+// PrCommented fires on a new PR comment. Kept as a separate event from the Issue comment event so
+// that "saying something in a PR" doesn't get routed to Issue-handling logic.
 type PrCommented struct{}
 
 func (PrCommented) EventMeta() contract.EventMeta {
@@ -215,7 +218,7 @@ func (PrCommented) Fields() []contract.FieldSpec {
 	}
 }
 
-// ReleasePublished 有新发布。
+// ReleasePublished fires when a new release is published.
 type ReleasePublished struct{}
 
 func (ReleasePublished) EventMeta() contract.EventMeta {
@@ -236,7 +239,7 @@ func (ReleasePublished) Fields() []contract.FieldSpec {
 	}
 }
 
-// WorkflowFailed 工作流失败。CI 看门狗的触发点。
+// WorkflowFailed fires when a workflow run fails. The trigger point for a CI watchdog.
 type WorkflowFailed struct{}
 
 func (WorkflowFailed) EventMeta() contract.EventMeta {
@@ -260,9 +263,9 @@ func (WorkflowFailed) Fields() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
-// Credential：实例地址 + 令牌 + webhook 验签 + 盯哪些仓库。
+// Credential: instance address + token + webhook signature verification + which repos to watch.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

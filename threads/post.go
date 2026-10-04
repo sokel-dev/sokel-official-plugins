@@ -1,12 +1,15 @@
 package main
 
-// 出站与三个操作。
+// Outbound calls and three operations.
 //
-// Threads 的发布是**两步 + 异步**：
-//   建容器（/threads）→ 拿 creation_id → 发布（/threads_publish）。
-// 容器建好之后 Meta 还要在后台把媒体拉下来处理，**立刻发布会被拒**（媒体没就绪）。
-// 所以带媒体时要等容器状态变成 FINISHED 再发——不等的话表现是随机失败，重试又能成，
-// 最难查的那种。
+// Publishing on Threads is **two steps + asynchronous**:
+//
+//	create a container (/threads) → get a creation_id → publish (/threads_publish).
+//
+// Once the container is created, Meta still has to pull the media down and process it in the
+// background, and **publishing immediately gets rejected** (media not ready yet). So when there's
+// media, you have to wait for the container status to become FINISHED before publishing — skip
+// that and the symptom is random failures that succeed on retry, the hardest kind to debug.
 
 import (
 	"encoding/json"
@@ -29,7 +32,7 @@ const (
 	containerTO = 3 * time.Minute
 )
 
-// apiBase：**是 var 不是 const**——测试要把它指到假上游上。
+// apiBase is **a var, not a const** — tests need to point it at a fake upstream.
 var apiBase = "https://graph.threads.net/v1.0"
 
 var (
@@ -66,7 +69,7 @@ func tokenOf(ctx plugin.Ctx) (string, error) {
 		"（Threads 的令牌 60 天到期，过期后再点一次即可）")
 }
 
-// —— 错误 ——
+// —— Errors ——
 
 type apiError struct {
 	Status  int
@@ -93,7 +96,8 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("Threads 返回 HTTP %d", e.Status)
 }
 
-// call：一次 Graph 调用。参数走 query（Meta 的写接口也收 query，比 JSON 省事且与文档一致）。
+// call makes a single Graph API call. Parameters go through the query string (Meta's write
+// endpoints also accept a query, which is simpler than JSON and matches the docs).
 func call(ctx plugin.Ctx, method, path string, params url.Values, out any) error {
 	tok, err := tokenOf(ctx)
 	if err != nil {
@@ -134,7 +138,7 @@ func call(ctx plugin.Ctx, method, path string, params url.Values, out any) error
 	return nil
 }
 
-// —— 账号 ——
+// —— Account ——
 
 var (
 	meMu    sync.Mutex
@@ -146,7 +150,8 @@ type meInfo struct {
 	Username string `json:"username"`
 }
 
-// me：授权账号。所有发布路径都以它的 id 开头，而它不会变——按 token 缓存。
+// me is the authorized account. Every publishing path starts with its id, and that id never
+// changes — cached by token.
 func me(ctx plugin.Ctx) (meInfo, error) {
 	tok, err := tokenOf(ctx)
 	if err != nil {
@@ -171,7 +176,7 @@ func me(ctx plugin.Ctx) (meInfo, error) {
 	return out, nil
 }
 
-// —— 发布 ——
+// —— Publishing ——
 
 type publishOpts struct {
 	Text         string
@@ -181,7 +186,7 @@ type publishOpts struct {
 	ReplyControl string
 }
 
-// publish：建容器 →（带媒体时）等就绪 → 发布。返回帖子 id。
+// publish: create a container → (if there's media) wait until ready → publish. Returns the post id.
 func publish(ctx plugin.Ctx, o publishOpts) (string, error) {
 	text := strings.TrimSpace(o.Text)
 	urls := mediaURLs(o.Media, o.MediaURLs)
@@ -210,7 +215,8 @@ func publish(ctx plugin.Ctx, o publishOpts) (string, error) {
 		p.Set(mediaParam(urls[0]), urls[0])
 		creationID, err = createContainer(ctx, who.ID, p, o)
 	default:
-		// 轮播：每个媒体先建一个 is_carousel_item 容器，再建一个 CAROUSEL 容器把它们串起来。
+		// Carousel: first create an is_carousel_item container for each piece of media, then create
+		// one CAROUSEL container stringing them together.
 		children := make([]string, 0, len(urls))
 		for i, u := range urls {
 			p := url.Values{"media_type": {mediaType(u)}, "is_carousel_item": {"true"}}
@@ -229,8 +235,9 @@ func publish(ctx plugin.Ctx, o publishOpts) (string, error) {
 		return "", err
 	}
 
-	// 带媒体的容器要等 Meta 把文件拉下来处理完。不等的话发布会被拒，
-	// 而重试又能成——最难查的那种随机失败。
+	// A container with media has to wait for Meta to finish pulling down and processing the file.
+	// Skip that and publishing gets rejected, but a retry succeeds — the hardest kind of random
+	// failure to debug.
 	if len(urls) > 0 {
 		if err := waitReady(ctx, creationID); err != nil {
 			return "", err
@@ -268,7 +275,7 @@ func createContainer(ctx plugin.Ctx, userID string, params url.Values, o publish
 	return out.ID, nil
 }
 
-// waitReady：等容器状态变成 FINISHED。
+// waitReady waits for the container status to become FINISHED.
 func waitReady(ctx plugin.Ctx, creationID string) error {
 	deadline := time.Now().Add(containerTO)
 	for time.Now().Before(deadline) {
@@ -299,7 +306,7 @@ func waitReady(ctx plugin.Ctx, creationID string) error {
 	return fmt.Errorf("等媒体就绪超时（容器 %s）：大视频可稍后重试", creationID)
 }
 
-// —— 操作 ——
+// —— Operations ——
 
 func opPostCreate(ctx plugin.Ctx, in *ThPostCreateIn) (*ThPostCreateOut, error) {
 	id, err := publish(ctx, publishOpts{
@@ -331,7 +338,8 @@ func opPostThread(ctx plugin.Ctx, in *ThPostThreadIn) (*ThPostThreadOut, error) 
 		}
 		id, err := publish(ctx, o)
 		if err != nil {
-			// 中途失败**不回滚**：前面几条已经公开了，删掉是二次破坏。
+			// A mid-thread failure is **not rolled back**: the earlier posts are already public, and
+			// deleting them would be a second act of damage.
 			return nil, fmt.Errorf("帖串发到第 %d 条失败（前 %d 条已发出：%s）: %w",
 				i+1, len(ids), strings.Join(ids, ","), err)
 		}
@@ -357,8 +365,9 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 		return &HealthCheckOut{OK: false, Message: err.Error()}, nil
 	}
 	out := &HealthCheckOut{OK: true, Username: who.Username, Message: "@" + who.Username}
-	// 剩余额度顺带带出来：每 24 小时 250 条是账号级配额，工作流可以据此决定还发不发。
-	// 查不到不影响结论——凭证本身是好的。
+	// The remaining quota is surfaced along the way: 250 posts per 24 hours is an account-level
+	// quota, and a workflow can decide whether to keep publishing based on it. Failing to fetch it
+	// doesn't change the conclusion — the credential itself is still good.
 	var q struct {
 		Data []struct {
 			Usage int `json:"quota_usage"`
@@ -380,12 +389,14 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return out, nil
 }
 
-// —— 小工具 ——
+// —— Small helpers ——
 
-// mediaURLs：文件与外部地址合成一份。
+// mediaURLs merges files and external URLs into one list.
 //
-// **平台会把文件引用改写成带签名的下载地址**（正是为这类「上游自己来拉」的接口准备的），
-// 所以这里直接用 File.URL；拿不到绝对地址就说清楚，别让 Threads 去下载一个相对路径。
+// **The platform rewrites file references into signed download URLs** (this is exactly what that
+// mechanism is for — endpoints like this one where the upstream does the fetching itself), so
+// File.URL is used directly here; if there's no absolute URL, say so clearly rather than letting
+// Threads try to download a relative path.
 func mediaURLs(files []*plugin.File, urls []string) []string {
 	out := make([]string, 0, len(files)+len(urls))
 	for _, f := range files {
@@ -400,8 +411,9 @@ func mediaURLs(files []*plugin.File, urls []string) []string {
 	return out
 }
 
-// mediaType / mediaParam：按扩展名判图还是视频。Threads 的两个参数名不同（image_url / video_url），
-// 给错了它会说「缺少必需参数」，而不会告诉你给错了哪个。
+// mediaType / mediaParam decide image vs. video by extension. Threads uses two different parameter
+// names (image_url / video_url), and getting it wrong just gets you "missing required parameter" —
+// it won't tell you which one you got wrong.
 func mediaType(u string) string {
 	if isVideo(u) {
 		return "VIDEO"

@@ -1,13 +1,15 @@
-// gen-schema：把 catalog/tushare-apis.json 里的接口生成成契约声明与注册表。
+// gen-schema generates contract declarations and a registration table from the endpoints in
+// catalog/tushare-apis.json.
 //
-//	catalog/tushare-apis.json     （cmd/catalog 抓的，进版本库）
-//	  ↓ 本工具
-//	schema/gen_apis_NN.go         每个接口一个 Schema 类型 + 一个记录类型
-//	gen_catalog.go                接口名 → 注册函数 的表（主包）
+//	catalog/tushare-apis.json     (scraped by cmd/catalog, checked into the repo)
+//	  ↓ this tool
+//	schema/gen_apis_NN.go         one Schema type + one record type per endpoint
+//	gen_catalog.go                endpoint name -> registration function table (main package)
 //	  ↓ sokel-gen
-//	zz_types.go / zz_register.go  In/Out 与 OnXxx
+//	zz_types.go / zz_register.go  In/Out and OnXxx
 //
-// 全部生成、按需激活：注册与否由 TUSHARE_APIS 决定（见 README）。
+// Everything is generated, and activated on demand: whether it's registered is decided by
+// TUSHARE_APIS (see README).
 //
 //	go run ./cmd/gen-schema
 package main
@@ -37,8 +39,8 @@ func main() {
 	}
 }
 
-// API / Param 与 cmd/catalog 的输出一一对应，刻意各写一份：
-// 中间那份 JSON 才是两道工序的接口。
+// API / Param correspond one-to-one with cmd/catalog's output; each is deliberately written out
+// separately here: the JSON in between is what actually forms the interface between the two steps.
 type API struct {
 	APIName  string  `json:"api_name"`
 	Title    string  `json:"title"`
@@ -63,7 +65,7 @@ type gen struct {
 	schemaType string
 	recordType string
 	handler    string
-	fields     string // 请求里显式要的全列清单
+	fields     string // the full column list explicitly requested
 	inputs     []genParam
 	outputs    []genField
 }
@@ -106,11 +108,13 @@ func run(catalogPath, dir string) error {
 	return nil
 }
 
-// mergeByName 同一个 api_name 出现在多个文档页时合并成一个操作。
+// mergeByName merges the same api_name appearing on multiple doc pages into a single operation.
 //
-// TuShare 确实有这种情况：stk_mins 同时挂在「股票历史分钟」与「ETF历史分钟」两页，
-// 是同一个接口的两种用法。但也有 index_daily 这种——两页字段未必一致。
-// 故合并时**对比字段集**，不一致就打印出来让人看见，而不是悄悄取其一。
+// TuShare genuinely has cases like this: stk_mins is listed under both "Stock historical minute
+// quotes" and "ETF historical minute quotes" pages — two usages of the same endpoint. But there are
+// also cases like index_daily, where the fields on the two pages aren't necessarily the same. So
+// when merging, **the field sets are compared**, and a mismatch is printed for a human to see
+// rather than silently picking one.
 func mergeByName(apis []API) ([]API, []string) {
 	byName := map[string]*API{}
 	var order []string
@@ -188,9 +192,10 @@ func plan(apis []API) ([]gen, error) {
 	return out, nil
 }
 
-// planInputs 入参一律声明为字符串：生成的入参结构里数值是值类型，
-// 「没填」与「填了 0」会得到同一个 Go 零值，而那两件事对上游是不同的请求。
-// 原始类型写进说明，用户看得见。
+// planInputs declares every input as a string: in a generated input struct, a numeric value type
+// gives "not filled in" and "filled in as 0" the same Go zero value, even though they're different
+// requests to the upstream. The original type is written into the description so the user can see
+// it.
 func planInputs(params []Param) []genParam {
 	var out []genParam
 	seen := map[string]bool{}
@@ -230,7 +235,7 @@ func planOutputs(params []Param) []genField {
 	return out
 }
 
-// goTypeOf TuShare 文档里的类型词汇：str / int / float / datetime …
+// goTypeOf maps the type vocabulary used in TuShare's docs: str / int / float / datetime, etc.
 func goTypeOf(t string) string {
 	switch strings.ToLower(strings.TrimSpace(t)) {
 	case "int", "integer", "bigint", "long":
@@ -242,7 +247,7 @@ func goTypeOf(t string) string {
 	}
 }
 
-// ===== 渲染 =====
+// ===== Rendering =====
 
 func writeSchemas(dir string, gens []gen) error {
 	schemaDir := filepath.Join(dir, "schema")
@@ -354,7 +359,8 @@ var catalogOps = map[string]catalogOp{
 func writeGo(path, src string) error {
 	formatted, err := format.Source([]byte(src))
 	if err != nil {
-		// 生成了非法 Go：原样落盘，好让人打开看到底哪儿错了。
+		// Generated invalid Go: write it out as-is so a human can open it and see exactly where it
+		// went wrong.
 		_ = os.WriteFile(path, []byte(src), 0o644)
 		return fmt.Errorf("%s 生成了非法 Go 代码: %w", path, err)
 	}
@@ -374,7 +380,7 @@ func aliasLiteral(params []genParam) string {
 	return "map[string]string{" + strings.Join(pairs, ", ") + "}"
 }
 
-// ===== 名字处理 =====
+// ===== Name handling =====
 
 func sanitize(s string) string {
 	var b strings.Builder
@@ -415,7 +421,7 @@ func exportIdent(s string) string {
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
 }
 
-// tagSafe 结构体标签是反引号原始字符串，里面出不了引号也出不了反引号。
+// tagSafe: a struct tag is a raw backtick string, so it can't contain a quote or a backtick.
 func tagSafe(s string) string {
 	return strings.NewReplacer(`"`, "", "`", "", `\`, "").Replace(s)
 }

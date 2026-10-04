@@ -1,10 +1,12 @@
 package main
 
-// 私信：发一条、拉一批。
+// Direct messages: send one, fetch a batch.
 //
-// 发信有两个入口（按人 / 按会话），对应 X 的两个端点。**给会话 id 时必须走会话那个**：
-// 拿会话 id 当 participant_id 发过去，X 会去建一个与「那个 id 代表的用户」的新会话，
-// 而那个用户根本不存在——错误是 404，看不出错在哪。
+// Sending has two entry points (by user / by conversation), mapping to X's two endpoints. **When a
+// conversation id is given, it must go through the conversation endpoint**: sending the conversation
+// id as a participant_id instead makes X try to create a new conversation with "the user that id
+// represents" — a user that doesn't exist — and the resulting error is a 404 that gives no clue
+// what went wrong.
 
 import (
 	"fmt"
@@ -88,8 +90,9 @@ func opDMEvents(ctx plugin.Ctx, in *XDmEventsIn) (*XDmEventsOut, error) {
 		return nil, err
 	}
 
-	// X 的私信没有 since_id，只能拉回来自己按游标裁。**裁在插件里**，
-	// 否则每一条流程都要自己写一遍「这条我处理过没有」。
+	// X's DM API has no since_id, so results have to be fetched and filtered by cursor here.
+	// **The filtering is done in the plugin**, otherwise every single workflow would have to
+	// reimplement "have I already processed this one".
 	cursor := strings.TrimSpace(in.Cursor)
 	items := make([]schema.DMEvent, 0, len(resp.Data))
 	newest := cursor

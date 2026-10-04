@@ -1,17 +1,18 @@
 package main
 
-// Gmail 邮件结构的解析。
+// Parsing of the Gmail message structure.
 //
-// Gmail 的 message.payload 是一棵**递归的 MIME 树**，不是平铺字段：
+// Gmail's message.payload is a **recursive MIME tree**, not flat fields:
 //
 //	multipart/mixed
 //	├── multipart/alternative
-//	│   ├── text/plain      ← 正文（纯文本）
-//	│   └── text/html       ← 正文（HTML）
-//	└── application/pdf     ← 附件
+//	│   ├── text/plain      ← body (plain text)
+//	│   └── text/html       ← body (HTML)
+//	└── application/pdf     ← attachment
 //
-// 只看第一层就会：纯文本邮件能取到正文，带附件的邮件正文全空——因为正文被推到了
-// alternative 那一层里。所以必须递归。
+// Only looking at the first level would mean: plain-text messages get their body, but any
+// message with an attachment comes out with an empty body — because the body got pushed down
+// into the alternative level. So recursion is required.
 
 import (
 	"encoding/base64"
@@ -20,7 +21,8 @@ import (
 	"github.com/sokel-dev/sokel-official-plugins/gmail/schema"
 )
 
-// gmailMessage：只声明用得上的字段（Gmail 的应答很大，全声明反而掩盖真正依赖的是哪些）。
+// gmailMessage declares only the fields we use (Gmail's response is large, and declaring
+// everything would obscure which fields we actually depend on).
 type gmailMessage struct {
 	ID       string    `json:"id"`
 	ThreadID string    `json:"threadId"`
@@ -49,9 +51,10 @@ type gmailBody struct {
 	Data         string `json:"data"` // base64url
 }
 
-// header：取邮件头（**大小写不敏感**）。
-// Gmail 回的是 "Subject"，但转发链路里出现 "subject"/"SUBJECT" 都合法（RFC 5322 规定头名不区分大小写）。
-// 按字面比对的话，某些来源的邮件主题会莫名其妙为空。
+// header fetches a message header (**case-insensitive**).
+// Gmail returns "Subject", but "subject"/"SUBJECT" are equally valid in a forwarding chain
+// (RFC 5322 specifies header names are case-insensitive). Comparing literally would make some
+// messages' subjects come out inexplicably empty.
 func header(p gmailPart, name string) string {
 	for _, h := range p.Headers {
 		if strings.EqualFold(h.Name, name) {
@@ -61,9 +64,10 @@ func header(p gmailPart, name string) string {
 	return ""
 }
 
-// decodeBody：Gmail 的正文是 **base64url**（用 -_ 而不是 +/），且常常没有 padding。
-// 用标准 base64 解会在含 - 或 _ 的内容上失败；带 padding 的用 RawURLEncoding 又会失败。
-// 两种都试，解不出就返回空——正文缺失比返回一段乱码强。
+// decodeBody: Gmail's body is **base64url** (using -_ instead of +/), and often has no padding.
+// Decoding with standard base64 fails on content containing - or _; using RawURLEncoding on
+// padded content also fails. Try both, and return empty if neither works — a missing body beats
+// returning garbled bytes.
 func decodeBody(data string) string {
 	if data == "" {
 		return ""
@@ -77,11 +81,12 @@ func decodeBody(data string) string {
 	return ""
 }
 
-// extractBodies：递归取正文。返回 (纯文本, HTML)。
+// extractBodies recursively extracts the body. Returns (plain text, HTML).
 //
-// 只认**非附件**的 text/plain 与 text/html：附件也可能是 text/plain（比如 .txt 附件），
-// 把它当正文的话，一封带 readme.txt 的邮件正文会变成那个 txt 的内容。
-// 判据是 filename 为空 —— 有名字的就是附件。
+// Only recognizes **non-attachment** text/plain and text/html: an attachment can also be
+// text/plain (e.g. a .txt file), and treating it as the body would turn a message with
+// readme.txt attached into the contents of that txt file. The criterion is an empty filename —
+// a named part is an attachment.
 func extractBodies(p gmailPart) (text, html string) {
 	var walk func(gmailPart)
 	walk = func(part gmailPart) {
@@ -101,11 +106,12 @@ func extractBodies(p gmailPart) (text, html string) {
 	return text, html
 }
 
-// extractAttachments：递归收集附件。
+// extractAttachments recursively collects attachments.
 //
-// 判据是「有 attachmentId」而不是「有 filename」：内嵌图片（正文里引用的 cid: 图）
-// 同样有 attachmentId 但可能没名字，它们确实是可下载的部件。
-// 反过来，只有 filename 没有 attachmentId 的部件拉不到字节，收进来只会让人点了报错。
+// The criterion is "has an attachmentId," not "has a filename": an inline image (a cid:
+// reference in the body) also has an attachmentId but may have no name, and it's genuinely a
+// downloadable part. Conversely, a part with only a filename and no attachmentId has no bytes
+// to fetch, and including it would just make someone click it and get an error.
 func extractAttachments(p gmailPart) []schema.AttachmentRef {
 	out := []schema.AttachmentRef{}
 	var walk func(gmailPart)
@@ -126,6 +132,7 @@ func extractAttachments(p gmailPart) []schema.AttachmentRef {
 	return out
 }
 
-// hasAttachments：是否带附件（事件里只给这个布尔，不给清单——
-// 清单要调「读邮件」才有，事件载荷不该驮着可能很长的附件列表）。
+// hasAttachments reports whether the message has attachments (the event only carries this
+// boolean, not the list — the list requires calling "read message," and an event payload
+// shouldn't carry a potentially long attachment list).
 func hasAttachments(p gmailPart) bool { return len(extractAttachments(p)) > 0 }

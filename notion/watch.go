@@ -1,19 +1,24 @@
 package main
 
-// 事件源：盯住凭证里配的数据源，把新增行 / 被改的行推成事件。
+// Event source: watches the data sources configured on the credential and emits new-row /
+// row-updated events.
 //
-// **为什么是轮询而不是 webhook**：Notion 的 webhook 订阅只能在它的集成设置页手工建
-// （还要把 verification_token 粘回去验证），API 建不了，一个集成也只能挂一个 URL。
-// 也就是说「插件替用户装好 webhook」这条路 Notion 根本不给。要实时的话，
-// 把画布上 webhook 触发节点的地址粘进 Notion 即可（说明书里有），那条路拿到的是
-// entity id，接一个「读页面」补内容。
+// **Why polling instead of webhooks**: a Notion webhook subscription can only be created by hand on
+// its integration settings page (and you have to paste the verification_token back in to verify it);
+// the API can't create one, and one integration can only register a single URL. In other words,
+// Notion simply doesn't offer "the plugin sets up the webhook for the user". For real-time updates,
+// paste the canvas's webhook trigger node address into Notion instead (it's in the manual) — that
+// path hands you an entity id, which you follow up with a "get page" to fetch content.
 //
-// 三条按 gmail/synology 那两个源踩出来的规矩：
-//   - **首次启动不推历史**：接上一个用了三年的库，工作流会被几千行瞬间冲垮。
-//     没有游标时只记下当前位置。
-//   - **游标写回凭证**：只放内存的话，插件一重启要么重推全部、要么漏掉停机期间的改动。
-//   - **宁可重复不丢**：事件 id 带上 last_edited_time，同一行改两次是两条事件，
-//     而同一次改动重复推只会被平台去重掉。
+// Three rules learned from the gmail/synology event sources:
+//   - **Never emit history on first start**: connecting to a database that's three years old would
+//     instantly flood the workflow with thousands of rows. With no cursor yet, just record the
+//     current position.
+//   - **Write the cursor back to the credential**: keeping it only in memory means a restart either
+//     re-emits everything or misses changes made while the process was down.
+//   - **Prefer duplicates over loss**: the event id includes last_edited_time, so editing the same
+//     row twice produces two events, while re-emitting the same edit is deduplicated on the
+//     platform side.
 
 import (
 	"encoding/json"
@@ -31,22 +36,26 @@ import (
 
 const (
 	defaultPollSeconds = 60
-	// minPollSeconds：Notion 限流是 3 次/秒，而盯 N 张表每轮就是 N 次请求。
-	// 比这更快没有意义——事件本身的延迟远不止这点。
+	// minPollSeconds: Notion's rate limit is 3 req/sec, and watching N tables means N requests per
+	// round. Going faster than this buys nothing — the event's own latency already dwarfs it.
 	minPollSeconds = 15
-	// watchCursorField：游标存回凭证的字段名（每个数据源一个时间戳，JSON）。
+	// watchCursorField: the field name the cursor is written back to on the credential (one
+	// timestamp per data source, as JSON).
 	watchCursorField = "watch_cursor"
-	// maxPerRound：一轮最多推多少条。一次性改了几百行（批量粘贴）时，
-	// 不封顶会把工作流引擎瞬间打满；剩下的下一轮继续，游标只推进到已推的位置。
+	// maxPerRound: the max number of events emitted per round. When hundreds of rows change at
+	// once (a bulk paste), not capping this would instantly flood the workflow engine; the rest
+	// carries over to the next round, and the cursor only advances as far as what was emitted.
 	maxPerRound = 50
 )
 
-// runWatchSource：一个凭证一个实例（SDK 的 per-credential supervisor 负责起停）。
+// runWatchSource: one instance per credential (the SDK's per-credential supervisor handles
+// starting and stopping it).
 func runWatchSource(ctx plugin.SourceCtx) error {
 	cred := sokel.SourceCredentialAs[Cred](ctx)
 	targets := splitList(cred.WatchDataSources)
 	if len(targets) == 0 {
-		// 不配就是不用事件。安静地待着，别每分钟报一次错。
+		// Nothing configured means events aren't used. Sit quietly rather than report an error
+		// every minute.
 		log.Printf("notion: 凭证未配置监听的数据源，事件源空转")
 		ctx.ReportStatus("running", "未配置监听的数据源")
 		<-ctx.Done()
@@ -80,8 +89,9 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 			ctx.ReportStatus("running", "")
 		}
 		if changed {
-			// 写失败只记日志：本轮已经推出去的事件收不回来，下一轮会从旧游标再来一遍
-			// （宁可重复也不丢，平台侧对事件有去重）。
+			// A write failure is only logged: events already emitted this round can't be taken
+			// back, and the next round will replay from the old cursor (prefer duplicates over
+			// loss — the platform side deduplicates events).
 			if err := ctx.UpdateCredential(map[string]string{watchCursorField: dumpCursors(cursors)}); err != nil {
 				log.Printf("notion: 游标写回凭证失败（重启后可能重推）: %v", err)
 			}
@@ -96,10 +106,12 @@ func runWatchSource(ctx plugin.SourceCtx) error {
 	}
 }
 
-// pollOnce：拉一轮增量，推事件，返回新游标（本轮见到的最大 last_edited_time）。
+// pollOnce fetches one round of changes, emits events, and returns the new cursor (the largest
+// last_edited_time seen this round).
 func pollOnce(ctx plugin.SourceCtx, dsID, cursor string) (string, error) {
 	body := map[string]any{
-		// 按最后编辑时间倒序：新增与修改都会更新这个字段，一条排序覆盖两种事件。
+		// Sorted descending by last-edited time: both creates and updates touch this field, so
+		// one sort order covers both kinds of events.
 		"sorts":     []any{map[string]any{"timestamp": "last_edited_time", "direction": "descending"}},
 		"page_size": maxPerRound,
 	}
@@ -121,7 +133,7 @@ func pollOnce(ctx plugin.SourceCtx, dsID, cursor string) (string, error) {
 			pages = append(pages, p)
 		}
 	}
-	// 首次启动：只记下当前位置，**一条历史都不推**。
+	// First start: just record the current position, **no history is emitted**.
 	if cursor == "" {
 		now := time.Now().UTC().Format(time.RFC3339)
 		if len(pages) > 0 {
@@ -130,13 +142,15 @@ func pollOnce(ctx plugin.SourceCtx, dsID, cursor string) (string, error) {
 		log.Printf("notion: 数据源 %s 首次启动，从 %s 开始（不推历史行）", dsID, now)
 		return now, nil
 	}
-	// 倒序拉回来的，按时间正序推——下游看到的顺序才与实际发生的顺序一致。
+	// Fetched in descending order; emit in ascending order so downstream sees events in the same
+	// order they actually happened.
 	sort.Slice(pages, func(i, j int) bool { return pages[i].LastEditedTime < pages[j].LastEditedTime })
 
 	next := cursor
 	for _, p := range pages {
 		if err := emitPageEvent(ctx, dsID, p); err != nil {
-			// 推失败就地停下，游标不再前进：下一轮会从这一条重来。
+			// Stop right here on failure, cursor doesn't advance: the next round retries from
+			// this row.
 			log.Printf("notion: 推事件失败 %s: %v", p.ID, err)
 			return next, nil
 		}
@@ -147,14 +161,16 @@ func pollOnce(ctx plugin.SourceCtx, dsID, cursor string) (string, error) {
 	return next, nil
 }
 
-// emitPageEvent：一行 → 一条事件。
+// emitPageEvent converts one row into one event.
 //
-// 新增还是修改，看 created_time 是不是就是 last_edited_time —— Notion 不给这个区分，
-// 而两者对工作流的意义完全不同（「新任务来了」vs「任务改了」）。
-// 建行后立刻改属性会被判成新增，这比反过来好：漏掉一次「新增」是真的丢事件。
+// Created vs. updated is decided by whether created_time equals last_edited_time — Notion doesn't
+// give us this distinction directly, yet the two mean completely different things to a workflow
+// ("a new task arrived" vs. "a task changed"). Editing properties right after creating a row still
+// counts as a create, which is the safer bias: missing a "created" event is a real loss.
 func emitPageEvent(ctx plugin.SourceCtx, dsID string, p notionPage) error {
 	item := toPageItem(p)
-	// 事件 id 带上编辑时刻：同一行改两次是两条事件，而同一次改动重复推会被平台去重。
+	// The event id includes the edit timestamp: editing the same row twice produces two events,
+	// while re-emitting the same edit gets deduplicated on the platform side.
 	eventID := p.ID + "@" + p.LastEditedTime
 	if isCreated(p) {
 		return TriggerPageCreated(ctx, eventID, &PageCreatedEvent{
@@ -168,8 +184,9 @@ func emitPageEvent(ctx plugin.SourceCtx, dsID string, p notionPage) error {
 	})
 }
 
-// isCreated：创建与最后编辑相差在一分钟内就当成「新增」。
-// Notion 的两个时间戳都只精确到分钟，建行时它们通常相等，但建完立刻填属性会差一格。
+// isCreated treats a row as "created" when created and last-edited are within a minute of each
+// other. Both of Notion's timestamps only have minute precision; they're usually equal right at
+// row creation, but filling in properties immediately after can put them one tick apart.
 func isCreated(p notionPage) bool {
 	if p.CreatedTime == "" || p.LastEditedTime == "" {
 		return false
@@ -185,8 +202,10 @@ func isCreated(p notionPage) bool {
 	return e.Sub(c) <= time.Minute
 }
 
-// resolveDataSourceSource：与操作侧同一套「链接/库 id → 数据源 id」，但结果**缓存住**：
-// 事件源每分钟跑一轮，每轮都为同一个目标多问一次 Notion 是纯浪费（限流只有 3 次/秒）。
+// resolveDataSourceSource uses the same "link/database id -> data source id" resolution as the
+// operations side, but **caches the result**: the event source runs a round every minute, and
+// asking Notion again for the same target every round would be pure waste (the rate limit is only
+// 3 req/sec).
 var resolvedTargets = map[string]string{}
 
 func resolveDataSourceSource(ctx plugin.SourceCtx, target string) (string, error) {
@@ -201,7 +220,7 @@ func resolveDataSourceSource(ctx plugin.SourceCtx, target string) (string, error
 	return id, nil
 }
 
-// —— 凭证里的几个小格式 ——
+// —— A few small formats stored on the credential ——
 
 func splitList(s string) []string {
 	var out []string
@@ -224,9 +243,10 @@ func pollInterval(s string) time.Duration {
 	return time.Duration(n) * time.Second
 }
 
-// parseCursors / dumpCursors：游标是「数据源 id → 时间戳」的 JSON。
-// 一个凭证可以盯多张表，各盯各的进度——共用一个时间戳的话，
-// 一张表被大量修改会把另一张表的进度也推过去，那些行就永远不会触发了。
+// parseCursors / dumpCursors: the cursor is JSON mapping "data source id -> timestamp".
+// One credential can watch multiple tables, each tracked separately — sharing a single timestamp
+// would let heavy changes on one table drag another table's progress forward too, and that
+// table's rows would then never fire.
 func parseCursors(s string) map[string]string {
 	m := map[string]string{}
 	if strings.TrimSpace(s) == "" {

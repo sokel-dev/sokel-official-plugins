@@ -34,6 +34,7 @@ docker run -d --restart unless-stopped \
 | [`github`](github) | GitHub | GitHub 项目维护自动化（github.com / GitHub Enterprise Server）：Issue 与 PR 全流程、仓库读写与建分支、Actions 触发与失败日志、发版、Projects V2 看板流转，外加机器人回执面（回写提交状态/检查运行/表情）——自动分类、stale 清理、PR 评审、ChatOps 都能拼出来。事件支持 Webhook（零延迟）与轮询两条路。**需自行部署插件进程**：安装后在本页接入组里复制接入命令。 |
 | [`gitlab`](gitlab) | GitLab | 把 GitLab 接进工作流：读写仓库文件、建/评/合 MR、开 Issue、查流水线与失败日志、触发构建。 |
 | [`gmail`](gmail) | Gmail | 读写你的 Gmail：列邮件 / 读邮件 / 发邮件，并可作为事件源——收到新邮件时触发工作流。 |
+| [`hackernews`](hackernews) | hackernews |  |
 | [`kbstore-es`](kbstore-es) | 知识库存储（Elasticsearch） | 知识库的存储与检索后端：写入分块、向量检索、BM25、混合检索（RRF 融合）。 |
 | [`kbstore-pgvector`](kbstore-pgvector) | 知识库存储（pgvector） | 知识库存储引擎插件（Postgres + pgvector），与 kbstore-es 实现同一份存储契约。 |
 | [`kubernetes`](kubernetes) | Kubernetes | 在画布上操作 K8s 集群：查 pod、看容器日志、滚动重启、扩缩副本、看事件与节点健康。 |

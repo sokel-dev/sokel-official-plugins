@@ -1,12 +1,14 @@
 package main
 
-// 媒体上传：INIT → APPEND ×N → FINALIZE →（视频）等转码。
+// Media upload: INIT -> APPEND x N -> FINALIZE -> (video) wait for transcoding.
 //
-// 为什么不用「简单上传」：X 的一次性上传只收小图，而视频/GIF 必须分片。做两条路等于
-// 让「换个文件就失败」成为常态，所以一律走分片——图片也只是一片而已。
+// Why not a "simple upload": X's one-shot upload only accepts small images, while video/GIF must be
+// chunked. Supporting both paths would make "swap the file and it breaks" the norm, so everything
+// goes through chunked upload — an image just happens to be a single chunk.
 //
-// 转码要等：FINALIZE 之后视频是 pending/in_progress，这时拿 media_id 去发推会被拒
-// （「media not found」，看起来像 id 错了）。所以这里等到 succeeded 才返回。
+// Transcoding must be waited out: right after FINALIZE, a video is pending/in_progress, and using
+// its media_id to post at that point gets rejected ("media not found", which looks like a wrong
+// id). So this waits until the state is succeeded before returning.
 
 import (
 	"bytes"
@@ -21,10 +23,12 @@ import (
 )
 
 const (
-	// chunkSize：X 的单片上限是 5MB，取 4MB 留出余量（multipart 头也算在里面）。
+	// chunkSize: X caps a single chunk at 5MB; 4MB leaves headroom (the multipart headers count
+	// toward the limit too).
 	chunkSize = 4 << 20
-	// mediaWaitCap：等转码的总时长上限。超过就把 media_id 与当前状态一起报出来——
-	// 大视频确实可能要几分钟，让人知道等在哪一步，比一句「超时」有用。
+	// mediaWaitCap: the total time budget for waiting on transcoding. Past this, report the
+	// media_id along with its current state — a large video genuinely can take a few minutes, and
+	// telling someone which step it's stuck at is more useful than a bare "timeout".
 	mediaWaitCap = 8 * time.Minute
 )
 
@@ -77,7 +81,7 @@ func opMediaUpload(ctx plugin.Ctx, in *XMediaUploadIn) (*XMediaUploadOut, error)
 		return nil, fmt.Errorf("X 没返回 media id")
 	}
 
-	// APPEND：分片。X 的片序号从 0 起，且必须连续。
+	// APPEND: chunked. X's chunk index starts at 0 and must be contiguous.
 	for i, off := 0, 0; off < len(blob); i, off = i+1, off+chunkSize {
 		end := min(off+chunkSize, len(blob))
 		body, ctype, err := chunkForm(blob[off:end], i, in.File.Name)
@@ -100,8 +104,9 @@ func opMediaUpload(ctx plugin.Ctx, in *XMediaUploadIn) (*XMediaUploadOut, error)
 		return nil, err
 	}
 
-	// alt text 是独立一次调用，失败**不算整体失败**：媒体已经传好了，
-	// 为了一句描述把它作废，下一次重试还得重传一遍几十兆的视频。
+	// alt text is a separate call, and failing it **doesn't count as an overall failure**: the
+	// media already uploaded fine, and invalidating that over a description would mean re-uploading
+	// a tens-of-megabytes video all over again on retry.
 	if alt := strings.TrimSpace(in.AltText); alt != "" {
 		if err := setAltText(ctx, id, alt); err != nil {
 			return &XMediaUploadOut{MediaID: id, MediaKey: fin.Data.MediaKey, Size: len(blob),
@@ -111,7 +116,8 @@ func opMediaUpload(ctx plugin.Ctx, in *XMediaUploadIn) (*XMediaUploadOut, error)
 	return &XMediaUploadOut{MediaID: id, MediaKey: fin.Data.MediaKey, Size: len(blob), State: state}, nil
 }
 
-// waitProcessed：等到转码结束。图片一般 FINALIZE 就没有 processing_info，直接返回。
+// waitProcessed waits until transcoding finishes. An image usually has no processing_info right
+// after FINALIZE and returns immediately.
 func waitProcessed(ctx plugin.Ctx, id string, fin mediaData) (string, error) {
 	state := fin.Data.ProcessingInfo.State
 	if state == "" || state == "succeeded" {
@@ -158,7 +164,7 @@ func setAltText(ctx plugin.Ctx, id, alt string) error {
 	}}, nil)
 }
 
-// chunkForm：一片的 multipart 请求体。
+// chunkForm builds one chunk's multipart request body.
 func chunkForm(chunk []byte, index int, name string) ([]byte, string, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
@@ -181,7 +187,8 @@ func chunkForm(chunk []byte, index int, name string) ([]byte, string, error) {
 	return buf.Bytes(), w.FormDataContentType(), nil
 }
 
-// mediaCategory：X 按类别校验（用途填错，media_id 到发布那一步才会被拒）。
+// mediaCategory maps mime/purpose to X's category (get the purpose wrong, and the media_id only
+// gets rejected at the publish step).
 func mediaCategory(mime, purpose string) (string, error) {
 	dm := purpose == "dm"
 	switch {

@@ -1,9 +1,10 @@
 package main
 
-// 互动：赞 / 转推 / 书签 / 关注，各带一个取消。
+// Engagement: like / retweet / bookmark / follow, each paired with an undo.
 //
-// 这四对全部挂在**授权账号自己**身上（路径里的 :id 是 me 的 id，不是被操作对象的），
-// 这是 X v2 的形状，也是这些操作只能代表授权者本人做的原因。
+// All four pairs hang off **the authorized account itself** (the :id in the path is me's id, not
+// the target's) — that's the shape X v2 uses, and it's also why these operations can only ever act
+// on behalf of the person who authorized the credential.
 
 import (
 	"fmt"
@@ -13,7 +14,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// engageOn：POST /2/users/:me/<kind> {tweet_id}
+// engageOn: POST /2/users/:me/<kind> {tweet_id}
 func engageOn(ctx plugin.Ctx, kind, postID, field string) error {
 	id := strings.TrimSpace(postID)
 	if id == "" {
@@ -27,7 +28,7 @@ func engageOn(ctx plugin.Ctx, kind, postID, field string) error {
 		body: map[string]any{field: id}}, nil)
 }
 
-// engageOff：DELETE /2/users/:me/<kind>/<postID>
+// engageOff: DELETE /2/users/:me/<kind>/<postID>
 func engageOff(ctx plugin.Ctx, kind, postID string) error {
 	id := strings.TrimSpace(postID)
 	if id == "" {
@@ -120,7 +121,7 @@ func opUnfollow(ctx plugin.Ctx, in *XUnfollowIn) (*XUnfollowOut, error) {
 	return &XUnfollowOut{OK: true}, nil
 }
 
-// —— 列表成员 ——
+// —— List members ——
 
 func opListMemberAdd(ctx plugin.Ctx, in *XListMemberAddIn) (*XListMemberAddOut, error) {
 	listID, uid, err := listTarget(ctx, in.ListID, in.UserID, in.Username)

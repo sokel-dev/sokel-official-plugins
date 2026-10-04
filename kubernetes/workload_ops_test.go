@@ -1,7 +1,8 @@
 package main
 
-// 部署/任务五操作的假 server 测试。断言的是**发出去的请求长什么样**
-//（路径/apply 语义/清单内容）——那才是这些操作的全部契约。
+// Fake-server tests for the five deploy/job operations. What's asserted is the shape of the
+// outgoing request (path/apply semantics/manifest content) -- that's the entire contract these
+// operations have.
 
 import (
 	"encoding/json"
@@ -25,7 +26,7 @@ func TestDeployWorkloadCreatesWithApply(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/deployments/myapp"):
-			notFoundJSON(w) // 不存在 → created
+			notFoundJSON(w) // doesn't exist -> created
 		case r.Method == "PATCH" && strings.HasSuffix(r.URL.Path, "/deployments/myapp"):
 			patched, _ = readAll(r)
 			patchQuery = r.URL.RawQuery
@@ -51,7 +52,7 @@ func TestDeployWorkloadCreatesWithApply(t *testing.T) {
 		t.Fatalf("必须走 server-side apply: ct=%q q=%q", patchCT, patchQuery)
 	}
 	body := string(patched)
-	// env 键排序（清单稳定）；app 标签锚选择器；拉取密钥入 podSpec。
+	// env keys are sorted (stable manifest); the app label anchors the selector; the pull secret goes into podSpec.
 	if !strings.Contains(body, `"image":"reg.example.com/app:v2"`) ||
 		strings.Index(body, `"name":"A"`) > strings.Index(body, `"name":"B"`) ||
 		!strings.Contains(body, `"matchLabels":{"app":"myapp"}`) ||
@@ -63,7 +64,7 @@ func TestDeployWorkloadCreatesWithApply(t *testing.T) {
 
 func TestDeployWorkloadUpdateNotCreated(t *testing.T) {
 	srv := fakeAPIServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{}`) // GET 命中 → 已存在；PATCH 也 200
+		fmt.Fprint(w, `{}`) // GET hit -> already exists; PATCH also 200
 	})
 	defer srv.Close()
 	out, err := opDeployWorkload(newFake(map[string]string{"kubeconfig": kubeconfigFor(srv)}), &DeployWorkloadIn{Name: "x", Image: "img"})
@@ -161,7 +162,7 @@ func TestApplyManifestMultiDocResolvesResources(t *testing.T) {
 		}
 	})
 	defer srv.Close()
-	discCache = map[string]apiResourceList{} // 测试间隔离缓存
+	discCache = map[string]apiResourceList{} // isolate the cache between tests
 	manifest := `apiVersion: apps/v1
 kind: Deployment
 metadata: {name: web}
@@ -178,7 +179,7 @@ spec: {}`
 	if out.Applied != 2 || !strings.Contains(out.Items, "Deployment/web → created") {
 		t.Fatalf("应用结果不对: %+v", out)
 	}
-	// 无 ns 的文档吃凭证默认 prod;写了 ns 的按文档来。
+	// A document without ns falls back to the credential default prod; one with ns uses what's in the document.
 	joined := strings.Join(paths, " ")
 	if !strings.Contains(joined, "/apis/apps/v1/namespaces/prod/deployments/web") ||
 		!strings.Contains(joined, "/api/v1/namespaces/infra/services/web-svc") {

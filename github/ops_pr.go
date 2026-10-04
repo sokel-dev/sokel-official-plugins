@@ -1,6 +1,6 @@
 package main
 
-// PR 域 + 机器人回执面（提交状态 / 检查运行 / 表情）。
+// PR domain + bot feedback surface (commit status / check runs / reactions).
 
 import (
 	"fmt"
@@ -99,7 +99,8 @@ func opPrUpdate(ctx plugin.Ctx, in *PrUpdateIn) (*PrUpdateOut, error) {
 		}
 		m = digObj(raw)
 	}
-	// 草稿转正式 REST 没有接口，只能走 GraphQL 的 markPullRequestReadyForReview。
+	// There's no REST endpoint for converting a draft to ready; it has to go through GraphQL's
+	// markPullRequestReadyForReview.
 	if in.ReadyForReview {
 		if m == nil {
 			raw, _, err := ghCall(ctx, http.MethodGet, rp+"/pulls/"+n, nil)
@@ -131,11 +132,13 @@ func opPrUpdate(ctx plugin.Ctx, in *PrUpdateIn) (*PrUpdateOut, error) {
 	}, nil
 }
 
-// opPrMerge 合 PR。
+// opPrMerge merges a PR.
 //
-// expect_sha 是**并发保护**：从「检查通过」到「发起合并」之间对方可能又推了一版，
-// 那一版没跑过检查。GitHub 的 sha 参数正是为此——对不上时它拒绝合并（409），
-// 这里翻译成 merged=false + 原因，而不是抛错：机器人应当据此重跑一轮检查，不是告警。
+// expect_sha is a **concurrency guard**: between "checks passed" and "merge requested" someone
+// might have pushed another commit that hasn't been checked yet. GitHub's sha parameter exists
+// exactly for this — it rejects the merge (409) when it doesn't match. We translate that into
+// merged=false + a reason rather than raising an error: a bot should re-run its checks based on
+// that, not treat it as an alert.
 func opPrMerge(ctx plugin.Ctx, in *PrMergeIn) (*PrMergeOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {
@@ -147,8 +150,9 @@ func opPrMerge(ctx plugin.Ctx, in *PrMergeIn) (*PrMergeOut, error) {
 	putIf(body, "sha", in.ExpectSHA)
 	raw, _, err := ghCall(ctx, http.MethodPut, rp+"/pulls/"+strconv.Itoa(in.Number)+"/merge", body)
 	if err != nil {
-		// 405 = 不满足合并条件（有冲突/检查没过/草稿），409 = sha 对不上。
-		// 两者都是「这次没合成」而不是「出错了」，让下游能分支处理。
+		// 405 = merge conditions not met (conflict / checks not passed / draft), 409 = sha
+		// mismatch. Both are "didn't merge this time" rather than "errored", so downstream can
+		// branch on it.
 		msg := err.Error()
 		if strings.Contains(msg, "405") || strings.Contains(msg, "409") || strings.Contains(msg, "冲突") {
 			return &PrMergeOut{Merged: false, Message: msg}, nil
@@ -216,7 +220,8 @@ func opPrReview(ctx plugin.Ctx, in *PrReviewIn) (*PrReviewOut, error) {
 	raw, _, err := ghCall(ctx, http.MethodPost,
 		rp+"/pulls/"+strconv.Itoa(in.Number)+"/reviews", body)
 	if err != nil {
-		// 行号不在 diff 上是最常见的失败，且报错文字看不出来是这个原因。
+		// A line number not being on the diff is the most common failure, and the error text
+		// doesn't show that's the reason.
 		if strings.Contains(err.Error(), "422") && len(in.Comments) > 0 {
 			return nil, fmt.Errorf("%w\n"+
 				"（行内评论最常见的失败原因：行号不在本次 diff 动过的行上。"+
@@ -259,7 +264,7 @@ func opPrRequestReviewers(ctx plugin.Ctx, in *PrRequestReviewersIn) (*PrRequestR
 	}, nil
 }
 
-// —— 机器人回执面 ——
+// —— bot feedback surface ——
 
 func opCommitStatusCreate(ctx plugin.Ctx, in *CommitStatusCreateIn) (*CommitStatusCreateOut, error) {
 	rp, err := repoPath(in.Repo)
@@ -274,7 +279,8 @@ func opCommitStatusCreate(ctx plugin.Ctx, in *CommitStatusCreateIn) (*CommitStat
 		"state":   in.State,
 		"context": orDefault(in.Context, "sokel"),
 	}
-	// GitHub 对 description 的上限是 140，超了它自己会截——先截好，免得截断处出现半个字符。
+	// GitHub caps description at 140 chars and truncates it itself if it's longer — truncate it
+	// ourselves first so it doesn't cut a multi-byte character in half.
 	putIf(body, "description", clipRunes(in.Description, 140))
 	putIf(body, "target_url", in.TargetURL)
 	raw, _, err := ghCall(ctx, http.MethodPost, rp+"/statuses/"+sha, body)
@@ -307,8 +313,9 @@ func opCheckRunCreate(ctx plugin.Ctx, in *CheckRunCreateIn) (*CheckRunCreateOut,
 		}
 		putIf(output, "text", in.Details)
 		if n := len(in.Annotations); n > 0 {
-			// GitHub 一次最多收 50 条注解，多的**直接丢掉且不报错**。
-			// 明说丢了多少，比让人以为「全提交了」强。
+			// GitHub accepts at most 50 annotations per call; anything beyond that is **silently
+			// dropped, with no error**. Saying exactly how many were dropped beats letting
+			// someone think "everything was submitted".
 			sent = n
 			if sent > 50 {
 				sent = 50
@@ -359,13 +366,14 @@ func opReactionAdd(ctx plugin.Ctx, in *ReactionAddIn) (*ReactionAddOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 201 = 新加的，200 = 之前就加过。GitHub 用状态码区分，这里翻译成 already。
+	// 201 = newly added, 200 = already added before. GitHub distinguishes via status code; we
+	// translate that into already here.
 	_ = hdr
 	m := digObj(raw)
 	return &ReactionAddOut{ReactionID: num(m, "id")}, nil
 }
 
-// clipRunes 按字符（不是字节）截断，免得截在多字节字符中间。
+// clipRunes truncates by rune (not byte), so it doesn't cut a multi-byte character in half.
 func clipRunes(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {

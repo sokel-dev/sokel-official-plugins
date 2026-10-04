@@ -1,26 +1,32 @@
 package main
 
-// 新邮件的增量发现。
+// Incremental discovery of new messages.
 //
-// 用 users.history.list（**不是**反复 list 最近邮件）：history 是 Gmail 的变更日志，
-// 从上次的 historyId 往后拉，天然「不重不漏」。而按时间窗轮询 messages.list 有两个死角：
-// 轮询间隔内到达多封会被上一次的窗口截断，而窗口开大又会重复推送。
+// Uses users.history.list (**not** repeatedly listing recent messages): history is Gmail's
+// change log, and pulling forward from the last historyId naturally avoids duplicates and gaps.
+// Polling messages.list over a time window has two blind spots instead: multiple arrivals
+// within a polling interval get cut off by the previous window, while widening the window
+// causes repeated deliveries.
 //
-// 三件必须处理的事（每件都有对应用例）：
+// Three things must be handled (each has a corresponding test case):
 //
-//  1. **首次启动不能把历史邮件全推一遍**。没有游标时先取当前 historyId 作为起点，
-//     只推此后到达的——否则接上一个用了三年的邮箱，工作流会被几万封信瞬间冲垮。
-//  2. **同一封信会在一次拉取里出现多次**。history 是变更流，一封信的"到达"与随后的
-//     "打标签"是两条记录，都带着同一个 message。按 id 去重。
-//  3. **游标要存回凭证**。只放内存的话，插件一重启就回到第 1 条的处境
-//     （要么重推、要么漏掉停机期间的信）。
+//  1. **The first run must not push the entire history at once.** Without a cursor, first fetch
+//     the current historyId as the starting point and only push what arrives afterward —
+//     otherwise connecting a mailbox that's been in use for three years would flood the
+//     workflow with tens of thousands of messages instantly.
+//  2. **The same message can show up multiple times in one fetch.** history is a change
+//     stream, and a message's "arrival" and its subsequent "label applied" are two separate
+//     records, both carrying the same message. Dedup by id.
+//  3. **The cursor must be persisted back to the credential.** Keeping it only in memory would
+//     put the plugin back in the situation of point 1 on every restart (either re-pushing
+//     everything or missing messages that arrived while it was down).
 
 import (
 	"sort"
 	"strconv"
 )
 
-// historyResponse：users.history.list 的应答（只取用得上的）。
+// historyResponse is the users.history.list response (only the fields we use).
 type historyResponse struct {
 	History       []historyRecord `json:"history"`
 	NextPageToken string          `json:"nextPageToken"`
@@ -36,11 +42,12 @@ type historyMsgItem struct {
 	Message gmailMessage `json:"message"`
 }
 
-// newMessageIDs：从一批 history 记录里理出「新到达的邮件 id」，去重且保持顺序。
+// newMessageIDs extracts "newly arrived message ids" from a batch of history records,
+// deduplicated and order-preserving.
 //
-// 只看 messagesAdded：history 里还有 labelsAdded/labelsRemoved/messagesDeleted，
-// 那些是「已有邮件的状态变了」，不是新邮件。把它们也算进来的话，
-// 你每标一封已读，工作流就被触发一次。
+// Only messagesAdded is looked at: history also has labelsAdded/labelsRemoved/messagesDeleted,
+// which are "an existing message's state changed," not a new message. Counting those too would
+// trigger the workflow every time you mark a message as read.
 func newMessageIDs(recs []historyRecord) []string {
 	seen := map[string]bool{}
 	out := []string{}
@@ -57,12 +64,13 @@ func newMessageIDs(recs []historyRecord) []string {
 	return out
 }
 
-// maxHistoryID：这批记录里最大的 historyId，作为下次的游标。
+// maxHistoryID returns the largest historyId in this batch of records, used as the next cursor.
 //
-// **取最大而不是取最后一条**：应答里的顺序不保证严格递增（分页拼接后尤其如此），
-// 拿最后一条当游标，一旦它不是最大的，中间那些就会被再推一遍。
-// historyId 是 uint64 且会超过 int32，按数值比而不是按字符串比——
-// 字符串比会让 "9999999" 大于 "10000000"，游标直接倒退。
+// **Take the max, not the last entry**: the response's order isn't guaranteed to be strictly
+// increasing (especially after paginated results are concatenated); using the last entry as the
+// cursor means anything in between gets re-pushed the moment it isn't actually the max.
+// historyId is a uint64 and can exceed int32, so compare numerically, not as strings —
+// a string comparison would make "9999999" greater than "10000000", pushing the cursor backward.
 func maxHistoryID(recs []historyRecord, fallback string) string {
 	best := parseHistoryID(fallback)
 	for _, r := range recs {
@@ -84,15 +92,17 @@ func parseHistoryID(s string) uint64 {
 	return v
 }
 
-// sortMessageIDs：邮件 id 是十六进制的时间序（越新越大），按它排能让推送顺序接近收信顺序。
-// 仅影响观感，不影响正确性——所以解析不了就保持原序，不要为了排序丢掉任何一条。
+// sortMessageIDs: message ids are a hex time-ordering (newer is larger), so sorting by them
+// makes delivery order roughly match receipt order. This only affects appearance, not
+// correctness — so if parsing fails, keep the original order rather than dropping anything for
+// the sake of sorting.
 func sortMessageIDs(ids []string) []string {
 	out := append([]string{}, ids...)
 	sort.SliceStable(out, func(i, j int) bool {
 		a, errA := strconv.ParseUint(out[i], 16, 64)
 		b, errB := strconv.ParseUint(out[j], 16, 64)
 		if errA != nil || errB != nil {
-			return false // 解析不了就当"不小于"，SliceStable 会保持原序
+			return false // treat unparseable as "not less than"; SliceStable keeps the original order
 		}
 		return a < b
 	})

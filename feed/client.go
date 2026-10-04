@@ -1,11 +1,12 @@
 package main
 
-// 出站与雪球的匿名令牌。
+// Outbound requests and Xueqiu's anonymous token.
 //
-// 雪球的**读**接口（api.xueqiu.com）与发帖那套完全不同：它只要一个匿名令牌，
-// 访问一次首页就会在 Set-Cookie 里给 xq_a_token——**不需要用户登录**。
-// RSSHub 现在用 Playwright 拿它（为了抗风控），我们先用普通 HTTP 试；
-// 拿不到就让用户在凭证里粘一条真 Cookie，不为这一步引一个浏览器。
+// Xueqiu's **read** API (api.xueqiu.com) is completely separate from the posting API: it only
+// needs an anonymous token, and one hit on the homepage returns xq_a_token in Set-Cookie —
+// **no user login required**. RSSHub now fetches it with Playwright (to dodge anti-bot
+// measures); we try a plain HTTP request first. If that fails, we let the user paste a real
+// cookie into the credential instead of pulling in a browser for this one step.
 
 import (
 	"fmt"
@@ -23,7 +24,7 @@ import (
 const defaultUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
 	"(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
 
-// 站点地址：**是 var 不是 const**——测试要把它们指到假上游上。
+// Site addresses: **var, not const** — tests need to point these at a fake upstream.
 var (
 	xueqiuSite = "https://xueqiu.com"
 	xueqiuAPI  = "https://api.xueqiu.com"
@@ -62,7 +63,7 @@ func uaOf(c Cred) string {
 	return defaultUA
 }
 
-// get：一次 GET，返回正文。
+// get performs a single GET and returns the body.
 func get(ctx plugin.Ctx, uri, cookie, referer string) ([]byte, error) {
 	cred := credOf(ctx)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
@@ -89,7 +90,7 @@ func get(ctx plugin.Ctx, uri, cookie, referer string) ([]byte, error) {
 	return raw, nil
 }
 
-// —— 雪球匿名令牌 ——
+// —— Xueqiu anonymous token ——
 
 var (
 	tokMu    sync.Mutex
@@ -101,7 +102,8 @@ type tokenEntry struct {
 	exp    time.Time
 }
 
-// xueqiuCookie：凭证里粘了就用粘的；否则访问首页取匿名令牌（缓存 30 分钟）。
+// xueqiuCookie uses whatever cookie the user pasted into the credential, if any; otherwise it
+// hits the homepage to obtain an anonymous token (cached for 30 minutes).
 func xueqiuCookie(ctx plugin.Ctx) (string, error) {
 	cred := credOf(ctx)
 	if c := strings.TrimSpace(cred.XueqiuCookie); c != "" {
@@ -115,9 +117,11 @@ func xueqiuCookie(ctx plugin.Ctx) (string, error) {
 		return e.cookie, nil
 	}
 
-	// **打 /hq 而不是首页**：实测首页只回阿里云 WAF 的 acw_tc，不发 xq_a_token；
-	// /hq（行情页）才发。RSSHub 为这一步改用了 Playwright，其实换个入口就够——
-	// 换回首页的话表现是「一直取不到令牌」，而错误信息会把人引向「粘 Cookie」那条路。
+	// **Hit /hq, not the homepage**: in practice the homepage only returns Alibaba Cloud
+	// WAF's acw_tc cookie, not xq_a_token; /hq (the quotes page) does issue it. RSSHub
+	// switched to Playwright for this step, but changing the entry point is actually
+	// enough — reverting to the homepage shows up as "the token never arrives," and the
+	// error message would then steer people toward pasting a cookie instead.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, xueqiuSite+"/hq", nil)
 	if err != nil {
 		return "", err
@@ -163,7 +167,7 @@ func clip(b []byte, n int) string {
 	return s[:n] + "…"
 }
 
-// readAll：读应答体，封个顶。
+// readAll reads the response body with a size cap.
 func readAll(r io.Reader) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r, 32<<20))
 }

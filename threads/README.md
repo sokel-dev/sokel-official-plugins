@@ -1,46 +1,59 @@
-# threads — Threads（Meta）发布器（P1 最后一个）
+# threads — Threads (Meta) publisher (the last P1 plugin)
 
-与其余发布器同一套 publish 契约。面向用户的说明书是 [docs/threads.md](docs/threads.md)。
+Uses the same publish contract as the other publishers. The user-facing manual is
+[docs/threads.md](docs/threads.md).
 
-## 四条设计判断
+## Four design decisions
 
-1. **两步发布包成一个操作**。Meta 的形状是「建媒体容器拿 creation_id → 发布它」，
-   但那是它的实现细节，不该变成画布上的两个节点。容器 id **不是**帖子 id——
-   混用的话下游拿到的链接打不开。
-2. **带媒体必须等容器就绪再发布**。Meta 建完容器还要在后台把文件拉下来处理，
-   立刻发布会被拒；不等的话表现是**随机失败、重试又能成**——最难查的那一类。
-   状态 ERROR 时把 Meta 给的 `error_message` 原样带出来（多半是那个地址它下载不到）。
-3. **媒体是「让它来拉」不是上传**。所以给的必须是公网可达的绝对地址：
-   平台在把文件交给插件时会换成带签名的下载地址，`mediaURLs` 只收 `http(s)://` 开头的，
-   相对路径一律丢弃——让 Threads 去下载 `/api/v1/files/xx` 只会得到一句无关的错误。
-4. **图片与视频的参数名不同**（`image_url` / `video_url`），给错了 Meta 只说
-   「缺少必需参数」，不会告诉你给错了哪个。按扩展名判（去掉 query 再看）。
+1. **Two-step publishing is wrapped into one operation.** Meta's shape is "create a media
+   container to get a creation_id → publish it", but that's an implementation detail of theirs,
+   and shouldn't become two nodes on the canvas. The container id is **not** the post id —
+   mixing them up means the downstream link can't even be opened.
+2. **With media, you have to wait for the container to be ready before publishing.** After
+   creating the container, Meta still pulls the file down and processes it in the background;
+   publishing immediately gets rejected. Skip the wait and the symptom is **random failures that
+   succeed on retry** — the hardest kind to debug. On an ERROR status, Meta's `error_message` is
+   carried through as-is (most likely it couldn't download the address).
+3. **Media is "let it fetch", not upload.** So what's given must be a publicly reachable absolute
+   URL: the platform rewrites file references into signed download URLs when handing them to the
+   plugin, `mediaURLs` only accepts ones starting with `http(s)://`, and relative paths are always
+   discarded — letting Threads try to download `/api/v1/files/xx` would just produce an unrelated
+   error.
+4. **Images and video use different parameter names** (`image_url` / `video_url`), and getting it
+   wrong just gets "missing required parameter" from Meta, without saying which one you got wrong.
+   Decided by extension (after stripping the query string).
 
-多个媒体走轮播：每个先建 `is_carousel_item` 容器，再建一个 `CAROUSEL` 容器把它们串起来。
+Multiple media go through a carousel: each one builds an `is_carousel_item` container first, then
+one `CAROUSEL` container strings them together.
 
-## 令牌与配额
+## Token and quota
 
-- **60 天到期且没有 refresh_token**（续期是拿长令牌换新的长令牌）。平台侧的 `threadsOAuth`
-  在换码时做了**两跳**：授权码 → 1 小时短令牌 → 60 天长令牌。**只做第一跳的话，
-  凭证一小时后失效**，而那时没人会联想到少了一步。
-- **每 24 小时 250 条**（账号级滚动窗口）。`health_check` 顺带把已用/总额度带出来，
-  工作流可以据此决定还发不发——这比撞上 429 再重试划算。
+- **Expires in 60 days with no refresh_token** (renewal means exchanging the long-lived token for
+  a new long-lived token). The platform-side `threadsOAuth` does **two hops** when exchanging the
+  code: auth code → 1-hour short-lived token → 60-day long-lived token. **Doing only the first hop
+  means the credential expires in an hour**, and at that point nobody would think to connect it to
+  a missing step.
+- **250 per 24 hours** (an account-level rolling window). `health_check` surfaces the used/total
+  quota along the way, so a workflow can decide whether to keep publishing based on it — cheaper
+  than hitting a 429 and retrying.
 
-## 平台侧接入点（本插件新增）
+## Platform-side integration points (added by this plugin)
 
-`server/internal/credential/oauth.go` 的 `providers` 表加 `threads` 实现 +
-`config.go`/`api/server.go` 的 `THREADS_OAUTH_*` 四个环境变量 +
-`api/seed.go` 目录行与 `plugin_test.go` 计数。
+A `threads` implementation added to the `providers` table in
+`server/internal/credential/oauth.go` + the four `THREADS_OAUTH_*` environment variables in
+`config.go`/`api/server.go` + a directory entry in `api/seed.go` and a count in `plugin_test.go`.
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...
 ```
 
-测试（假 Threads）钉的正是上面那四条 + 帖串串接 + 额度带出 + 令牌过期文案 + 输入守卫。
+The tests (against a fake Threads) pin down exactly the four points above + thread chaining +
+quota surfacing + the expired-token message + input guards.
 
-## 没做的
+## Not done
 
-- **删帖**：Threads API 的删除能力尚不稳定，与其猜一个端点不如不做（发错了去 App 里删）。
-- **读**（自己的帖子/回复/洞察）：本插件定位是发布器。
+- **Delete post**: Threads's delete API isn't stable enough yet — better to not guess at an
+  endpoint than to build on a shaky one (delete it from the app if you posted the wrong thing).
+- **Reading** (own posts/replies/insights): this plugin's scope is publishing only.

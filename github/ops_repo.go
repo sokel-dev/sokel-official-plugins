@@ -1,6 +1,6 @@
 package main
 
-// 仓库域：列仓库/读写文件/分支/提交。
+// Repository domain: list repos / read-write files / branches / commits.
 
 import (
 	"encoding/base64"
@@ -19,8 +19,9 @@ func opReposList(ctx plugin.Ctx, in *ReposListIn) (*ReposListOut, error) {
 	q["sort"] = orDefault(in.Sort, "updated")
 	path := "/user/repos"
 	if owner := strings.TrimSpace(in.Owner); owner != "" {
-		// 用户与组织的接口不同，但 /users/{o}/repos 对组织也有效（只是拿不到私有仓库），
-		// 先试组织，404 再退回用户——反过来的话组织的私有仓库会静默漏掉。
+		// User and org endpoints differ, but /users/{o}/repos also works for an org (it just
+		// can't see private repos) — try org first, then fall back to user on 404. Doing it the
+		// other way around would silently drop the org's private repos.
 		path = "/orgs/" + owner + "/repos"
 		q["type"] = orDefault(in.Type, "all")
 		raw, h, err := ghCall(ctx, http.MethodGet, path, q)
@@ -28,7 +29,7 @@ func opReposList(ctx plugin.Ctx, in *ReposListIn) (*ReposListOut, error) {
 			return reposOut(raw, h), nil
 		}
 		path = "/users/" + owner + "/repos"
-		delete(q, "type") // 用户接口的 type 取值集合不同，交给默认
+		delete(q, "type") // the user endpoint's type values differ; leave it to the default
 	} else {
 		q["type"] = orDefault(in.Type, "all")
 	}
@@ -93,14 +94,15 @@ func opFileGet(ctx plugin.Ctx, in *FileGetIn) (*FileGetOut, error) {
 		return nil, err
 	}
 	m := digObj(raw)
-	// 目录会返回数组而不是对象——digObj 得到 nil，这时给一句能看懂的话。
+	// A directory returns an array instead of an object — digObj ends up nil, so give a readable
+	// message here.
 	if m == nil {
 		return nil, fmt.Errorf("%q 是个目录不是文件——要列目录内容请用「通用调用」打 %s/contents/%s",
 			in.Path, rp, in.Path)
 	}
 	content := ""
 	if enc := str(m, "encoding"); enc == "base64" {
-		// GitHub 的 base64 带换行，标准解码器不认——先去掉。
+		// GitHub's base64 has line breaks that the standard decoder rejects — strip them first.
 		b, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(str(m, "content"), "\n", ""))
 		if err != nil {
 			return nil, fmt.Errorf("解码文件内容失败: %w", err)
@@ -115,11 +117,12 @@ func opFileGet(ctx plugin.Ctx, in *FileGetIn) (*FileGetOut, error) {
 	}, nil
 }
 
-// opFileWrite 写文件。
+// opFileWrite writes a file.
 //
-// Contents API 更新已有文件时**必须带 blob sha**，不带会 422，而错误文字不会说
-// 「你少给了 sha」。所以这里先探一次：存在就带 sha 走更新，不存在就走新建。
-// 这一趟额外请求换掉的是一整类让人摸不着头脑的失败。
+// The Contents API **requires the blob sha** when updating an existing file; omitting it gives a
+// 422 whose error text won't say "you forgot the sha". So we probe first: if the file exists,
+// include its sha for an update; if not, create it. That extra request trades away a whole class
+// of baffling failures.
 func opFileWrite(ctx plugin.Ctx, in *FileWriteIn) (*FileWriteOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {
@@ -133,7 +136,8 @@ func opFileWrite(ctx plugin.Ctx, in *FileWriteIn) (*FileWriteOut, error) {
 	if branch != "" {
 		body["branch"] = branch
 	}
-	// 探已有文件。404 = 新建，其余错误照常抛（别把「没权限」也当成新建）。
+	// Probe for the existing file. 404 means create; any other error is raised as usual (don't
+	// treat "no permission" as "create").
 	q := map[string]any{}
 	if branch != "" {
 		q["ref"] = branch
@@ -162,7 +166,8 @@ func opFileWrite(ctx plugin.Ctx, in *FileWriteIn) (*FileWriteOut, error) {
 	}, nil
 }
 
-// opBranchCreate 建分支。已存在时**不报错**——机器人重跑一次不该炸。
+// opBranchCreate creates a branch. It **does not error** when the branch already exists — a bot
+// re-running shouldn't blow up.
 func opBranchCreate(ctx plugin.Ctx, in *BranchCreateIn) (*BranchCreateOut, error) {
 	rp, err := repoPath(in.Repo)
 	if err != nil {
@@ -172,7 +177,7 @@ func opBranchCreate(ctx plugin.Ctx, in *BranchCreateIn) (*BranchCreateOut, error
 	if branch == "" {
 		return nil, fmt.Errorf("新分支名是空的")
 	}
-	// 已存在就直接回，幂等。
+	// Already exists -> just return it, idempotent.
 	if raw, _, err := ghCall(ctx, http.MethodGet, rp+"/git/ref/heads/"+pathEscape(branch), nil); err == nil {
 		return &BranchCreateOut{Branch: branch, SHA: nested(digObj(raw), "object", "sha"), Existed: true}, nil
 	}
@@ -189,7 +194,7 @@ func opBranchCreate(ctx plugin.Ctx, in *BranchCreateIn) (*BranchCreateOut, error
 	return &BranchCreateOut{Branch: branch, SHA: nested(digObj(raw), "object", "sha")}, nil
 }
 
-// resolveRef 把「分支名或 sha 或空」解析成一个提交 sha。
+// resolveRef resolves "a branch name, a sha, or empty" into a commit sha.
 func resolveRef(ctx plugin.Ctx, rp, from string) (string, error) {
 	f := strings.TrimSpace(from)
 	if f == "" {
@@ -199,7 +204,7 @@ func resolveRef(ctx plugin.Ctx, rp, from string) (string, error) {
 		}
 		f = str(digObj(raw), "default_branch")
 	}
-	// 先当分支解；解不出再当 sha 用（40 位十六进制）。
+	// Try resolving it as a branch first; if that fails, treat it as a sha (40-char hex).
 	if raw, _, err := ghCall(ctx, http.MethodGet, rp+"/git/ref/heads/"+pathEscape(f), nil); err == nil {
 		return nested(digObj(raw), "object", "sha"), nil
 	}
@@ -264,7 +269,7 @@ func opCommitsList(ctx plugin.Ctx, in *CommitsListIn) (*CommitsListOut, error) {
 	return out, nil
 }
 
-// —— 小工具 ——
+// —— helpers ——
 
 func orDefault(v, def string) string {
 	if s := strings.TrimSpace(v); s != "" {
@@ -273,14 +278,16 @@ func orDefault(v, def string) string {
 	return def
 }
 
-// putIf 非空才放进查询串——空字符串传给 GitHub 有时会被当成有效过滤条件。
+// putIf only adds the value to the query string when it's non-empty — an empty string passed to
+// GitHub is sometimes treated as a valid filter condition.
 func putIf(m map[string]any, k, v string) {
 	if s := strings.TrimSpace(v); s != "" {
 		m[k] = s
 	}
 }
 
-// pathEscape 转义路径片段，但**保留斜杠**：文件路径 src/main.go 要原样进 URL。
+// pathEscape escapes path segments but **keeps slashes**: a file path like src/main.go must go
+// into the URL as-is.
 func pathEscape(p string) string {
 	parts := strings.Split(strings.TrimPrefix(strings.TrimSpace(p), "/"), "/")
 	for i, s := range parts {

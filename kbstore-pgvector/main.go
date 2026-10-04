@@ -1,18 +1,24 @@
-// kbstore-pgvector：知识库存储引擎插件（Postgres + pgvector）。
+// kbstore-pgvector: a knowledge-base storage engine plugin (Postgres + pgvector).
 //
-// **它存在的理由是证伪**：v4 契约写着「存储引擎可替换」，但在只有 kbstore-es 一个实现时，
-// 契约里混进了多少 Elasticsearch 的形状是看不出来的。第二家实现要么原样满足这 8 个操作，
-// 要么把不合理之处顶出来——顶出来的都记在 docs/contract-notes.md，那才是这轮的产出。
+// **It exists to falsify a claim**: the v4 contract says "the storage engine is swappable", but
+// with only kbstore-es as an implementation, there's no way to tell how much of the contract's
+// shape is secretly Elasticsearch-shaped. A second implementation either satisfies these 8
+// operations as-is, or surfaces where the contract doesn't fit — and whatever gets surfaced is
+// recorded in docs/contract-notes.md; that's the actual output of this round.
 //
-// 与 ES 版的分工完全一致：只做存取。切分 / embedding / RRF 融合 / rerank 全在平台侧。
+// Division of labor is identical to the ES version: only storage and retrieval. Chunking /
+// embedding / RRF fusion / rerank all live on the platform side.
 //
-// 结构选择：**一库一表**（与 ES 的一库一索引对应）。不是风格问题——pgvector 的
-// `vector(N)` 维度写死在列类型上，不同知识库维度不同，塞一张表里根本建不出索引。
-// 契约恰好在 kb_create 就把 dims 传进来了，所以对得上。
+// Structural choice: **one table per knowledge base** (matching ES's one index per knowledge
+// base). This isn't a style preference — pgvector's `vector(N)` bakes the dimension into the
+// column type, and different knowledge bases have different dimensions, so a shared table simply
+// couldn't have an index built on it. The contract conveniently already passes dims in at
+// kb_create, so this lines up.
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
-// 契约由 zz_sokel.go 提供（AST 生成，非运行时反射）。改了入/出参 struct 或其 tag 后须重新生成。
+// The contract is provided by zz_sokel.go (AST-generated, not runtime reflection). Regenerate after
+// changing an input/output struct or its tags.
 
 import (
 	"context"
@@ -40,10 +46,12 @@ func main() {
 		Name:     "kbstore-pgvector",
 	})
 	RegisterCredential(p)
-	// 能力自报——**这个插件正是这套机制的起因**（docs/contract-notes.md A/C 组）：
-	// recency 没实现（ES 有 distance_feature 一把梭，PG 要自己写衰减表达式）；
-	// 关键词腿是 trigram 相似度而不是带中文分词的 BM25。
-	// 不报的话平台只能静默忽略，用户配了时效加权却毫无体现——那比"不支持"更坏。
+	// Self-reported capabilities — **this plugin is the actual reason this mechanism exists**
+	// (docs/contract-notes.md groups A/C): recency isn't implemented (ES has distance_feature to
+	// handle it in one shot, PG would need a hand-written decay expression); the keyword leg is
+	// trigram similarity rather than BM25 with Chinese tokenization.
+	// Without reporting this, the platform would silently ignore it, and a user who configured
+	// recency weighting would see no effect at all — which is worse than "unsupported".
 	p.SetCapabilities(map[string]bool{
 		sokel.CapKeywordBM25: false, sokel.CapRecency: false,
 		sokel.CapTimeRange: true, sokel.CapFieldBoosts: true,
@@ -71,9 +79,10 @@ func env(k, d string) string {
 	return d
 }
 
-// —— 连接 ——
+// —— Connections ——
 //
-// 连接池按 DSN 缓存：每次操作新建池的话，一次摄入几十批就是几十次握手。
+// The connection pool is cached by DSN: creating a new pool per operation would mean dozens of
+// handshakes for a single ingestion run of dozens of batches.
 var pools = map[string]*pgxpool.Pool{}
 
 type store struct {
@@ -110,10 +119,12 @@ func openStore(dsn, ns string) (*store, error) {
 	return &store{pool: p, ns: ns}, nil
 }
 
-// safeIdent：kb_id → 表名。
+// safeIdent: kb_id → table name.
 //
-// 表名不能走参数绑定（SQL 标识符不是值），所以必须自己收口：只留 [a-z0-9_]，其余换 _。
-// 这是本插件唯一一处拼接标识符的地方，注入面收在这一个函数里。
+// The table name can't go through parameter binding (a SQL identifier isn't a value), so it has to
+// be sanitized by hand: keep only [a-z0-9_], replace everything else with _. This is the only
+// place in the plugin that concatenates an identifier, so the injection surface is contained to
+// this one function.
 var identBad = regexp.MustCompile(`[^a-z0-9_]`)
 
 func (s *store) table(kbID string) string {
@@ -137,14 +148,17 @@ func opKBCreate(ctx sokel.Ctx, in *KbCreateIn) (*KbCreateOut, error) {
 	}
 	t := st.table(in.KbID)
 	c := context.Background()
-	// 扩展按需建（vector 必需；pg_trgm 供关键词腿——见 opKeywordQuery 的说明）。
+	// Extensions are created as needed (vector is required; pg_trgm backs the keyword leg — see the
+	// comment on opKeywordQuery).
 	for _, ext := range []string{"vector", "pg_trgm"} {
 		if _, err := st.pool.Exec(c, "CREATE EXTENSION IF NOT EXISTS "+ext); err != nil {
 			return &KbCreateOut{}, fmt.Errorf("建扩展 %s 失败(需要超级用户或预装): %w", ext, err)
 		}
 	}
-	// 元数据统一进 JSONB：契约里 fields 的键与类型由本库声明决定，运行期才知道，
-	// 建成真列的话每加一个字段都要 DDL——而 ES 那边是动态 mapping。JSONB 是这里的对应物。
+	// Metadata is unified into JSONB: the keys and types of `fields` in the contract are decided by
+	// the knowledge base's declaration, only known at runtime. Making them real columns would mean a
+	// DDL change for every new field — ES's counterpart here is dynamic mapping, and JSONB plays
+	// that role on this side.
 	ddl := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
 		id            TEXT PRIMARY KEY,
 		doc_id        TEXT NOT NULL DEFAULT '',
@@ -172,12 +186,14 @@ func opKBCreate(ctx sokel.Ctx, in *KbCreateIn) (*KbCreateOut, error) {
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_doc ON %s (doc_id)`, t, t),
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_parent ON %s (parent_id)`, t, t),
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_dt ON %s (datetime)`, t, t),
-		// 元数据过滤的 ?| 走 GIN（jsonb_ops 支持 ?|）；老库在下一次 kb_create（幂等）时补上。
+		// The ?| used for metadata filtering goes through GIN (jsonb_ops supports ?|); a pre-existing
+		// table gets this added on its next (idempotent) kb_create.
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_fields ON %s USING gin (fields)`, t, t),
-		// 关键词腿走 trigram(理由见 opKeywordQuery)：GIN + gin_trgm_ops。
+		// The keyword leg uses trigram (reasoning in the opKeywordQuery comment): GIN + gin_trgm_ops.
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_trgm ON %s USING gin (content gin_trgm_ops)`, t, t),
-		// 向量索引用 HNSW（pgvector ≥0.5）：cosine 距离，与检索时的 <=> 对齐。
-		// 建在空表上是刻意的：pgvector 的 HNSW 支持增量插入，不像 ivfflat 需要先有数据训练。
+		// The vector index uses HNSW (pgvector ≥0.5): cosine distance, matching the <=> operator used
+		// at query time. Building it on an empty table is deliberate: pgvector's HNSW supports
+		// incremental inserts, unlike ivfflat, which needs data to train on first.
 		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_vec ON %s USING hnsw (embedding vector_cosine_ops)`, t, t),
 	} {
 		if _, err := st.pool.Exec(c, idx); err != nil {
@@ -198,7 +214,7 @@ func opKBDrop(ctx sokel.Ctx, in *KbDropIn) (*KbDropOut, error) {
 	return &KbDropOut{OK: true}, nil
 }
 
-// —— 写入 ——
+// —— Writes ——
 
 func opUpsert(ctx sokel.Ctx, in *ChunksUpsertIn) (*ChunksUpsertOut, error) {
 	st, err := storeOf(ctx)
@@ -213,8 +229,10 @@ func opUpsert(ctx sokel.Ctx, in *ChunksUpsertIn) (*ChunksUpsertOut, error) {
 	}
 	defer func() { _ = tx.Rollback(c) }()
 
-	// append=false（每篇文档的第一批）→ 先清掉该文档的旧分块 = 覆盖语义。
-	// 平台按 NATS 单帧上限分批，只有第一批是 false；每批都清的话后一批会把前一批刚写的删掉。
+	// append=false (the first batch of each document) → clear that document's old chunks first,
+	// which gives overwrite semantics. The platform batches by the NATS single-frame size limit, and
+	// only the first batch has append=false; clearing on every batch would delete what the previous
+	// batch just wrote.
 	if !in.Append && in.DocID != "" {
 		if _, err := tx.Exec(c, fmt.Sprintf("DELETE FROM %s WHERE doc_id = $1", t), in.DocID); err != nil {
 			return &ChunksUpsertOut{}, fmt.Errorf("清旧分块失败: %w", err)
@@ -261,8 +279,9 @@ func opUpsert(ctx sokel.Ctx, in *ChunksUpsertIn) (*ChunksUpsertOut, error) {
 	return &ChunksUpsertOut{OK: true, Count: n}, nil
 }
 
-// datetime 是**字符串**进来的（契约如此，ES 那边直接吃 ISO 串）。Postgres 要显式转换，
-// 且空串必须先变 NULL——`''::timestamptz` 会直接报错。故 SQL 里写死 NULLIF($6,'')::timestamptz。
+// datetime comes in as a **string** (that's how the contract defines it — ES just eats the ISO
+// string directly). Postgres needs an explicit cast, and an empty string has to become NULL first —
+// `''::timestamptz` errors outright. Hence the hardcoded NULLIF($6,'')::timestamptz in the SQL.
 
 func opDocDelete(ctx sokel.Ctx, in *DocDeleteIn) (*DocDeleteOut, error) {
 	st, err := storeOf(ctx)
@@ -276,7 +295,7 @@ func opDocDelete(ctx sokel.Ctx, in *DocDeleteIn) (*DocDeleteOut, error) {
 	return &DocDeleteOut{OK: true}, nil
 }
 
-// —— 检索 ——
+// —— Retrieval ——
 
 func opVectorQuery(ctx sokel.Ctx, in *VectorQueryIn) (*VectorQueryOut, error) {
 	st, err := storeOf(ctx)
@@ -293,9 +312,11 @@ func opVectorQuery(ctx sokel.Ctx, in *VectorQueryIn) (*VectorQueryOut, error) {
 	where, args := buildWhere(in.Filters, in.TimeRange)
 	args = append(args, vecLiteral(toF32(in.Embedding)))
 	vecArg := len(args)
-	// 相似度用 cosine：与建索引时的 vector_cosine_ops 必须一致，否则索引根本不会被用上
-	// （pgvector 按算子类选索引，用错算子就是全表扫，安静地慢）。
-	// score = 1 - 距离，与 ES 的 knn score 同向（越大越相关），平台侧 RRF 只看序，但显示要看值。
+	// Similarity uses cosine: it must match the vector_cosine_ops used when building the index,
+	// otherwise the index won't be used at all (pgvector picks an index by operator class — using
+	// the wrong operator means a silent, slow full table scan).
+	// score = 1 - distance, pointing the same way as ES's knn score (bigger = more relevant). The
+	// platform-side RRF only looks at rank, but the display needs the actual value.
 	q := fmt.Sprintf(`SELECT %s, 1 - (embedding <=> $%d) AS score
 		FROM %s WHERE embedding IS NOT NULL %s
 		ORDER BY embedding <=> $%d LIMIT %d`, chunkCols, vecArg, st.table(in.KbID), where, vecArg, k)
@@ -318,14 +339,18 @@ func opKeywordQuery(ctx sokel.Ctx, in *KeywordQueryIn) (*KeywordQueryOut, error)
 	where, args := buildWhere(in.Filters, in.TimeRange)
 	args = append(args, query)
 	qArg := len(args)
-	// 关键词腿用 **trigram 相似度**，不是 to_tsvector。
+	// The keyword leg uses **trigram similarity**, not to_tsvector.
 	//
-	// 这是本插件与 ES 差距最大的一处，得写清楚：Postgres 自带的分词器对中文无能为力
-	// （'simple' 按空白/标点切，一句中文就是一个巨型 token，`to_tsquery` 命中率接近 0），
-	// 而 ES 那边挂的是 ik。要在 PG 上做中文 BM25 得装 zhparser/pg_jieba——那是部署要求，
-	// 不该由插件偷偷假设。trigram 至少对中英混排都能给出**有意义的排序**，代价是
-	// 召回质量弱于 ik，长查询尤甚。选它是清醒的取舍，不是没想到。
-	// title/summary 加权：与 ES 版 field_boosts 的意图对齐（那边是 multi_match^boost）。
+	// This is the single biggest gap between this plugin and the ES version, and it needs to be
+	// spelled out: Postgres's built-in tokenizer is useless for Chinese ('simple' splits on
+	// whitespace/punctuation, so a Chinese sentence becomes one giant token and `to_tsquery` hit
+	// rates approach 0), whereas the ES side has ik attached. Doing Chinese BM25 on PG requires
+	// installing zhparser/pg_jieba — that's a deployment requirement the plugin shouldn't silently
+	// assume. Trigram at least gives a **meaningful ranking** for mixed Chinese/English text, at the
+	// cost of weaker recall than ik, especially for longer queries. Choosing it is a deliberate
+	// tradeoff, not an oversight.
+	// title/summary weighting: aligned in intent with the ES version's field_boosts (which uses
+	// multi_match^boost).
 	q := fmt.Sprintf(`SELECT %s,
 		  GREATEST(similarity(content, $%d), similarity(title, $%d) * 1.5, similarity(summary, $%d) * 1.2) AS score
 		FROM %s
@@ -366,9 +391,11 @@ func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
 	}
 	q := fmt.Sprintf(`SELECT %s, 0::float8 AS score FROM %s WHERE id = ANY($1)`, chunkCols, st.table(in.KbID))
 	hits := scanHits(context.Background(), st, q, []any{in.IDs})
-	// 顺序按请求的 ids 还原：平台按父块 id 列表取，回来的顺序它是当真的
-	// （ES 的 _mget 保证按请求序返回，SQL 的 = ANY 不保证——这类"另一边刚好有的保证"
-	//   是第二实现最容易踩的坑，也正是做它的意义）。
+	// Order is restored to match the requested ids: the platform fetches by a list of parent-chunk
+	// ids and takes the returned order at face value (ES's _mget guarantees request-order results,
+	// SQL's = ANY makes no such guarantee — this kind of "the other side just happens to guarantee
+	// it" is exactly the trap a second implementation is most likely to fall into, which is also the
+	// whole point of building one).
 	byID := map[string]schema.Chunk{}
 	for _, h := range hits {
 		byID[h.Chunk.ID] = h.Chunk
@@ -382,16 +409,17 @@ func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
 	return &MgetOut{Chunks: out}, nil
 }
 
-// —— 公共 ——
+// —— Shared ——
 
-// chunkCols：读路径的列清单。**不含 embedding**——它只在写入时上行，
-// 回流的话每条命中都要背着几 KB 的浮点数穿过 NATS（ES 版用 srcFields 白名单排除，同一口径）。
+// chunkCols: the column list for the read path. **Excludes embedding** — it only travels upstream
+// on writes; sending it back would mean every hit drags a few KB of floats across NATS (the ES
+// version excludes it via the srcFields allowlist, same principle).
 const chunkCols = `id, doc_id, content, title, summary,
 	COALESCE(to_char(datetime, 'YYYY-MM-DD"T"HH24:MI:SSOF'), '') AS datetime,
 	role, parent_id, parent_no, child_no, page_no, content_html, boundary,
 	fields, images, assets, source_blocks`
 
-// buildWhere：过滤条件 + 时间范围 → SQL 片段（参数从 $1 起编号）。
+// buildWhere: filters + time range → a SQL fragment (parameters numbered starting at $1).
 func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 	var sb strings.Builder
 	args := []any{}
@@ -399,9 +427,10 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 		if f.Field == "" {
 			continue
 		}
-		// 元数据统一在 fields JSONB 里。字段可以是标量或标量数组，任一元素相等即命中（契约语义，
-		// 与 ES 的 terms 一致）：fields->'x' ?| $n 对字符串数组按元素、对字符串标量按值匹配，
-		// fields->>'x' = ANY($n) 兜住数字 / 布尔标量（按文本比）。
+		// Metadata lives uniformly in the fields JSONB. A field can be a scalar or an array of
+		// scalars, and matching any one element counts as a hit (contract semantics, matching ES's
+		// terms): fields->'x' ?| $n matches string arrays element-wise and string scalars by value;
+		// fields->>'x' = ANY($n) covers numeric/boolean scalars (compared as text).
 		key := quoteLit(f.Field)
 		switch {
 		case f.Missing:
@@ -410,7 +439,8 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 			args = append(args, f.Values)
 			hit := fmt.Sprintf("(fields->>%s = ANY($%d) OR fields->%s ?| $%d)", key, len(args), key, len(args))
 			if f.Exclude {
-				// COALESCE：缺这个字段的行 hit 为 NULL，NOT NULL 会把整行丢掉；反选的语义是保留它们。
+				// COALESCE: a row missing this field evaluates hit as NULL, and NOT NULL would drop
+				// the whole row — but exclusion semantics mean these rows should be kept.
 				sb.WriteString(fmt.Sprintf(" AND NOT COALESCE(%s, false)", hit))
 			} else {
 				sb.WriteString(" AND " + hit)
@@ -428,7 +458,8 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 	return sb.String(), args
 }
 
-// quoteLit：把字段名安全地嵌进 SQL 字符串字面量（JSONB 取键不能用参数绑定的位置）。
+// quoteLit safely embeds a field name into a SQL string literal (JSONB key access can't be
+// parameter-bound in that position).
 func quoteLit(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
@@ -460,7 +491,7 @@ func scanHits(c context.Context, st *store, q string, args []any) []schema.Hit {
 	return out
 }
 
-// vecLiteral：pgvector 的输入形态是 '[1,2,3]' 文本，不是数组参数。
+// vecLiteral: pgvector takes input as '[1,2,3]' text, not an array parameter.
 func vecLiteral(v []float32) string {
 	var sb strings.Builder
 	sb.WriteByte('[')
@@ -493,29 +524,34 @@ func jsonOf(v any) []byte {
 	return b
 }
 
-var _ = time.Now // 保留：日后加超时用
+var _ = time.Now // kept: for a future timeout
 
-// —— 凭证体检 ——
+// —— Credential health check ——
 
-// opHealthCheck：连一下库，报版本与关键扩展。
+// opHealthCheck connects to the database and reports its version and key extensions.
 //
-// 不可用时返回 ok=false + message 而**不是** error：平台把 error 当「这个插件没法体检」，
-// 把 ok=false 当「体检结论是不可用」——后者才是这里要说的话，且 message 里那句 Postgres 原文
-// （连不上 / 密码认证失败 / 数据库不存在）正是人排查时唯一有用的东西。
+// When unavailable, returns ok=false + message, **not** an error: the platform treats an error as
+// "this plugin can't run its health check", and ok=false as "the check concluded the plugin is
+// unavailable" — the latter is what should be said here, and the raw Postgres message (connection
+// refused / password authentication failed / database doesn't exist) is the one genuinely useful
+// thing for a human troubleshooting this.
 func opHealthCheck(ctx sokel.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	st, err := storeOf(ctx)
 	if err != nil {
 		return &HealthCheckOut{Message: err.Error()}, nil
 	}
-	// 这里用 ctx 而非本插件其余地方的 context.Background()：连不上时 pgx 会一路重试，
-	// 只有跟着平台的操作超时走，凭证页那个转圈才会有个了结。
+	// This uses ctx rather than the context.Background() used elsewhere in the plugin: when the
+	// connection fails, pgx keeps retrying, and only tying it to the platform's operation timeout
+	// gives the spinner on the credential page a way to actually finish.
 	var version string
 	if err := st.pool.QueryRow(ctx, "SELECT version()").Scan(&version); err != nil {
 		return &HealthCheckOut{Message: fmt.Sprintf("连不上 Postgres: %v", err)}, nil
 	}
 	out := &HealthCheckOut{OK: true, Version: shortPGVersion(version)}
-	// 扩展是**额外情报**：读 pg_extension 失败（权限收紧的库）不推翻「连得上」这个结论。
-	// 但缺 vector 必须说出来——它是本插件跑起来的前提，不体检的话要等到建知识库那一刻才炸。
+	// Extensions are **extra intel**: failing to read pg_extension (a database with tightened
+	// permissions) doesn't overturn the "it connects" conclusion. But a missing vector extension must
+	// be called out — it's a precondition for this plugin to work at all, and without this check it
+	// wouldn't blow up until the moment a knowledge base gets created.
 	if rows, qerr := st.pool.Query(ctx,
 		`SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector','pg_trgm') ORDER BY extname`); qerr == nil {
 		var exts []string
@@ -540,8 +576,9 @@ func opHealthCheck(ctx sokel.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return out, nil
 }
 
-// shortPGVersion：version() 回的是一整行编译信息（"PostgreSQL 16.2 (Debian …) on x86_64 …"），
-// 界面上只要前两段——后面那串编译器/平台细节挤掉的正是人要看的东西。
+// shortPGVersion: version() returns a whole line of build info ("PostgreSQL 16.2 (Debian …) on
+// x86_64 …"), and the UI only needs the first two words — the trailing compiler/platform details
+// would just crowd out what people actually want to see.
 func shortPGVersion(v string) string {
 	f := strings.Fields(v)
 	if len(f) >= 2 {

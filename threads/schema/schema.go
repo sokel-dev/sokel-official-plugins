@@ -1,19 +1,23 @@
-// Package schema 声明 threads 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the threads plugin.
 //
-// 与其余发布器同一套 publish 契约。Threads 的四件特殊事：
+// Uses the same publish contract as the other publishers. Threads has four quirks:
 //
-//  1. **发布是两步**：先建「媒体容器」拿 creation_id，再发布它。中间那一步是 Meta 的形状，
-//     不是我们加的——但插件把两步包成一个操作，画布上不必摆两个节点。
+//  1. **Publishing is two steps**: first create a "media container" to get a creation_id, then
+//     publish it. That intermediate step is Meta's own shape, not something we added — but the
+//     plugin wraps the two steps into one operation, so the canvas doesn't need two nodes for it.
 //
-//  2. **图片/视频靠 URL 拉取，不是上传**。Threads 会自己去下载那个地址，
-//     所以给它的必须是**公网可达**的链接。平台在把文件交给插件时会换成带签名的下载地址，
-//     所以直接绑文件即可；外部图床的公开链接也行。
+//  2. **Images/video are fetched by URL, not uploaded**. Threads downloads that address itself, so
+//     it must be a **publicly reachable** link. The platform rewrites file references into signed
+//     download URLs when handing them to the plugin, so just binding a file works fine; a public
+//     link from an external image host works too.
 //
-//  3. **每 24 小时 250 条**（滚动窗口）。这是账号级配额，超了直接拒——所以「检查凭证」
-//     顺带把剩余额度带出来，工作流可以据此决定还发不发。
+//  3. **250 per 24 hours** (a rolling window). This is an account-level quota, and going over it
+//     is rejected outright — so "check credentials" surfaces the remaining quota along the way, and
+//     a workflow can decide whether to keep publishing based on it.
 //
-//  4. **令牌 60 天**且没有 refresh_token（续期是拿长令牌换新的长令牌）。
-//     到期由人重新授权；health_check 会在失效时把凭证标成 invalid、触发告警。
+//  4. **A 60-day token** with no refresh_token (renewal means exchanging the long-lived token for
+//     a new long-lived token). Expiry requires a human to reauthorize; health_check marks the
+//     credential invalid and triggers an alert when it's expired.
 package schema
 
 import (
@@ -22,7 +26,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// PostCreate 发一条 Threads。
+// PostCreate posts a single Threads post.
 type PostCreate struct{}
 
 func (PostCreate) Meta() contract.Meta {
@@ -54,7 +58,7 @@ func (PostCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostThread 发一串 Threads。
+// PostThread posts a chain of Threads posts.
 type PostThread struct{}
 
 func (PostThread) Meta() contract.Meta {
@@ -81,7 +85,8 @@ func (PostThread) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id），顺带把剩余发布额度带出来。
+// HealthCheck checks whether the credential still works (the platform-mandated operation id), and
+// surfaces the remaining publishing quota along the way.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -102,13 +107,13 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
-// AuthMeta：Threads 的 OAuth。
+// AuthMeta: Threads's OAuth.
 //
-// threads_basic 是拿账号信息的底座（少了它连自己是谁都查不到），
-// threads_content_publish 才是发布权限。
+// threads_basic is the foundation for fetching account info (without it, you can't even look up
+// who you are); threads_content_publish is the actual publishing permission.
 func (Credential) AuthMeta() contract.AuthMeta {
 	return auth.OAuth("threads", "threads_basic", "threads_content_publish")
 }

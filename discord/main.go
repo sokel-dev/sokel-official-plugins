@@ -1,11 +1,13 @@
-// discord —— Sokel 第一方发布器插件：往频道发消息。
+// discord —— Sokel first-party publisher plugin: sends messages to a channel.
 //
-// 与 bluesky / mastodon 同一套 publish 契约，但定位不同：**社群分发，不是公开发现渠道**。
-// 研报出来推一条到投研群用它；要公开曝光用前两个。
+// Same publish contract as bluesky / mastodon, but a different purpose: **community distribution,
+// not a public discovery channel**. Use it to push a report to the research team's channel once it's
+// out; use the other two for public exposure.
 //
-// 三条判断见 schema/schema.go 顶部：走 Webhook 不做 Bot、嵌入卡片是主形态、回执要给消息 id。
+// The three design decisions are at the top of schema/schema.go: webhook instead of bot, embed card
+// as the primary form, and the receipt must include the message id.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./discord
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./discord
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

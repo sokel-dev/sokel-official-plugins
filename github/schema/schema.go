@@ -1,24 +1,33 @@
-// Package schema 声明 github 插件的操作、事件与凭证契约。
+// Package schema declares the GitHub plugin's operation, event and credential contracts.
 //
-// 定位：GitHub 项目维护自动化——**github.com 与 GitHub Enterprise Server 通吃**（凭证里填实例地址）。
-// 操作面**对标各类 GitHub 工具/机器人**（Probot 系、Renovate、stale-bot、reviewdog、Mergify、
-// release-drafter、ChatOps），而不是把 REST 接口逐个包一遍：能不能拿这套操作把那些机器人重搭一遍，
-// 是这份契约的验收标准。
+// Positioning: GitHub project-maintenance automation — **works with both github.com and GitHub
+// Enterprise Server** (the instance address goes in the credential). The operation surface
+// **targets the various GitHub tools/bots** (the Probot family, Renovate, stale-bot, reviewdog,
+// Mergify, release-drafter, ChatOps) rather than wrapping the REST endpoints one by one: whether
+// this set of operations can rebuild those bots is the acceptance bar for this contract.
 //
-// 五条 GitHub 特有的约定，操作设计围着它们转（每条都对应一个真实的坑）：
+// Five GitHub-specific quirks that the operation design revolves around (each one maps to a
+// real pitfall):
 //
-//   - **Issue 与 PR 共用编号空间，且 /issues 会连 PR 一起返回**。这是 GitHub API 最经典的坑：
-//     照抄 GitLab 的心智去列 Issue，会拿到一堆 PR 混在里面，而且没有任何报错。
-//     所以 IssuesList 默认**剔掉 PR**（include_prs 显式打开），并在出参里给 is_pr 让人看得见。
-//   - **评论接口是共用的**：给 PR 发普通评论走的是 Issue 评论接口。所以 issue_comment 对 PR 同样有效，
-//     pr_comment 只是同一件事的别名——不另开一套，免得两个操作行为漂移。
-//     真正不同的是**行内评论**（针对 diff 某一行），那是 Review 接口，在 pr_review 里。
-//   - **写文件必须带 blob sha**：Contents API 更新已存在的文件时不给 sha 会 422，
-//     而报错文字不会告诉你「你少给了 sha」。FileWrite 内部 get-then-put，调用方不必知道。
-//   - **分页没有总数**：GitHub 不回 X-Total 那种头，只在 Link 头里给 rel="next"。
-//     所以出参给 has_more 而不是 total——**翻页看它**，正好 30 条不代表翻完了。
-//   - **Projects V2 只有 GraphQL**：经典 Projects 的 REST 接口已下线。看板相关的四个操作
-//     走 GraphQL，其余走 REST；这条分界线在 client.go 里，契约上看不出来（也不该看出来）。
+//   - **Issues and PRs share the same number space, and /issues returns PRs along with them.**
+//     This is GitHub API's most classic trap: carrying over a GitLab mental model when listing
+//     Issues gets you a pile of PRs mixed in, with no error at all. So IssuesList **excludes
+//     PRs by default** (include_prs must be turned on explicitly), and the output exposes is_pr
+//     so it's visible.
+//   - **The comment endpoint is shared**: posting a regular comment on a PR goes through the
+//     Issue comment endpoint. So issue_comment works just as well on a PR, and pr_comment is
+//     just an alias for the same thing — we don't open a second one, to avoid the two operations'
+//     behavior drifting apart. What's genuinely different is the **inline comment** (on a
+//     specific diff line), which is the Review endpoint, in pr_review.
+//   - **Writing a file requires the blob sha**: the Contents API returns 422 when updating an
+//     existing file without a sha, and the error text won't tell you "you forgot the sha".
+//     FileWrite does get-then-put internally so the caller doesn't need to know this.
+//   - **Pagination has no total count**: GitHub doesn't return an X-Total-style header, only
+//     rel="next" in the Link header. So the output gives has_more instead of total — **check
+//     that for paging**, since exactly 30 results doesn't mean you're done.
+//   - **Projects V2 is GraphQL-only**: the REST endpoints for classic Projects have been retired.
+//     The four board-related operations go through GraphQL, the rest go through REST; that line
+//     lives in client.go and is invisible at the contract level (as it should be).
 package schema
 
 import (
@@ -26,9 +35,10 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// —— 复用的字段 ——
+// —— Shared fields ——
 
-// repoField 仓库定位。GitHub 全程用 owner/repo，没有 GitLab 那种数字 ID 的第二形态。
+// repoField identifies a repository. GitHub uses owner/repo throughout; there's no GitLab-style
+// numeric-ID alternative.
 func repoField() contract.FieldSpec {
 	return field.String("repo").Label("仓库").
 		Desc("owner/repo 形态（如 sokel-dev/sokel-plugin-sdk，即仓库地址里域名后那段）")
@@ -42,7 +52,8 @@ func numberField(label, desc string) contract.FieldSpec {
 	return field.Int("number").Label(label).Desc(desc)
 }
 
-// hasMoreField 翻页判据。GitHub 不给总数，所以这是唯一可靠的「还有没有」。
+// hasMoreField is the paging indicator. GitHub doesn't give a total count, so this is the only
+// reliable way to know whether there's more.
 func hasMoreField() contract.FieldSpec {
 	return field.Bool("has_more").Label("还有下一页").
 		Desc("**翻页看它**——GitHub 不回总数，正好 50 条并不代表翻完了").Optional()
@@ -52,9 +63,9 @@ func countField() contract.FieldSpec {
 	return field.Int("count").Label("本页条数")
 }
 
-// —— 仓库 ——
+// —— Repositories ——
 
-// ReposList 仓库列表。
+// ReposList lists repositories.
 type ReposList struct{}
 
 func (ReposList) Meta() contract.Meta {
@@ -83,7 +94,7 @@ func (ReposList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Repo 一个仓库。
+// Repo is a single repository.
 type Repo struct {
 	FullName      string `sokel:"full_name" label:"全名" desc:"owner/repo 形态，其他操作的 repo 字段用它"`
 	Name          string `sokel:"name" label:"名字"`
@@ -99,7 +110,7 @@ type Repo struct {
 	UpdatedAt     string `sokel:"updated_at" label:"更新时间"`
 }
 
-// RepoGet 仓库详情。
+// RepoGet gets repository details.
 type RepoGet struct{}
 
 func (RepoGet) Meta() contract.Meta {
@@ -117,7 +128,7 @@ func (RepoGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// FileGet 读文件。
+// FileGet reads a file.
 type FileGet struct{}
 
 func (FileGet) Meta() contract.Meta {
@@ -142,7 +153,7 @@ func (FileGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// FileWrite 写文件。
+// FileWrite writes a file.
 type FileWrite struct{}
 
 func (FileWrite) Meta() contract.Meta {
@@ -169,7 +180,8 @@ func (FileWrite) Outputs() []contract.FieldSpec {
 	}
 }
 
-// BranchCreate 建分支。Renovate / backport 这类「开 PR 的机器人」第一步就是它。
+// BranchCreate creates a branch. This is step one for "PR-opening bots" like Renovate / backport
+// tools.
 type BranchCreate struct{}
 
 func (BranchCreate) Meta() contract.Meta {
@@ -195,7 +207,7 @@ func (BranchCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// BranchesList 分支列表。
+// BranchesList lists branches.
 type BranchesList struct{}
 
 func (BranchesList) Meta() contract.Meta {
@@ -213,14 +225,14 @@ func (BranchesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Branch 一个分支。
+// Branch is a single branch.
 type Branch struct {
 	Name      string `sokel:"name" label:"名字"`
 	SHA       string `sokel:"sha" label:"最新提交"`
 	Protected bool   `sokel:"protected" label:"受保护" desc:"受保护分支上直接 push 会被拒，要走 PR"`
 }
 
-// CommitsList 提交列表。
+// CommitsList lists commits.
 type CommitsList struct{}
 
 func (CommitsList) Meta() contract.Meta {
@@ -244,7 +256,7 @@ func (CommitsList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Commit 一次提交。
+// Commit is a single commit.
 type Commit struct {
 	SHA     string `sokel:"sha" label:"sha"`
 	Message string `sokel:"message" label:"提交信息"`

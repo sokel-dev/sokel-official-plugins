@@ -1,21 +1,27 @@
-// Package schema 声明 claude-code 插件的操作与凭证契约。
+// Package schema declares the operation and credential contract for the claude-code plugin.
 //
-// 定位：把**本机装的 Claude Code** 当成工作流里的一个执行体——给它一个 GitLab 项目
-// 和一句任务，它在真实工作树里改代码，过程实时回传，结论与改动清单作为出参进下游节点。
+// Positioning: treat **the locally installed Claude Code** as an executor inside a workflow — give it a
+// GitLab project and a task description, it edits code in a real worktree, progress streams back live,
+// and the conclusion and changed-files list are passed downstream as outputs.
 //
-// 为什么是本地 CC 而不是云端托管 agent：自建 GitLab 多在内网，云端沙箱够不着仓库。
-// 插件跑在能访问内网、装了 claude 的机器上，这条约束是这个插件的前提（与 kubernetes 插件同类）。
+// Why local CC instead of a cloud-hosted agent: self-hosted GitLab instances are mostly internal, and a
+// cloud sandbox can't reach the repo. The plugin has to run on a machine with internal network access and
+// claude installed — that constraint is a precondition of this plugin (the same category as the
+// kubernetes plugin).
 //
-// 四条约定，操作设计围着它们转：
+// Four commitments that the operation design revolves around:
 //
-//   - **默认不推代码**：改完只回 diff 与结论，push 是显式开关。让一个 agent 默认拥有
-//     push 权限，是那种出事之后才会被发现的默认值。
-//   - **成本必须有硬顶**：CC 的 --max-budget-usd 直接透出成契约字段。跑飞的 agent
-//     不该由账单来告诉你。
-//   - **过程是一等产出**：操作声明 Stream，边跑边把 CC 的文字推成部分产出；
-//     跑完的 log 也照样在出参里。「跑了十分钟只有执行中三个字」是这类节点最难查的形态。
-//   - **工作树按分支复用**：同一项目同一分支复用一份 git worktree（下次只 fetch 不重 clone），
-//     不同分支各一份——两个任务共用一个工作树必然互相踩。
+//   - **Don't push code by default**: finishing a run only returns the diff and the conclusion; pushing
+//     is an explicit switch. Giving an agent push access by default is exactly the kind of default that
+//     only gets noticed after something has already gone wrong.
+//   - **Cost must have a hard cap**: CC's --max-budget-usd is surfaced directly as a contract field. A
+//     runaway agent shouldn't be something you only learn about from the bill.
+//   - **Progress is a first-class output**: the operation declares Stream, and CC's text is pushed as a
+//     partial output while it runs; the finished log is also included in the outputs as-is. "Ten minutes
+//     in and all you see is 'running'" is the hardest failure mode to debug for this kind of node.
+//   - **Worktrees are reused per branch**: the same project + branch reuses one git worktree (only a
+//     fetch next time, no re-clone), while different branches each get their own — two tasks sharing one
+//     worktree would inevitably step on each other.
 package schema
 
 import (
@@ -28,9 +34,9 @@ func projectField() contract.FieldSpec {
 		Desc("GitLab 项目路径（group/name）或数字 ID——与 gitlab 插件同一形态")
 }
 
-// —— 任务 ——
+// —— Tasks ——
 
-// RunTask 跑一个任务。
+// RunTask runs one task.
 type RunTask struct{}
 
 func (RunTask) Meta() contract.Meta {
@@ -87,7 +93,7 @@ func (RunTask) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ResumeTask 继续一个任务。
+// ResumeTask continues a task.
 type ResumeTask struct{}
 
 func (ResumeTask) Meta() contract.Meta {
@@ -113,7 +119,7 @@ func (ResumeTask) Inputs() []contract.FieldSpec {
 
 func (ResumeTask) Outputs() []contract.FieldSpec { return RunTask{}.Outputs() }
 
-// WorktreeInfo 一个工作树的现状。
+// WorktreeInfo is the current state of one worktree.
 type WorktreeInfo struct {
 	Project     string `sokel:"project" label:"项目"`
 	Branch      string `sokel:"branch" label:"分支"`
@@ -126,7 +132,7 @@ type WorktreeInfo struct {
 	LastSession string `sokel:"last_session" label:"最近会话 ID" desc:"claude --resume 用它"`
 }
 
-// ListWorktrees 列出工作树。
+// ListWorktrees lists worktrees.
 type ListWorktrees struct{}
 
 func (ListWorktrees) Meta() contract.Meta {
@@ -149,7 +155,7 @@ func (ListWorktrees) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Cleanup 清理工作树。
+// Cleanup removes worktrees.
 type Cleanup struct{}
 
 func (Cleanup) Meta() contract.Meta {
@@ -181,7 +187,7 @@ func (Cleanup) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform-mandated credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -201,19 +207,21 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// —— 凭证 ——
+// —— Credential ——
 
 type Credential struct{}
 
-// CredentialFields 凭证只回答一个问题：**这次调用用谁的额度**。
+// CredentialFields answers exactly one question: **whose quota this call spends**.
 //
-// 曾经这里还有 GitLab 地址/令牌、工作区目录、claude 路径、代理、外部目录开关——
-// 那全是「这台机器能干什么」，是**部署属性**，不是凭证。混在一起有三个实害：
-// 同一个 GitLab 令牌要在 gitlab 插件和这里各配一份（轮换时必漏一处）；
-// 换一台机器部署要去改凭证；以及最要命的——凭证是工作流作者在画布上选的，
-// 而机器能访问哪些目录、走哪个代理，该由运维定，不该由编排的人选。
+// This used to also hold the GitLab address/token, workspace directory, claude path, proxy, and the
+// external-directory switch — all of that is "what this machine is allowed to do", a **deployment
+// property**, not a credential. Mixing them in caused three real problems: the same GitLab token had to
+// be configured twice, once in the gitlab plugin and once here (rotation would inevitably miss one);
+// deploying to a different machine meant editing the credential; and worst of all, the credential is
+// something a workflow author picks on the canvas, while which directories a machine can reach and which
+// proxy it uses should be decided by ops, not by whoever is orchestrating the workflow.
 //
-// 现在它们全部走**插件进程的环境变量**，见 env.go。
+// All of that now lives in **the plugin process's environment variables** instead, see env.go.
 func (Credential) CredentialFields() []contract.FieldSpec {
 	return []contract.FieldSpec{
 		field.Secret("api_key").Label("Anthropic API Key").

@@ -1,15 +1,17 @@
 package main
 
-// 东方财富搜索适配器。
+// Eastmoney search adapter.
 //
-//	GET https://search-api-web.eastmoney.com/search/jsonp?cb=<回调名>&param=<JSON>
+//	GET https://search-api-web.eastmoney.com/search/jsonp?cb=<callback name>&param=<JSON>
 //
-// 两处与别家不同：
-//   - **应答是 JSONP 不是 JSON**：外面裹着 `jQueryxxx_123(...)`，得先把壳剥掉。
-//     直接 json.Unmarshal 会得到「invalid character 'j'」，看不出是这个原因。
-//   - **无鉴权无签名**：不用 cookie 也不用算 sign，是这几家里最省心的。
+// Two things differ from the other adapters:
+//   - **The response is JSONP, not JSON**: it's wrapped in `jQueryxxx_123(...)` and the shell
+//     must be stripped first. A direct json.Unmarshal would fail with "invalid character 'j'",
+//     which doesn't make the real cause obvious.
+//   - **No auth, no signature**: no cookie and no sign to compute, the easiest of this bunch.
 //
-// 接口与参数形状从 RSSHub 的 eastmoney/search route 学来（只借鉴知识，没抄代码）。
+// The endpoint and param shape were learned from RSSHub's eastmoney/search route (we borrowed
+// the knowledge, not the code).
 
 import (
 	"encoding/json"
@@ -24,11 +26,11 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// emSearchAPI：**是 var 不是 const**——测试要指到假上游。
+// emSearchAPI: **var, not const** — tests need to point this at a fake upstream.
 var emSearchAPI = "https://search-api-web.eastmoney.com/search/jsonp"
 
-// jsonpRe：剥 JSONP 的壳。回调名是我们自己给的，但仍按通配匹配——
-// 对方偶尔会把回调名原样回显之外再包一层。
+// jsonpRe strips the JSONP shell. We supply the callback name ourselves, but still match it
+// loosely — the server occasionally wraps the echoed callback name in an extra layer.
 var jsonpRe = regexp.MustCompile(`(?s)^[^(]*\((.*)\)[\s;]*$`)
 
 func fetchEastmoney(ctx plugin.Ctx, keyword string) ([]schema.Item, error) {
@@ -36,7 +38,7 @@ func fetchEastmoney(ctx plugin.Ctx, keyword string) ([]schema.Item, error) {
 	if kw == "" {
 		return nil, fmt.Errorf("东方财富搜索要填关键词（如某只票的名称或代码）")
 	}
-	// param 是一整段 JSON 塞进查询串里，形状照它前端来。
+	// param is a whole JSON blob stuffed into the query string, shaped to match their frontend.
 	param := map[string]any{
 		"uid":           "",
 		"keyword":       kw,
@@ -85,7 +87,8 @@ func fetchEastmoney(ctx plugin.Ctx, keyword string) ([]schema.Item, error) {
 	}
 	items := make([]schema.Item, 0, len(list))
 	for _, a := range list {
-		// 搜索结果里的标题带高亮标签（<em>），摘要同理——一律去掉。
+		// Titles in search results carry highlight tags (<em>), and summaries do too —
+		// strip them all.
 		title := plainText(a.Title)
 		it := schema.Item{
 			ID: firstNonEmpty(a.URL, title), Title: title, URL: a.URL,
@@ -99,8 +102,9 @@ func fetchEastmoney(ctx plugin.Ctx, keyword string) ([]schema.Item, error) {
 	return items, nil
 }
 
-// emTime：它给的是「2026-08-19 10:30:00」这种本地时间（东八区），没有时区标注。
-// 按 UTC 解会整体差 8 小时——游标据此判断新旧，差 8 小时就意味着一整批被误判。
+// emTime: what it returns is local time like "2026-08-19 10:30:00" (UTC+8), with no timezone
+// marker. Parsing it as UTC would be off by 8 hours across the board — the cursor uses this
+// value to judge new vs. old, so an 8-hour offset means a whole batch gets misjudged.
 func emTime(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {

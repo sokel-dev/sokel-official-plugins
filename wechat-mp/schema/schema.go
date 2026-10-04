@@ -1,24 +1,32 @@
-// Package schema 声明 wechat-mp（微信公众号）插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the wechat-mp (WeChat
+// Official Accounts) plugin.
 //
-// 与 bluesky / mastodon / discord 同一套 publish 契约，但公众号有四件别家没有的事，
-// 每一件不按它的来都是「配好了却发不出去」，且错误码不会告诉你原因：
+// Uses the same publish contract as bluesky / mastodon / discord, but Official Accounts have four
+// quirks none of the others do, and getting any one of them wrong means "it's configured but won't
+// publish", with an error code that won't tell you why:
 //
-//  1. **发布是两步：先建草稿，再发布草稿。** 中间隔着一个 media_id。
-//     做成两个操作而不是一个「发文章」——因为草稿建完是可以在公众号后台肉眼复核的，
-//     这正是金融内容该有的卡点（画布上要不要接人工审核，由你决定）。
+//  1. **Publishing is two steps: create a draft, then publish the draft.** A media_id sits between
+//     them. This is built as two operations rather than one "post article" — because once a draft
+//     is created, it can be eyeballed in the Official Account backend, which is exactly the kind of
+//     checkpoint financial content should have (whether to wire up human review on the canvas is
+//     up to you).
 //
-//  2. **封面图是必填的**，而且得先传成永久素材拿 thumb_media_id。
-//     没有封面图，草稿接口直接拒。
+//  2. **A cover image is mandatory**, and it has to be uploaded as permanent material first to get
+//     a thumb_media_id. Without a cover image, the draft endpoint rejects it outright.
 //
-//  3. **正文里的图片必须是微信自己域名的**。外链图片在正文里一律显示不出来
-//     （防盗链），所以要先经「上传图片」换成 mp.weixin.qq.com 的地址再拼进 HTML。
+//  3. **Images in the body must be on WeChat's own domain.** Hotlinked images never display in the
+//     body (anti-hotlinking), so they need to go through "upload image" first to become an
+//     mp.weixin.qq.com address before being spliced into the HTML.
 //
-//  4. **调用服务器的公网 IP 要在白名单里**，否则一切接口都回 40164。
-//     容器部署时这一条最容易漏——出口 IP 与你以为的往往不是同一个。
+//  4. **The calling server's public IP must be allowlisted**, or every endpoint returns 40164.
+//     This is the easiest one to miss in a container deployment — the egress IP is often not the
+//     one you think it is.
 //
-// 另外两条边界：**2025-07 起个人主体与未认证企业号已被收回发布权限**（必须认证服务号/订阅号）；
-// 经 freepublish 发出的文章**不进历史消息流**，它是永久链接，适合「内容沉淀 + 别处引流」，
-// 不等于群发。
+// Two more boundaries worth knowing: **as of 2025-07, personal accounts and unverified enterprise
+// accounts have had publishing permission revoked** (a verified service/subscription account is
+// required); and an article sent via freepublish **doesn't enter the message history feed** — it's
+// a permanent link, suited to "content storage + driving traffic from elsewhere", not the same
+// thing as a mass send.
 package schema
 
 import (
@@ -26,7 +34,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// DraftAdd 建草稿。
+// DraftAdd creates a draft.
 type DraftAdd struct{}
 
 func (DraftAdd) Meta() contract.Meta {
@@ -56,7 +64,7 @@ func (DraftAdd) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Publish 发布草稿。
+// Publish publishes a draft.
 type Publish struct{}
 
 func (Publish) Meta() contract.Meta {
@@ -83,7 +91,7 @@ func (Publish) Outputs() []contract.FieldSpec {
 	}
 }
 
-// ImageUpload 上传图片。
+// ImageUpload uploads an image.
 type ImageUpload struct{}
 
 func (ImageUpload) Meta() contract.Meta {
@@ -108,7 +116,7 @@ func (ImageUpload) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform-mandated operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -127,7 +135,7 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

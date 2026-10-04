@@ -1,10 +1,11 @@
 package main
 
-// Notion 的应答形状（只声明用得上的字段）与它们到契约形状的转换。
+// Notion's response shapes (only the fields actually used) and their conversion to contract shapes.
 //
-// 这一层单独存在的理由：Notion 的对象里，同一件事有三种说法（标题在 properties 里那个
-// type=title 的列上、在 title 数组上、或者压根没有），父的 id 藏在 parent.<type> 这个
-// 变着名字的键里。转换集中在这儿，18 个操作就不必各自猜一遍。
+// Why this layer exists on its own: in Notion's objects, the same thing can be said three ways (the
+// title lives in the properties column with type=title, or in a title array, or isn't there at all),
+// and a parent's id is tucked under a parent.<type> key whose name changes. Keeping the conversion
+// here means the 18 operations don't each have to guess it separately.
 
 import (
 	"sort"
@@ -80,10 +81,11 @@ type searchResult struct {
 	Properties     map[string]any `json:"properties"`
 }
 
-// —— 转换 ——
+// —— Conversion ——
 
-// pageTitle：页面标题 = properties 里那个 type=title 的列。
-// 库外的普通页面同样如此（它有一个隐藏的 title 列），所以不必分情况。
+// pageTitle: a page's title is the properties column with type=title.
+// An ordinary page outside any database works the same way (it has a hidden title column too),
+// so there's no need to special-case it.
 func pageTitle(props map[string]any) string {
 	for _, v := range props {
 		m, ok := v.(map[string]any)
@@ -95,7 +97,8 @@ func pageTitle(props map[string]any) string {
 	return ""
 }
 
-// titleColumn：标题列的列名（写标题时要用它当键——每个库的叫法不同，「名称」「Name」「任务」都有）。
+// titleColumn: the name of the title column (use it as the key when writing a title — every
+// database calls it something different, e.g. "Name", "名称", "任务").
 func titleColumn(specs map[string]propType) string {
 	for name, s := range specs {
 		if s.Type == "title" {
@@ -105,11 +108,11 @@ func titleColumn(specs map[string]propType) string {
 	return ""
 }
 
-// richTitle：title 数组（数据库/数据源的名字）→ 纯文本。
+// richTitle converts a title array (a database/data source's name) to plain text.
 func richTitle(t []any) string { return plainText(t) }
 
-// parentOf：parent 对象 → (类别, id)。id 的键名跟着类别变（page_id / data_source_id / …），
-// 所以不能写死一个键去取。
+// parentOf converts a parent object to (kind, id). The id's key name changes with the kind
+// (page_id / data_source_id / ...), so it can't be read off a fixed key.
 func parentOf(p map[string]any) (kind, id string) {
 	if p == nil {
 		return "", ""
@@ -124,7 +127,7 @@ func parentOf(p map[string]any) (kind, id string) {
 	return t, ""
 }
 
-// iconOf：图标 → emoji 或图片地址。
+// iconOf converts an icon to an emoji or image URL.
 func iconOf(icon map[string]any) string {
 	if icon == nil {
 		return ""
@@ -144,7 +147,7 @@ func iconOf(icon map[string]any) string {
 	return ""
 }
 
-// toPageItem：页面 → 列表元素（属性已归一化）。
+// toPageItem converts a page to a list item (properties already normalized).
 func toPageItem(p notionPage) schema.PageItem {
 	kind, pid := parentOf(p.Parent)
 	return schema.PageItem{
@@ -156,12 +159,12 @@ func toPageItem(p notionPage) schema.PageItem {
 	}
 }
 
-// toUser：成员。
+// toUser converts a workspace member.
 func toUser(u notionUser) schema.User {
 	return schema.User{ID: u.ID, Name: u.Name, Type: u.Type, Email: u.Person.Email, AvatarURL: u.AvatarURL}
 }
 
-// toComment：评论。
+// toComment converts a comment.
 func toComment(c notionComment) schema.Comment {
 	return schema.Comment{
 		ID: c.ID, DiscussionID: c.DiscussionID, Text: plainText(c.RichText),
@@ -169,7 +172,8 @@ func toComment(c notionComment) schema.Comment {
 	}
 }
 
-// toPropSpecs：表结构 → 契约里的列清单（按列名排序，免得每次调用顺序都不一样）。
+// toPropSpecs converts a schema to the contract's column list (sorted by column name so the
+// order doesn't change from call to call).
 func toPropSpecs(raw map[string]any) []schema.PropSpec {
 	parsed := parseProps(raw)
 	names := make([]string, 0, len(parsed))

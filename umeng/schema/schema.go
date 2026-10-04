@@ -1,11 +1,15 @@
-// Package schema 声明 umeng（友盟推送 U-Push）插件的契约。
+// Package schema declares the contract for the umeng (Umeng push / U-Push) plugin.
 //
-// 定位：App 推送的另一半通道——你的推送架构是阿里云推送 + 友盟**双通道并发**
-// （参照的推送服务的既有形态），阿里那半在 aliyun 插件里，这里补友盟。
+// Scope: the other half of the app push channel — the push architecture is Aliyun Push
+// plus Umeng running **concurrently on two channels** (following the existing shape of
+// the referenced push service); the Aliyun half lives in the aliyun plugin, this one
+// fills in Umeng.
 //
-// 友盟的平台约定决定契约形状：**Android 与 iOS 在友盟里是两个 App**（各一对
-// appkey/master secret），payload 形状也完全不同（Android 自有格式，iOS 是 APNs
-// aps 结构）——所以凭证四个字段按平台分组，操作里选平台。
+// Umeng's platform conventions shape the contract: **Android and iOS are two separate
+// apps in Umeng** (each with its own appkey/master secret pair), and the payload shapes
+// are also completely different (Android has its own format, iOS uses the APNs aps
+// structure) — so the credential's four fields are grouped by platform, and operations
+// select the platform.
 package schema
 
 import (
@@ -13,7 +17,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// Push 推送。
+// Push sends a notification.
 type Push struct{}
 
 func (Push) Meta() contract.Meta {
@@ -44,7 +48,7 @@ func (Push) Outputs() []contract.FieldSpec {
 	}
 }
 
-// TaskStatus 查任务状态。
+// TaskStatus queries a task's status.
 type TaskStatus struct{}
 
 func (TaskStatus) Meta() contract.Meta {
@@ -69,7 +73,7 @@ func (TaskStatus) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Cancel 撤销任务。
+// Cancel cancels a task.
 type Cancel struct{}
 
 func (Cancel) Meta() contract.Meta {
@@ -89,7 +93,7 @@ func (Cancel) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("ok").Label("成功")}
 }
 
-// HealthCheck 平台约定的凭证体检。
+// HealthCheck is the platform-conventional credential health check.
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -106,7 +110,8 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential：Android 与 iOS 是友盟里的两个 App，按平台两组钥匙，都选填。
+// Credential: Android and iOS are two separate apps in Umeng, so there are two key
+// groups by platform, both optional.
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

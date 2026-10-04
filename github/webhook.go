@@ -1,17 +1,23 @@
 package main
 
-// 平台代收 webhook（零延迟版事件；与 events.go 的轮询源二选一）：
-// GitHub 仓库 Settings→Webhooks 指向平台的 /hooks/{token}，Content type 选 application/json。
+// The platform receives webhooks directly here (the zero-latency event path; pick either this
+// or the polling source in events.go): point the GitHub repo's Settings -> Webhooks at the
+// platform's /hooks/{token}, with Content type set to application/json.
 //
-// 验签：GitHub 用 **HMAC-SHA256** 签整个请求体，放在 X-Hub-Signature-256 头里，
-// 形如 sha256=<hex>。这与 GitLab 的「明文 token 比对」不是一回事——照抄 GitLab 的写法
-// 会永远验不过。比对必须用 hmac.Equal（常数时间），普通 == 会泄漏时序信息。
+// Signature verification: GitHub signs the whole request body with **HMAC-SHA256** and puts it
+// in the X-Hub-Signature-256 header as sha256=<hex>. This is not the same scheme as GitLab's
+// "compare a plaintext token" approach — copying GitLab's code here will never verify
+// successfully. The comparison must use hmac.Equal (constant-time); a plain == leaks timing
+// information.
 //
-// event_id 直接用 **X-GitHub-Delivery**：GitHub 给每次投递一个 UUID，而**重投时沿用同一个**，
-// 正好就是平台去重想要的语义——不用自己按对象 id + 时间戳拼一个脆弱的键。
+// event_id is simply **X-GitHub-Delivery**: GitHub assigns each delivery a UUID, and
+// **redeliveries reuse the same one** — which is exactly the dedup semantics the platform
+// wants, so there's no need to build a fragile key out of object id + timestamp ourselves.
 //
-// 与轮询源**故意不同源**（轮询用 poll: 前缀）：两条都开时同一个动作会各触发一次，
-// 文档写明二选一，不在这里硬去重（两边的 id 不同域，硬拼会造出脆弱的映射）。
+// This is **intentionally a separate source** from the polling path (which uses the poll:
+// prefix): with both enabled, the same action fires twice. The docs say to pick one; we don't
+// try to hard-dedupe here since the two sides' ids live in different domains and forcing them
+// together would produce a fragile mapping.
 
 import (
 	"crypto/hmac"
@@ -36,7 +42,8 @@ func handleWebhook(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) sokel.Webhoo
 	if json.Unmarshal(req.Body, &body) != nil {
 		return sokel.Text(400, "bad payload")
 	}
-	// GitHub 在你保存 webhook 配置时立刻发一条 ping——回 200 它才显示成绿色。
+	// GitHub sends a ping immediately when you save the webhook config — it only shows green
+	// once we reply 200.
 	if event == "ping" {
 		return sokel.Text(200, "pong")
 	}
@@ -55,7 +62,8 @@ func handleWebhook(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) sokel.Webhoo
 			_ = TriggerPrReviewSubmitted(ctx, "wh:"+delivery, &PrReviewSubmittedEvent{
 				Repo: repo, Number: num(pr, "number"), Title: str(pr, "title"),
 				Reviewer: nested(rv, "user", "login"),
-				// GitHub 这里给的是大写 APPROVED/CHANGES_REQUESTED，契约里说的是小写——统一掉
+				// GitHub sends these uppercase (APPROVED/CHANGES_REQUESTED) but the contract
+				// uses lowercase — normalize it
 				State: strings.ToLower(str(rv, "state")),
 				Body:  clip(str(rv, "body"), 4000), HeadSHA: nested(pr, "head", "sha"),
 				URL: str(rv, "html_url"), Source: "webhook",
@@ -87,16 +95,18 @@ func handleWebhook(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) sokel.Webhoo
 			})
 		}
 	}
-	// 认不出的事件类型也回 200：GitHub 按仓库配置会发一堆类型，非 2xx 会让它反复重试，
-	// 而且连发几次失败之后 GitHub 会把这个 webhook 整个停掉。
+	// Reply 200 for event types we don't recognize too: depending on the repo config GitHub
+	// sends many types, a non-2xx makes it retry repeatedly, and after enough consecutive
+	// failures GitHub disables the whole webhook.
 	return sokel.OK()
 }
 
-// verifySignature 验 HMAC-SHA256 签名。
+// verifySignature checks the HMAC-SHA256 signature.
 //
-// 凭证没配 secret 则跳过校验（内网/私有仓库可接受，文档写明了风险）。
-// 配了 secret 但请求没带签名 → 拒：那说明 GitHub 那侧没填 secret，两边不一致，
-// 这时放行等于假装验过了。
+// If the credential has no secret configured, verification is skipped (acceptable for
+// internal/private repos; the docs call out the risk). If a secret is configured but the
+// request carries no signature, reject it: that means the GitHub side wasn't given the secret,
+// the two sides disagree, and letting it through would be pretending we verified it.
 func verifySignature(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) (sokel.WebhookResponse, bool) {
 	secret := strings.TrimSpace(ctx.Credential()["webhook_secret"])
 	if secret == "" {
@@ -107,7 +117,7 @@ func verifySignature(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) (sokel.Web
 		return sokel.Text(401, "missing signature (webhook secret configured on this credential)"), false
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(req.Body) // 必须是**原始字节**——重新编码过的 JSON 算出来的签名对不上
+	mac.Write(req.Body) // must be the **raw bytes** — a signature computed over re-encoded JSON won't match
 	want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(got), []byte(want)) {
 		return sokel.Text(401, "bad signature"), false
@@ -117,7 +127,8 @@ func verifySignature(ctx sokel.WebhookCtx, req *sokel.WebhookRequest) (sokel.Web
 
 func emitPush(ctx sokel.WebhookCtx, delivery, repo string, body map[string]any) {
 	after := str(body, "after")
-	// 删分支也是 push 事件，且 after 全是 0——不判的话下游会去处理一个不存在的提交。
+	// Deleting a branch is also a push event, with `after` all zeros — without this check,
+	// downstream would try to process a commit that doesn't exist.
 	deleted := boolean(body, "deleted")
 	commits := arr(body, "commits")
 	msg := ""
@@ -149,7 +160,8 @@ func emitPullRequest(ctx sokel.WebhookCtx, delivery, repo, action string, body m
 			Source: "webhook",
 		})
 	case "closed":
-		// **closed 不等于 merged**：关掉不合也是 closed。判据是 merged 字段。
+		// **closed does not mean merged**: closing without merging is also "closed". The
+		// `merged` field is the actual criterion.
 		if boolean(pr, "merged") {
 			_ = TriggerPrMerged(ctx, "wh:"+delivery, &PrMergedEvent{
 				Repo: repo, Number: num(pr, "number"), Title: str(pr, "title"),
@@ -160,8 +172,9 @@ func emitPullRequest(ctx sokel.WebhookCtx, delivery, repo, action string, body m
 			})
 		}
 	case "labeled":
-		// PR 被打标签走的是 pull_request 事件，不是 issues——两处都要发，否则
-		// 「给 PR 打标签触发流程」这个很常见的用法会静默失效。
+		// Labeling a PR fires the pull_request event, not issues — we need to emit from both
+		// places, or the very common "trigger a workflow by labeling a PR" use case silently
+		// breaks.
 		_ = TriggerIssueLabeled(ctx, "wh:"+delivery, &IssueLabeledEvent{
 			Repo: repo, Number: num(pr, "number"), Title: str(pr, "title"),
 			Body: clip(str(pr, "body"), 4000), AddedLabel: nestedStr(body, "label", "name"),
@@ -183,8 +196,8 @@ func emitIssues(ctx sokel.WebhookCtx, delivery, repo, action string, body map[st
 			Source: "webhook",
 		})
 	case "labeled":
-		// GitHub 每加一个标签发一次事件，且直接给出这次加的是哪个——
-		// 比 GitLab 那种「自己 diff 前后两个数组」干净得多。
+		// GitHub fires one event per label added, and tells us directly which one was just
+		// added — much cleaner than GitLab's approach of diffing two arrays ourselves.
 		_ = TriggerIssueLabeled(ctx, "wh:"+delivery, &IssueLabeledEvent{
 			Repo: repo, Number: num(iss, "number"), Title: str(iss, "title"),
 			Body: clip(str(iss, "body"), 4000), AddedLabel: nestedStr(body, "label", "name"),
@@ -195,11 +208,12 @@ func emitIssues(ctx sokel.WebhookCtx, delivery, repo, action string, body map[st
 	}
 }
 
-// emitComment 评论。GitHub 用**同一个事件**发 Issue 与 PR 的评论——
-// 靠 issue.pull_request 这个键区分，不区分的话「在 PR 里说句话」也会去派 Issue 的活。
+// emitComment handles comments. GitHub fires **the same event** for both Issue and PR
+// comments — we tell them apart using the issue.pull_request key; without that check, "leaving
+// a comment on a PR" would also fire the Issue trigger.
 func emitComment(ctx sokel.WebhookCtx, delivery, repo, action string, body map[string]any) {
 	if action != "created" {
-		return // 编辑/删除评论不触发，否则机器人会被自己改过的评论反复唤醒
+		return // editing/deleting a comment doesn't trigger, or a bot would keep waking itself up on its own edited comments
 	}
 	iss := obj(body, "issue")
 	cm := obj(body, "comment")
@@ -222,11 +236,12 @@ func emitComment(ctx sokel.WebhookCtx, delivery, repo, action string, body map[s
 	})
 }
 
-// isBot 这条是不是机器人发的。
+// isBot reports whether this was posted by a bot.
 //
-// **ChatOps 必须挡掉**：机器人回复自己的评论会无限循环——这是接 GitHub 机器人第一个踩的坑，
-// 而且循环起来非常快（每轮一次 API 调用，几分钟就能把速率配额打光）。
-// 两个判据都要：type 字段是权威的，名字后缀兜住 type 缺席的老 payload。
+// **ChatOps must filter this out**: a bot replying to its own comments loops forever — this is
+// the first trap people hit when wiring up GitHub bots, and the loop spins fast (one API call
+// per round, enough to burn through the rate limit in minutes). Both checks are needed: the
+// `type` field is authoritative, and the name suffix covers older payloads that lack `type`.
 func isBot(user map[string]any) bool {
 	if strings.EqualFold(str(user, "type"), "Bot") {
 		return true

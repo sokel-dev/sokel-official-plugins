@@ -1,9 +1,10 @@
-// feishu —— Sokel 第一方插件：飞书自建应用的全能力侧。
+// feishu — Sokel's first-party plugin: the full-capability side of a Feishu custom app.
 //
-// 消息/卡片/查人/群管理/云文档/多维表格/网盘 + 长连接事件源（收到消息 / 卡片按钮 /
-// bot 进群 → 起工作流）。群 webhook 机器人是另一个插件（feishu-webhook）。
+// Messages/cards/user lookup/chat management/docs/bitable/drive + a long-connection event
+// source (message received / card button clicked / bot added to a chat -> starts a workflow).
+// The group webhook bot is a separate plugin (feishu-webhook).
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feishu
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./feishu
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
@@ -29,7 +30,7 @@ func main() {
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
 
-	// —— 消息 ——
+	// —— Messages ——
 	OnSendText(p, opSendText)
 	OnSendMarkdown(p, opSendMarkdown)
 	OnSendCard(p, opSendCard)
@@ -40,13 +41,13 @@ func main() {
 	OnUploadImage(p, opUploadImage)
 	OnUploadFile(p, opUploadFile)
 
-	// —— 通讯录 / 群 ——
+	// —— Contacts / chats ——
 	OnGetUser(p, opGetUser)
 	OnListChats(p, opListChats)
 	OnCreateChat(p, opCreateChat)
 	OnAddChatMembers(p, opAddChatMembers)
 
-	// —— 云文档 / 多维表格 / 网盘 ——
+	// —— Docs / Bitable / Drive ——
 	OnDocxCreate(p, opDocxCreate)
 	OnDocxAppend(p, opDocxAppend)
 	OnBitableListRecords(p, opBitableListRecords)
@@ -55,11 +56,11 @@ func main() {
 	OnBitableDeleteRecord(p, opBitableDeleteRecord)
 	OnDriveUpload(p, opDriveUpload)
 
-	// —— 保底 / 体检 ——
+	// —— Fallback / health check ——
 	OnCall(p, opCall)
 	OnHealthCheck(p, opHealthCheck)
 
-	// —— 事件（长连接；per-credential，一条凭证=一个应用=一条连接）——
+	// —— Events (long connection; per-credential, one credential = one app = one connection) ——
 	DeclareEvents(p)
 	sokel.RegisterSource(p, sokel.Source{ID: "events", Label: "飞书长连接事件"}, runEvents)
 
@@ -75,5 +76,5 @@ func env(k, def string) string {
 	return def
 }
 
-// urlQuery query 参数转义（misc/content 共用）。
+// urlQuery escapes a query parameter (shared by misc.go and content.go).
 func urlQuery(s string) string { return url.QueryEscape(s) }

@@ -1,17 +1,18 @@
 package schema
 
-// Issue 域。GitHub 的 Issue 与 PR 共用编号空间与评论接口——这里的操作对 PR 同样有效，
-// 但 IssuesList 默认剔掉 PR（见包顶注第一条）。
+// Issue domain. GitHub Issues and PRs share the same number space and comment API — the
+// operations here work on PRs too, but IssuesList filters out PRs by default (see the first
+// point in the package-level comment).
 //
-// 覆盖的机器人形态：triage/labeler（打标签、指派、进里程碑）、stale-bot（按时间筛 → 评论 → 关闭）、
-// welcome-bot（按作者筛历史）。
+// Bot shapes covered: triage/labeler (labeling, assigning, setting a milestone), stale-bot
+// (filter by time -> comment -> close), welcome-bot (filter history by author).
 
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract"
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// IssuesList Issue 列表。
+// IssuesList lists Issues.
 type IssuesList struct{}
 
 func (IssuesList) Meta() contract.Meta {
@@ -50,7 +51,7 @@ func (IssuesList) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Issue 一条 Issue（PR 也是这个形状）。
+// Issue is a single Issue (a PR has the same shape).
 type Issue struct {
 	Number    int      `sokel:"number" label:"编号"`
 	Title     string   `sokel:"title" label:"标题"`
@@ -68,7 +69,7 @@ type Issue struct {
 	ClosedAt  string   `sokel:"closed_at" label:"关闭时间" desc:"未关闭时为空"`
 }
 
-// IssueGet Issue 详情。
+// IssueGet gets details for a single Issue.
 type IssueGet struct{}
 
 func (IssueGet) Meta() contract.Meta {
@@ -91,7 +92,7 @@ func (IssueGet) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Comment 一条评论。
+// Comment is a single comment.
 type Comment struct {
 	ID        int    `sokel:"id" label:"评论 ID" desc:"改/删评论、加表情都要它"`
 	Author    string `sokel:"author" label:"作者"`
@@ -100,7 +101,7 @@ type Comment struct {
 	CreatedAt string `sokel:"created_at" label:"时间"`
 }
 
-// IssueCreate 开 Issue。
+// IssueCreate opens an Issue.
 type IssueCreate struct{}
 
 func (IssueCreate) Meta() contract.Meta {
@@ -126,7 +127,7 @@ func (IssueCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssueUpdate 改 Issue（含开关）。
+// IssueUpdate updates an Issue (including opening/closing).
 type IssueUpdate struct{}
 
 func (IssueUpdate) Meta() contract.Meta {
@@ -157,7 +158,7 @@ func (IssueUpdate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssueComment 发评论。对 PR 同样有效（GitHub 共用评论接口）。
+// IssueComment posts a comment. Works on PRs too (GitHub shares the comment API).
 type IssueComment struct{}
 
 func (IssueComment) Meta() contract.Meta {
@@ -180,7 +181,7 @@ func (IssueComment) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssueLabel 打/摘标签。labeler 机器人的主操作。
+// IssueLabel adds/removes labels. The main operation for labeler bots.
 type IssueLabel struct{}
 
 func (IssueLabel) Meta() contract.Meta {
@@ -205,7 +206,7 @@ func (IssueLabel) Outputs() []contract.FieldSpec {
 	}
 }
 
-// IssueAssign 指派。
+// IssueAssign assigns/unassigns users.
 type IssueAssign struct{}
 
 func (IssueAssign) Meta() contract.Meta {

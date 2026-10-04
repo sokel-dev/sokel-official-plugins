@@ -1,7 +1,8 @@
 package main
 
-// 插件使用说明：凭证怎么配、每类结构什么时候用、有什么坑。
-// 界面三处读它（凭证弹窗 / 插件详情页 / 节点与 agent 工具的「使用说明」）。
+// Plugin usage doc: how to configure the credential, when to use each data structure, and the gotchas.
+// Three places in the UI read this (the credential dialog / the plugin detail page / the "usage doc" on
+// nodes and agent tools).
 
 const usageDoc = "# Redis\n\n" +
 	"把 Redis 当**工作流的共享内存**：跨运行的计数器、去重集合、状态标记、队列、排行榜，\n" +

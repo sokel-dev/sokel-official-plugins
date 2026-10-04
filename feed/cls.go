@@ -1,14 +1,16 @@
 package main
 
-// 财联社电报适配器。
+// Cailianpress (CLS) telegraph adapter.
 //
-//	GET https://www.cls.cn/api/cache?name=telegraph&<公共参数>&sign=…
+//	GET https://www.cls.cn/api/cache?name=telegraph&<common params>&sign=…
 //
-// **它要签名**：公共参数（appName/os/sv）+ 业务参数按键排序后拼串 → SHA1 → 再 MD5，
-// 结果作为 sign 挂上去。少了它一律被拒——这是财联社唯一的门槛，没有 cookie 也没有登录。
+// **It requires a signature**: common params (appName/os/sv) plus business params are sorted
+// by key, concatenated, run through SHA1, then MD5, and the result is attached as sign. Omit
+// it and every request is rejected — this is CLS's only gate; there's no cookie or login.
 //
-// 签名算法是从 RSSHub 的 cls/utils.ts 学来的（只借鉴知识，没抄代码）。
-// **它会随对方前端版本变**（sv 这个版本号尤其）：哪天全线失败，先看它的 utils.ts 改了没有。
+// The signing algorithm was learned from RSSHub's cls/utils.ts (we borrowed the knowledge,
+// not the code). **It changes along with their frontend version** (especially the sv version
+// number): if everything starts failing one day, check whether their utils.ts changed first.
 
 import (
 	"crypto/md5"
@@ -25,7 +27,8 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// clsSite / clsVersion：**是 var 不是 const**——测试要指到假上游；版本号要能跟着对方升。
+// clsSite / clsVersion: **var, not const** — tests need to point this at a fake upstream, and
+// the version number needs to be bumpable to track theirs.
 var (
 	clsSite    = "https://www.cls.cn"
 	clsVersion = "8.7.9"
@@ -36,7 +39,7 @@ type clsRoll struct {
 	Title    string `json:"title"`
 	Content  string `json:"content"`
 	ShareURL string `json:"shareurl"`
-	Ctime    int64  `json:"ctime"` // 秒
+	Ctime    int64  `json:"ctime"` // seconds
 	Subjects []struct {
 		SubjectName string `json:"subject_name"`
 	} `json:"subjects"`
@@ -50,7 +53,7 @@ func fetchCLS(ctx plugin.Ctx, category string) ([]schema.Item, error) {
 	}
 	path := "/api/cache"
 	if c := strings.TrimSpace(category); c != "" {
-		// 分类电报走另一个接口；留空则是全量电报流。
+		// Categorized telegraphs use a different endpoint; empty means the full telegraph stream.
 		path = "/v1/roll/get_roll_list"
 		q.Set("category", c)
 	} else {
@@ -73,8 +76,9 @@ func fetchCLS(ctx plugin.Ctx, category string) ([]schema.Item, error) {
 		return nil, fmt.Errorf("财联社应答无法解析（前 160 字：%s）: %w", clip(raw, 160), err)
 	}
 	if len(resp.Data.RollData) == 0 {
-		// 签名不对时它回的是空数据而不是报错——所以这里要把「空」说成可能的原因，
-		// 否则表现是「一直没有新内容」，而实际上一条都拉不到。
+		// When the signature is wrong it responds with empty data instead of an error, so
+		// we need to call out "empty" as a possible cause here — otherwise it looks like
+		// "no new content ever," when in fact nothing is being fetched at all.
 		return nil, fmt.Errorf("财联社没给内容（errno=%d %s）：多半是签名参数变了——"+
 			"对照 RSSHub 的 cls/utils.ts 看版本号 sv 是否要升", resp.Errno, resp.Error)
 	}
@@ -85,7 +89,8 @@ func fetchCLS(ctx plugin.Ctx, category string) ([]schema.Item, error) {
 	return items, nil
 }
 
-// clsSign：按键排序拼串 → SHA1 → MD5。**顺序错了签名就废**，所以用 Encode（它按键排序）。
+// clsSign concatenates params sorted by key -> SHA1 -> MD5. **Wrong order ruins the
+// signature**, so we use Encode (which sorts by key).
 func clsSign(q url.Values) string {
 	s1 := sha1.Sum([]byte(q.Encode()))
 	s2 := md5.Sum([]byte(hex.EncodeToString(s1[:])))
@@ -101,7 +106,7 @@ func clsToItem(r clsRoll) schema.Item {
 		Source: "cls_telegraph", DedupKey: "cls:" + id,
 	}
 	if r.Ctime > 0 {
-		// 这里是**秒**（雪球那边是毫秒，别混）。
+		// This is in **seconds** (Xueqiu uses milliseconds — don't mix them up).
 		it.PublishedAt = time.Unix(r.Ctime, 0).UTC().Format(time.RFC3339)
 	}
 	for _, s := range r.Subjects {

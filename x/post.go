@@ -1,6 +1,6 @@
 package main
 
-// 发布：发推、推串、删推。
+// Publishing: post, thread, delete.
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 )
 
-// createResp：POST /2/tweets 的应答。
+// createResp is the response from POST /2/tweets.
 type createResp struct {
 	Data struct {
 		ID   string `json:"id"`
@@ -19,7 +19,8 @@ type createResp struct {
 	} `json:"data"`
 }
 
-// postBody：一次发推的请求体。抽出来是因为推串要连着用它 N 次。
+// postBody is the request body for a single post. Pulled out as its own type because a thread
+// uses it N times in a row.
 type postBody struct {
 	Text          string
 	ReplyToID     string
@@ -62,8 +63,8 @@ func (b postBody) build() (map[string]any, error) {
 		}
 		body["poll"] = map[string]any{"options": polls, "duration_minutes": mins}
 	}
-	// reply_settings 只在非 everyone 时带：X 对这个字段的默认值就是「所有人」，
-	// 显式传 everyone 反而会被某些档位拒掉。
+	// reply_settings is only included when it's not everyone: X's own default for this field is
+	// already "everyone", and explicitly sending everyone gets rejected on some tiers.
 	if rs := strings.TrimSpace(b.ReplySettings); rs != "" && rs != "everyone" {
 		body["reply_settings"] = rs
 	}
@@ -114,14 +115,15 @@ func opPostThread(ctx plugin.Ctx, in *XPostThreadIn) (*XPostThreadOut, error) {
 		}
 		var resp createResp
 		if err := callAPI(ctx, reqOpts{method: http.MethodPost, path: "/tweets", body: body}, &resp); err != nil {
-			// 中途失败**不回滚**：前面几条已经在公开时间线上了，删掉反而是二次破坏。
-			// 把已发出的 id 带在错误里，人能接着串或手工收尾。
+			// A mid-thread failure **doesn't roll back**: the earlier tweets are already public,
+			// and deleting them would just be a second act of damage. Carry the ids already
+			// posted in the error so a person can continue the thread or wrap it up by hand.
 			return nil, fmt.Errorf("推串发到第 %d 条失败（前 %d 条已发出：%s）: %w",
 				i+1, len(ids), strings.Join(ids, ","), err)
 		}
 		ids = append(ids, resp.Data.ID)
 		prev = resp.Data.ID
-		// 最后一条发完不必再等
+		// No need to wait after the last one is posted
 		if i < len(texts)-1 && gap > 0 {
 			t := time.NewTimer(gap)
 			select {

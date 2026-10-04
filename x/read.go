@@ -1,10 +1,12 @@
 package main
 
-// 读：搜索 / 时间线 / 提及 / 列表 / 按 id 取 / 查用户。
+// Reading: search / timeline / mentions / lists / fetch by id / user lookup.
 //
-// 四个列表型操作共用 fetchPosts：**对外是 since_id 游标**（存数据表，跨运行接着来），
-// 对内才用 X 的 next_token 翻页（它一小时就失效，且只在一次搜索会话内有效，
-// 存进数据表下次用必然报错——这正是照抄上游分页会踩的坑）。
+// The four list-style operations share fetchPosts: **externally it's a since_id cursor** (stored
+// in a data table, continuing across runs), and only internally does it use X's next_token for
+// pagination (which expires in an hour and is only valid within a single search session — storing
+// it in a data table is guaranteed to error the next time it's used, exactly the pitfall of copying
+// the upstream's own pagination).
 
 import (
 	"errors"
@@ -23,15 +25,16 @@ import (
 
 const maxPageSize = 100
 
-// —— 授权账号自己是谁 ——
+// —— Who the authorized account is ——
 
 var (
 	meMu    sync.Mutex
-	meCache = map[string]rawUser{} // access_token → 账号
+	meCache = map[string]rawUser{} // access_token -> account
 )
 
-// me：授权账号。提及、发推链接、私信都要它，而它不会变——按 token 缓存，
-// 每次操作都去问一次是纯浪费（还每次都计费：查用户约 $0.01/次）。
+// me returns the authorized account. Mentions, post links, and DMs all need it, and it doesn't
+// change — cached per token, since asking on every operation would be pure waste (and billed every
+// time: looking up a user costs roughly $0.01/call).
 func me(ctx plugin.Ctx) (rawUser, error) {
 	cred := sokel.CredentialAs[Cred](ctx)
 	tok, err := accessToken(cred)
@@ -57,7 +60,8 @@ func me(ctx plugin.Ctx) (rawUser, error) {
 	return resp.Data, nil
 }
 
-// meUsername：只为拼链接用，查不到就算了——发推成功却因为拼不出链接而报错是本末倒置。
+// meUsername is only used to build links; if the lookup fails, just give up on it — failing a
+// successful post because a link couldn't be assembled would be putting the cart before the horse.
 func meUsername(ctx plugin.Ctx) string {
 	u, err := me(ctx)
 	if err != nil {
@@ -66,11 +70,11 @@ func meUsername(ctx plugin.Ctx) string {
 	return u.Username
 }
 
-// —— 列表型读的公共实现 ——
+// —— Shared implementation for list-style reads ——
 
 type pageReq struct {
 	path   string
-	query  url.Values // 端点自己的参数（query / exclude / …）
+	query  url.Values // The endpoint's own parameters (query / exclude / ...)
 	cursor string     // since_id
 	max    int
 }
@@ -81,12 +85,16 @@ type pageResult struct {
 	hasMore    bool
 }
 
-// fetchPosts：翻到攒够 max 条为止，返回时间正序的列表与新游标。
+// fetchPosts pages through results until max items are collected, returning a chronologically
+// ascending list and the new cursor.
 //
-// 三条判断：
-//   - **正序返回**：X 给的是倒序（新的在前），而下游处理顺序应当与事件发生顺序一致。
-//   - **游标取本批最新的 id**：用 meta.newest_id；它在跨页时也是全局最新的那条。
-//   - **空结果不动游标**：原样返回传入的值，否则一轮没有新推文就把进度冲掉了。
+// Three decisions:
+//   - **Returned in ascending order**: X gives results in descending order (newest first), but
+//     downstream processing order should match the order events actually happened.
+//   - **The cursor takes the newest id across the whole batch**: using meta.newest_id, which stays
+//     the globally newest one across pages too.
+//   - **An empty result leaves the cursor untouched**: it's returned as given, otherwise a round
+//     with no new tweets would wipe out progress.
 func fetchPosts(ctx plugin.Ctx, r pageReq) (pageResult, error) {
 	max := r.max
 	if max <= 0 {
@@ -107,7 +115,7 @@ func fetchPosts(ctx plugin.Ctx, r pageReq) (pageResult, error) {
 	for {
 		want := max - len(all)
 		if want <= 0 {
-			hasMore = true // 还没拉完就到量了：下一轮接着来
+			hasMore = true // Hit the limit before pagination was exhausted: continue next round
 			break
 		}
 		q.Set("max_results", strconv.Itoa(pageSize(want, r.path)))
@@ -127,13 +135,15 @@ func fetchPosts(ctx plugin.Ctx, r pageReq) (pageResult, error) {
 			break
 		}
 	}
-	// 倒序拉回来的，按 id 正序给出去（推文 id 单调递增，比按时间字符串排稳）。
+	// Fetched in descending order; given out sorted ascending by id (tweet ids are monotonically
+	// increasing, which sorts more reliably than the created_at string).
 	sort.Slice(all, func(i, j int) bool { return idLess(all[i].ID, all[j].ID) })
 	return pageResult{items: all, nextCursor: newest, hasMore: hasMore}, nil
 }
 
-// pageSize：每页要几条。X 各端点的下限不一样（搜索最低 10、提及最低 5），
-// 低于下限直接 400——「只想要 3 条」这种再正常不过的配置会莫名其妙失败。
+// pageSize decides how many per page. X's endpoints have different minimums (search requires at
+// least 10, mentions at least 5), and going below the minimum is a flat 400 — an entirely
+// reasonable config like "I just want 3" would fail for no apparent reason.
 func pageSize(want int, path string) int {
 	min := 5
 	if strings.Contains(path, "/search/") {
@@ -148,7 +158,8 @@ func pageSize(want int, path string) int {
 	return want
 }
 
-// idLess：推文 id 是雪花号，位数相同则字典序即数值序；位数不同时短的更小。
+// idLess compares tweet ids: they're Snowflake ids, so equal-length strings sort lexically the same
+// as numerically; a shorter string is always smaller.
 func idLess(a, b string) bool {
 	if len(a) != len(b) {
 		return len(a) < len(b)
@@ -160,7 +171,7 @@ func pageOut(res pageResult) ([]schema.Post, string, bool, int) {
 	return res.items, res.nextCursor, res.hasMore, len(res.items)
 }
 
-// —— 各操作 ——
+// —— Individual operations ——
 
 func opSearch(ctx plugin.Ctx, in *XSearchIn) (*XSearchOut, error) {
 	query := strings.TrimSpace(in.Query)
@@ -264,7 +275,8 @@ func opUserGet(ctx plugin.Ctx, in *XUserGetIn) (*XUserGetOut, error) {
 	}
 	err := callAPI(ctx, reqOpts{method: http.MethodGet, path: path, query: q}, &resp)
 	if err != nil {
-		// 账号不存在/已封禁是 X 的 400/404，对「查一下有没有这个人」而言这是答案，不是故障。
+		// A nonexistent/suspended account comes back as X's 400/404, and for "check whether this
+		// person exists" that's an answer, not a failure.
 		var ae *apiError
 		if errors.As(err, &ae) && (ae.Status == http.StatusNotFound || ae.Status == http.StatusBadRequest) {
 			return &XUserGetOut{Found: false}, nil
@@ -277,10 +289,11 @@ func opUserGet(ctx plugin.Ctx, in *XUserGetIn) (*XUserGetOut, error) {
 	return &XUserGetOut{User: toUser(resp.Data), Found: true}, nil
 }
 
-// resolveUserID：用户 id 优先，其次按用户名查一次。
+// resolveUserID prefers a user id, falling back to a username lookup.
 //
-// 两个都空**不默认成授权账号自己**：那会让「漏绑了一个变量」变成「悄悄拉了自己的时间线」，
-// 而它看起来一切正常。
+// When both are empty, this **does not default to the authorized account itself**: that would turn
+// "forgot to bind a variable" into "silently pulling your own timeline", and it would look like
+// everything was working fine.
 func resolveUserID(ctx plugin.Ctx, userID, username string) (string, error) {
 	if id := strings.TrimSpace(userID); id != "" {
 		return id, nil
@@ -301,10 +314,11 @@ func resolveUserID(ctx plugin.Ctx, userID, username string) (string, error) {
 	return resp.Data.ID, nil
 }
 
-// opHealthCheck：这条凭证还活着吗。
+// opHealthCheck checks whether this credential is still alive.
 //
-// **不可用要返回 ok=false 而不是 error**：平台拿它的结论去写凭证状态，
-// 报错的话上层只知道「调用失败」，分不清是凭证坏了还是网络抖了。
+// **Unavailable must return ok=false, not an error**: the platform uses the conclusion to record
+// credential status; returning an error would only tell the caller "the call failed", with no way
+// to tell a broken credential from a network blip.
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	u, err := me(ctx)
 	if err != nil {

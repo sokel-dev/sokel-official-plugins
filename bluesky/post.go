@@ -1,10 +1,12 @@
 package main
 
-// 发布：发帖、帖串、删帖、健康检查。
+// Publishing: post, thread, delete, health check.
 //
-// 一条帖子 = 一条 app.bsky.feed.post 记录。除了正文，三样东西要插件替用户备齐：
-// facets（不给就没有可点的链接，见 richtext.go）、embed（图片或链接卡片）、
-// reply（回复要同时给 root 与 parent，只给 parent 的话整串会散在时间线上各自为政）。
+// A post = one app.bsky.feed.post record. Besides the text, three things must be filled
+// in for the user by the plugin: facets (no clickable links without them, see
+// richtext.go), embed (an image or a link card), and reply (both root and parent must be
+// given — giving only parent leaves the thread scattered across the timeline as unrelated
+// posts).
 
 import (
 	"fmt"
@@ -17,7 +19,7 @@ import (
 
 const maxGraphemes = 300
 
-// postRecord：app.bsky.feed.post 记录。
+// postRecord: an app.bsky.feed.post record.
 type postRecord struct {
 	Type      string    `json:"$type"`
 	Text      string    `json:"text"`
@@ -33,8 +35,9 @@ type strongRef struct {
 	CID string `json:"cid"`
 }
 
-// replyRef：**root 与 parent 都要**。只给 parent 的话，第三条起会被当成新串的开头，
-// 时间线上看到的是一堆互不相干的帖子。
+// replyRef: **both root and parent are required**. Giving only parent makes the third
+// post onward get treated as the start of a new thread, showing up on the timeline as a
+// pile of unrelated posts.
 type replyRef struct {
 	Root   strongRef `json:"root"`
 	Parent strongRef `json:"parent"`
@@ -45,23 +48,23 @@ type createRecordOut struct {
 	CID string `json:"cid"`
 }
 
-// publishOpts：一次发布要的全部东西（帖串复用它）。
+// publishOpts: everything one publish call needs (reused by the thread operation).
 type publishOpts struct {
 	Text    string
 	Langs   string
 	Images  []*plugin.File
 	ImgAlts []string
-	CardURL string    // "-" = 明确不要卡片；"" = 用正文第一个链接
-	Reply   *replyRef // nil = 原创
+	CardURL string    // "-" = explicitly no card; "" = use the first link in the text
+	Reply   *replyRef // nil = original post
 }
 
-// publish：发一条，返回强引用（uri+cid，回复下一条要用）。
+// publish: sends one post, returning a strong ref (uri+cid, needed when replying to it next).
 func publish(ctx plugin.Ctx, o publishOpts) (strongRef, error) {
 	text := strings.TrimSpace(o.Text)
 	if text == "" && len(o.Images) == 0 {
 		return strongRef{}, fmt.Errorf("正文与图片至少要有一样")
 	}
-	// 提前拦下超长：发出去被拒的话，帖串会断在中间，收拾起来比一句提示麻烦得多。
+	// Catch oversized text early: if a send is rejected, a thread breaks in the middle, which is far more trouble to clean up than one upfront message.
 	if n := graphemes(text); n > maxGraphemes {
 		return strongRef{}, fmt.Errorf("正文 %d 个字，超过 Bluesky 的 %d 上限（发帖串请用「发帖串」操作）", n, maxGraphemes)
 	}
@@ -90,14 +93,16 @@ func publish(ctx plugin.Ctx, o publishOpts) (strongRef, error) {
 		}
 		rec.Embed = embed
 	default:
-		// 链接卡片：显式给的优先，其次用正文里的第一个链接；"-" 表示不要。
+		// Link card: an explicit value takes priority, otherwise fall back to the first
+		// link in the text; "-" means don't want one.
 		card := strings.TrimSpace(o.CardURL)
 		if card == "" {
 			card = firstLink
 		}
 		if card != "" && card != "-" {
-			// 抓不到 OG 信息**不算失败**：退回纯文本链接照样发得出去，
-			// 为了一张缩略图把整条发布判死是本末倒置。
+			// Failing to fetch OG info **is not a failure**: falling back to a plain text
+			// link still gets the post sent — failing the whole publish over a missing
+			// thumbnail would be putting the cart before the horse.
 			if embed, err := externalEmbed(ctx, trimTrailingPunct(card)); err == nil {
 				rec.Embed = embed
 			}
@@ -160,7 +165,8 @@ func opPostThread(ctx plugin.Ctx, in *BskyPostThreadIn) (*BskyPostThreadOut, err
 		}
 		ref, err := publish(ctx, o)
 		if err != nil {
-			// 中途失败**不回滚**：前面几条已经在公开时间线上了，删掉是二次破坏。
+			// A mid-thread failure **does not roll back**: the earlier posts are already
+			// public on the timeline, and deleting them would be a second act of damage.
 			return nil, fmt.Errorf("帖串发到第 %d 条失败（前 %d 条已发出：%s）: %w",
 				i+1, len(uris), strings.Join(uris, ","), err)
 		}
@@ -205,7 +211,7 @@ func opPostDelete(ctx plugin.Ctx, in *BskyPostDeleteIn) (*BskyPostDeleteOut, err
 }
 
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
-	// 不用缓存的会话：健康检查的意义就是**真去换一次**。
+	// Don't use the cached session: the whole point of a health check is to **actually exchange a fresh one**.
 	cred := credOf(ctx)
 	s, err := login(ctx, clientFor(cred.Proxy), cred)
 	if err != nil {
@@ -214,10 +220,12 @@ func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	return &HealthCheckOut{OK: true, Handle: s.Handle, Message: "@" + s.Handle}, nil
 }
 
-// replyTo：把用户给的地址变成 reply 引用（要 root + parent）。
+// replyTo: turns the address the user gave into a reply ref (needs root + parent).
 //
-// root 取被回复帖子自己的 root——回复一条已经在串里的帖子时，新帖应当挂在**同一个串的根**下，
-// 而不是把被回复的那条当根。搞错的话，Bluesky 会把它显示成一条新串。
+// root is taken from the replied-to post's own root — when replying to a post that's
+// already part of a thread, the new post should hang off **the same thread's root**,
+// not treat the replied-to post itself as the root. Getting this wrong makes Bluesky
+// display it as a new thread.
 func replyTo(ctx plugin.Ctx, raw string) (*replyRef, error) {
 	uri, err := atURI(ctx, raw)
 	if err != nil {

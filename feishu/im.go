@@ -1,13 +1,15 @@
 package main
 
-// 消息操作。全部走 /open-apis/im/v1/messages 一族。
+// Message operations. All go through the /open-apis/im/v1/messages family.
 //
-// 两个容易踩的飞书约定，集中在这里处理：
+// Two easy-to-miss Feishu conventions are handled here in one place:
 //
-//   - **content 是「JSON 串」不是 JSON**：请求体里的 content 字段要先把
-//     {"text":"…"} 序列化成字符串再塞进去（双重编码）。拼错的表现是 invalid content。
-//   - **发送要带 uuid 幂等键**：工作流节点会重试，不带 uuid 的重试就是重复发消息。
-//     uuid 由平台的运行上下文派生——同一次节点执行重试多少遍都是同一条消息。
+//   - **content is a "JSON string," not JSON**: the content field in the request body must
+//     have {"text":"…"} serialized into a string first, then stuffed in (double encoding).
+//     Getting this wrong shows up as invalid content.
+//   - **sending requires a uuid idempotency key**: workflow nodes retry, and retrying without a
+//     uuid means sending the message twice. The uuid is derived from the platform's run context
+//     — however many times a single node execution retries, it's the same message.
 
 import (
 	"crypto/sha256"
@@ -24,17 +26,19 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// sentMsg /im/v1/messages 应答里我们要的两样。
+// sentMsg holds the two fields we want from the /im/v1/messages response.
 type sentMsg struct {
 	MessageID string `json:"message_id"`
 	ChatID    string `json:"chat_id"`
 }
 
-// sendUUID 发送幂等键：同一次节点执行（run_id+node_id+收方+内容）→ 同一个 uuid，
-// 飞书按它去重（1 小时窗口），工作流重试不会发出第二条。
+// sendUUID is the send idempotency key: the same node execution (run_id+node_id+recipient+
+// content) -> the same uuid, which Feishu dedups by (a 1-hour window), so a workflow retry
+// won't send a second message.
 //
-// **没有运行标识时返回空串（= 不带 uuid）**：试调用/健康检查没有重试语义，
-// 拿恒定键会把「隔几分钟再试一次同文案」错误地去重成不发。
+// **Returns an empty string when there's no run identity (= no uuid attached)**: test calls and
+// health checks have no retry semantics, and a constant key would wrongly dedup away "send the
+// same text again a few minutes later" into not being sent at all.
 func sendUUID(ctx plugin.Ctx, parts ...string) string {
 	run, node := sokel.TraceValue(ctx, "run_id"), sokel.TraceValue(ctx, "node_id")
 	if run == "" {
@@ -48,7 +52,7 @@ func sendUUID(ctx plugin.Ctx, parts ...string) string {
 	return hex.EncodeToString(h.Sum(nil))[:32]
 }
 
-// sendMessage 统一发送：msgType + content（已序列化的 JSON 串）。
+// sendMessage is the unified send path: msgType + content (an already-serialized JSON string).
 func sendMessage(ctx plugin.Ctx, receiveID, receiveIDType, msgType, content string) (*sentMsg, error) {
 	receiveID, receiveIDType = strings.TrimSpace(receiveID), strings.TrimSpace(receiveIDType)
 	if receiveID == "" {
@@ -71,8 +75,9 @@ func sendMessage(ctx plugin.Ctx, receiveID, receiveIDType, msgType, content stri
 	return &m, nil
 }
 
-// guessIDType 类型没填时按前缀猜——飞书的 id 前缀是稳定约定，
-// 猜错的唯一情况（裸邮箱/user_id）也会得到能读懂的报错而不是静默错发。
+// guessIDType guesses from the prefix when the type isn't given — Feishu's id prefixes are a
+// stable convention, and even the one case where guessing can be wrong (a bare email/user_id)
+// still produces a readable error instead of silently sending to the wrong place.
 func guessIDType(id string) string {
 	switch {
 	case strings.HasPrefix(id, "oc_"):
@@ -87,7 +92,7 @@ func guessIDType(id string) string {
 	return "chat_id"
 }
 
-// jsonStr content 的双重编码。
+// jsonStr performs content's double encoding.
 func jsonStr(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
@@ -104,7 +109,8 @@ func opSendText(ctx plugin.Ctx, in *SendTextIn) (*SendTextOut, error) {
 	return &SendTextOut{MessageID: m.MessageID, ChatID: m.ChatID}, nil
 }
 
-// mdCard 把 Markdown 包成单元素卡片（飞书没有裸 markdown 消息类型，lark_md 只活在卡片里）。
+// mdCard wraps Markdown into a single-element card (Feishu has no bare markdown message type;
+// lark_md only exists inside a card).
 func mdCard(title, titleColor, md string) map[string]any {
 	card := map[string]any{
 		"config":   map[string]any{"wide_screen_mode": true},
@@ -208,7 +214,7 @@ func opRecallMessage(ctx plugin.Ctx, in *RecallMessageIn) (*RecallMessageOut, er
 	return &RecallMessageOut{OK: true}, nil
 }
 
-// —— 上传（multipart，typed SDK 处理；这正是引 SDK 最划算的那几处）——
+// —— Uploads (multipart, handled by the typed SDK; exactly where the SDK earns its keep) ——
 
 func uploadImage(ctx plugin.Ctx, f *plugin.File) (string, error) {
 	if f == nil || f.ID == "" {
@@ -267,7 +273,7 @@ func uploadFile(ctx plugin.Ctx, f *plugin.File) (string, error) {
 	return larkcore.StringValue(resp.Data.FileKey), nil
 }
 
-// imFileType 飞书要求按扩展名报类型，认不出的归 stream。
+// imFileType: Feishu requires reporting the type by extension; unrecognized ones fall back to stream.
 func imFileType(name string) string {
 	i := strings.LastIndex(name, ".")
 	if i < 0 {

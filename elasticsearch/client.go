@@ -1,9 +1,10 @@
 package main
 
-// ES REST 调用层。裸 HTTP：JSON in / JSON out，没有 SDK 也没有版本锁。
+// ES REST call layer. Plain HTTP: JSON in / JSON out, no SDK and no version lock.
 //
-// 认证两种：API Key（`Authorization: ApiKey <encoded>`）优先，其次 basic。
-// 两个都不填也允许——自建集群关掉安全模块（或 OpenSearch 的 demo 配置）是常见形态。
+// Two auth modes: API Key (`Authorization: ApiKey <encoded>`) takes priority, basic auth
+// otherwise. Leaving both empty is also allowed — a self-hosted cluster with security
+// disabled (or OpenSearch's demo config) is a common setup.
 
 import (
 	"bytes"
@@ -32,13 +33,14 @@ func baseOf(c Cred) (string, error) {
 		return "", fmt.Errorf("凭证缺地址——填集群地址，如 https://es.internal:9200")
 	}
 	if !strings.HasPrefix(b, "http://") && !strings.HasPrefix(b, "https://") {
-		b = "http://" + b // 只写了 host:port 的按明文补全，报错里也能看出补成了什么
+		b = "http://" + b // plain host:port gets http:// prepended; errors show what it was completed to
 	}
 	return b, nil
 }
 
-// 跳过证书校验要换一个 Transport，但**别每次调用都新建 http.Client**——
-// 那样连接池不复用，每次请求都重新握 TLS。按「跳不跳」两种形态各留一个。
+// Skipping cert verification needs a different Transport, but **don't build a new
+// http.Client on every call** — that would stop the connection pool from being reused and
+// force a fresh TLS handshake on every request. Keep one client for each of the two modes.
 var (
 	clientOnce   sync.Once
 	strictClient *http.Client
@@ -51,7 +53,7 @@ func httpClientFor(c Cred) *http.Client {
 		looseClient = &http.Client{
 			Timeout: 120 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // 凭证显式选择
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // explicit credential choice
 			},
 		}
 	})
@@ -61,9 +63,10 @@ func httpClientFor(c Cred) *http.Client {
 	return strictClient
 }
 
-// esCall 一次 ES 调用。body 为 nil 表示不带请求体。
-// 返回原始字节 + HTTP 状态码——状态码要交给调用方判：ES 用 404 表达
-// 「文档/索引不存在」，那在很多操作里是正常分支而不是错误。
+// esCall makes one ES call. A nil body means no request body is sent.
+// It returns the raw bytes plus the HTTP status code — the caller must interpret the
+// status code: ES uses 404 to mean "document/index not found", which is a normal branch
+// in many operations rather than an error.
 func esCall(ctx plugin.Ctx, method, path string, body any) ([]byte, int, error) {
 	cred := credOf(ctx)
 	base, err := baseOf(cred)
@@ -111,9 +114,10 @@ func applyAuth(req *http.Request, c Cred) {
 	}
 }
 
-// esJSON 调用并把成功应答解成 map；**非 2xx 一律报错**，且把 ES 的
-// error.reason 原文带出来——那句话往往直接说明了问题（字段类型不对、
-// 索引只读、分片没分配），翻译一遍反而丢信息。
+// esJSON makes the call and decodes a successful response into a map; **any non-2xx is
+// always an error**, and ES's own error.reason text is passed through verbatim — it
+// usually states the problem directly (wrong field type, read-only index, unassigned
+// shards), and paraphrasing it would only lose information.
 func esJSON(ctx plugin.Ctx, method, path string, body any) (map[string]any, error) {
 	raw, code, err := esCall(ctx, method, path, body)
 	if err != nil {
@@ -151,7 +155,7 @@ func clip(s string, n int) string {
 	return s[:n] + "…"
 }
 
-// —— 取值帮手：只用于**成功**应答的解构 ——
+// —— value accessors: for decoding **successful** responses only ——
 
 func mapAt(m map[string]any, keys ...string) map[string]any {
 	cur := m
@@ -195,8 +199,10 @@ func listAt(m map[string]any, key string) []any {
 	return l
 }
 
-// indexPath 索引名进路径。逗号分隔的多索引与通配符原样保留（ES 认），
-// 只挡空值与斜杠——后者会把路径切出一段，等于调到别的接口上去。
+// indexPath puts an index name into a path. Comma-separated multi-index lists and
+// wildcards are passed through as-is (ES understands them); it only rejects empty values
+// and slashes — a slash would cut the path into another segment and hit a different
+// endpoint.
 func indexPath(index string) (string, error) {
 	idx := strings.TrimSpace(index)
 	if idx == "" {
@@ -208,8 +214,8 @@ func indexPath(index string) (string, error) {
 	return idx, nil
 }
 
-// esNDJSON _bulk 专用：请求体是 NDJSON 不是 JSON，Content-Type 也得换，
-// 否则 ES 回 406 说不支持的媒体类型。
+// esNDJSON is for _bulk only: the request body is NDJSON, not JSON, so the Content-Type
+// must change too, or ES replies 406 with an unsupported media type error.
 func esNDJSON(ctx plugin.Ctx, path, body string) (map[string]any, error) {
 	cred := credOf(ctx)
 	base, err := baseOf(cred)

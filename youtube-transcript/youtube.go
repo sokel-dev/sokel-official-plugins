@@ -15,27 +15,30 @@ import (
 	"github.com/sokel-dev/sokel-official-plugins/youtube-transcript/schema"
 )
 
-// 取字幕走的是 YouTube **网页客户端自己在用**的那套未公开接口，与 Data API v3 无关：
+// Fetching transcripts uses the same undocumented API **the YouTube web client itself relies on**,
+// unrelated to Data API v3:
 //
-//	① GET  watch?v=<id>                      → 抠出 INNERTUBE_API_KEY（顺带识别风控页）
-//	② POST youtubei/v1/player?key=<key>      → 拿字幕轨清单（captionTracks）
-//	③ GET  <track.baseUrl>                   → timedtext XML，就是字幕内容
+//	① GET  watch?v=<id>                      → extract INNERTUBE_API_KEY (and detect an anti-bot page)
+//	② POST youtubei/v1/player?key=<key>      → get the list of caption tracks (captionTracks)
+//	③ GET  <track.baseUrl>                   → timedtext XML, the actual transcript content
 //
-// 为什么不走 Data API v3：那条路要 key、有配额，而且 captions.download **只能下自己频道的**，
-// 别人的视频一律 403 —— 也就是说它根本做不了这件事。
+// Why not Data API v3: that path needs a key, has a quota, and captions.download **only works for your
+// own channel's videos** — any other video gets a flat 403, meaning it simply can't do this job at all.
 //
-// 客户端伪装成 ANDROID（与参考项目一致）：网页客户端近年会要 PO Token，
-// 而 Android 客户端这条路目前还不要。这是**会被 YouTube 改掉**的东西，
-// 所以常量单独摆在这里，改起来只有一处。
+// The client identifies itself as ANDROID (matching the reference project): the web client has started
+// requiring a PO Token in recent times, while the Android client path still doesn't. This is something
+// **YouTube can change at any time**, which is why the constants are kept isolated here — there's only
+// one place to update.
 
 const (
 	watchURL      = "https://www.youtube.com/watch?v=%s"
 	innertubeURL  = "https://www.youtube.com/youtubei/v1/player?key=%s"
 	defaultUA     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-	healthVideoID = "dQw4w9WgXcQ" // 体检用的公开视频：十几年没下架过，字幕齐全
+	healthVideoID = "dQw4w9WgXcQ" // public video used for health checks: up for over a decade, full transcripts
 )
 
-// innertubeContext：伪装的客户端身份。版本号会过期，过期的症状是 player 接口开始要 PO Token。
+// innertubeContext is the spoofed client identity. The version number does go stale; the symptom is the
+// player endpoint starting to demand a PO Token.
 var innertubeContext = map[string]any{
 	"client": map[string]any{"clientName": "ANDROID", "clientVersion": "20.10.38"},
 }
@@ -45,20 +48,23 @@ var (
 	consentRe = regexp.MustCompile(`name="v" value="(.*?)"`)
 )
 
-// client：一次调用的 HTTP 门面（代理与 UA 来自凭证）。
+// client is the HTTP facade for one call (proxy and UA come from the credential).
 type client struct {
 	http *http.Client
 	ua   string
 }
 
-// newClient：代理有两个来源，**都得管用**。
+// newClient: the proxy can come from two sources, and **both must actually work**.
 //
-//	① 凭证里的「出站代理」——线上正解（住宅代理对付 YouTube 封机房 IP）；
-//	② 进程的 HTTP(S)_PROXY 环境变量——本地开发的正解（国内直连到不了 youtube.com）。
+//	① the credential's "outbound proxy" — the production answer (a residential proxy to get around
+//	   YouTube blocking datacenter IPs);
+//	② the process's HTTP(S)_PROXY environment variables — the local-dev answer (direct connections from
+//	   mainland China can't reach youtube.com).
 //
-// 回落 ProxyFromEnvironment 这一句是必需的：自造的 http.Transport 其 Proxy 字段默认 nil，
-// 那不是「用默认」，是**显式关掉**代理（带 ProxyFromEnvironment 的是 http.DefaultTransport）。
-// 少了它，本地 export 了 HTTPS_PROXY 也连不上，且症状看起来像普通网络故障。
+// Falling back to ProxyFromEnvironment is necessary: a hand-built http.Transport's Proxy field defaults
+// to nil, which isn't "use the default", it's **explicitly disabling** the proxy (http.DefaultTransport
+// is the one that carries ProxyFromEnvironment). Without this, exporting HTTPS_PROXY locally still
+// wouldn't connect, and the symptom would look like an ordinary network failure.
 func newClient(proxy, ua string) (*client, error) {
 	tr := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	if proxy = strings.TrimSpace(proxy); proxy != "" {
@@ -66,7 +72,8 @@ func newClient(proxy, ua string) (*client, error) {
 		if err != nil || u.Host == "" {
 			return nil, fmt.Errorf("代理地址不合法 %q：应形如 http://user:pass@host:port 或 socks5://host:1080", proxy)
 		}
-		tr.Proxy = http.ProxyURL(u) // 凭证优先于环境变量：线上不该被宿主环境悄悄改道
+		// credential wins over env vars: production shouldn't be silently rerouted by the host environment
+		tr.Proxy = http.ProxyURL(u)
 	}
 	if ua = strings.TrimSpace(ua); ua == "" {
 		ua = defaultUA
@@ -76,9 +83,10 @@ func newClient(proxy, ua string) (*client, error) {
 
 func (c *client) do(ctx context.Context, req *http.Request) (string, int, error) {
 	req.Header.Set("User-Agent", c.ua)
-	// Accept-Language 决定 YouTube 返回的**轨道显示名**语言（不影响有哪些轨）。
-	// 钉成 en-US 是为了让 name.runs[0].text 稳定，否则同一个视频在不同出口 IP 下
-	// 显示名会变，下游按名字判断就会飘。
+	// Accept-Language determines the language of the **track display names** YouTube returns (it doesn't
+	// affect which tracks exist). Pinning it to en-US keeps name.runs[0].text stable; otherwise the same
+	// video would show different display names depending on the egress IP, and anything downstream that
+	// matches on the name would drift.
 	req.Header.Set("Accept-Language", "en-US")
 	resp, err := c.http.Do(req.WithContext(ctx))
 	if err != nil {
@@ -92,14 +100,16 @@ func (c *client) do(ctx context.Context, req *http.Request) (string, int, error)
 	return string(b), resp.StatusCode, nil
 }
 
-// errBlocked：风控。单独成一类是因为它的**处置方式和别的错完全不同**——
-// 不是参数写错了，是这台机器的出口 IP 被 YouTube 拒了，唯一的解法是配代理。
+// errBlocked represents an anti-bot block. It's kept as its own category because **the way you handle it
+// is completely different from any other error** — it's not a wrong parameter, it's this machine's egress
+// IP being rejected by YouTube, and the only fix is configuring a proxy.
 func errBlocked(detail string) error {
 	return fmt.Errorf("被 YouTube 风控挡下（%s）。云主机/机房 IP 基本都会撞到这个；"+
 		"解法是在本插件的凭证里配一个**住宅代理**出站。本插件不需要 YouTube 账号，配了代理即可", detail)
 }
 
-// fetchAPIKey 取 watch 页并抠出 InnerTube key，顺带识别同意页与风控页。
+// fetchAPIKey fetches the watch page and extracts the InnerTube key, also detecting a consent page or an
+// anti-bot page along the way.
 func (c *client) fetchAPIKey(ctx context.Context, videoID string) (string, error) {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf(watchURL, videoID), nil)
 	body, status, err := c.do(ctx, req)
@@ -112,7 +122,7 @@ func (c *client) fetchAPIKey(ctx context.Context, videoID string) (string, error
 	if strings.Contains(body, `class="g-recaptcha"`) {
 		return "", errBlocked("返回了人机验证页")
 	}
-	// 欧盟同意页：需要带一个 CONSENT cookie 再来一次。
+	// EU consent page: needs a CONSENT cookie and a retry.
 	if strings.Contains(body, `action="https://consent.youtube.com/s"`) {
 		m := consentRe.FindStringSubmatch(body)
 		if m == nil {
@@ -131,7 +141,7 @@ func (c *client) fetchAPIKey(ctx context.Context, videoID string) (string, error
 	return m[1], nil
 }
 
-// playerResp：player 接口里我们真正要读的那几块。
+// playerResp is the subset of the player endpoint's response that we actually need.
 type playerResp struct {
 	PlayabilityStatus struct {
 		Status string `json:"status"`
@@ -148,7 +158,7 @@ type playerResp struct {
 					SimpleText string `json:"simpleText"`
 				} `json:"name"`
 				LanguageCode   string `json:"languageCode"`
-				Kind           string `json:"kind"` // "asr" = 自动生成
+				Kind           string `json:"kind"` // "asr" = auto-generated
 				IsTranslatable bool   `json:"isTranslatable"`
 			} `json:"captionTracks"`
 			TranslationLanguages []struct {
@@ -158,10 +168,11 @@ type playerResp struct {
 	} `json:"captions"`
 }
 
-// checkPlayability 把 YouTube 的状态码翻译成人话。
+// checkPlayability translates YouTube's status codes into plain language.
 //
-// 这一步是本插件用户体验的大头：这几种情况**都不是插件坏了**，但如果只回一句
-// 「取字幕失败」，用户没有任何办法判断该改什么。
+// This step accounts for most of this plugin's usability: in all of these cases **the plugin itself
+// isn't broken**, but a bare "failed to fetch transcript" would leave the user with no way to figure out
+// what to change.
 func checkPlayability(status, reason string) error {
 	switch status {
 	case "", "OK":
@@ -182,7 +193,7 @@ func checkPlayability(status, reason string) error {
 	return nil
 }
 
-// listTracks 走完 ①② 两步，拿到这个视频的全部字幕轨。
+// listTracks walks through steps ① and ② to get this video's complete list of caption tracks.
 func (c *client) listTracks(ctx context.Context, videoID string) ([]track, error) {
 	key, err := c.fetchAPIKey(ctx, videoID)
 	if err != nil {
@@ -229,13 +240,14 @@ func (c *client) listTracks(ctx context.Context, videoID string) ([]track, error
 		if ct.IsTranslatable {
 			info.TranslationLanguages = transLangs
 		}
-		// 去掉 &fmt=srv3：那个格式是给播放器用的富文本，我们要的是朴素 XML。
+		// Strip &fmt=srv3: that format is rich text meant for the player, we want plain XML.
 		out = append(out, track{Info: info, URL: strings.ReplaceAll(ct.BaseURL, "&fmt=srv3", "")})
 	}
 	return out, nil
 }
 
-// fetchTrack 取一条轨的内容（第 ③ 步）。tlang 非空则要 YouTube 顺便机翻。
+// fetchTrack fetches one track's content (step ③). A non-empty tlang also asks YouTube to machine
+// translate it.
 func (c *client) fetchTrack(ctx context.Context, t track, tlang string, preserveFormatting bool) ([]schema.Snippet, error) {
 	u := t.URL
 	if tlang != "" {
@@ -247,7 +259,8 @@ func (c *client) fetchTrack(ctx context.Context, t track, tlang string, preserve
 		}
 		u += "&tlang=" + url.QueryEscape(tlang)
 	}
-	// PO Token：网页客户端路线的新拦路虎。识别出来明说，别让它退化成一句 XML 解析失败。
+	// PO Token: the new roadblock on the web-client path. Detect it and say so explicitly, rather than
+	// letting it degrade into a bare "XML parse failed".
 	if strings.Contains(u, "&exp=xpe") {
 		return nil, fmt.Errorf("这个视频的字幕要求 PO Token，本插件（与所参考的实现一样）暂时取不到")
 	}

@@ -1,21 +1,25 @@
-// Package schema 声明 linkedin 插件的操作与凭证契约。
+// Package schema declares the operation and credential contracts for the linkedin plugin.
 //
-// 与三个 P0 发布器同一套 publish 契约。LinkedIn 的四件特殊事：
+// Uses the same publish contract as the three P0 publishers. LinkedIn has four quirks:
 //
-//  1. **发的是「个人动态」，不是公司页**。个人号走自助产品「Share on LinkedIn」+
-//     w_member_social，**没有审批**；公司页要 w_organization_social + 合作伙伴计划，
-//     审批周期以周到月计。所以这个插件只做个人号——把两者塞进一个插件，
-//     会让「为什么我发不了公司页」变成一个永远解释不清的问题。
+//  1. **This posts a "personal update", not a company page.** A personal profile goes through the
+//     self-serve "Share on LinkedIn" product + w_member_social, **with no approval needed**; a
+//     company page requires w_organization_social + the partner program, with an approval cycle
+//     measured in weeks to months. So this plugin only handles personal profiles — cramming both
+//     into one plugin would turn "why can't I post to my company page" into a question that can
+//     never be explained well.
 //
-//  2. **正文不认 Markdown 也不认 HTML**，是纯文本 + 换行。链接会被 LinkedIn 自动识别并
-//     生成卡片（不用自己拼），但**@提及要用 URN**，不是 @名字——所以本插件不做提及。
+//  2. **The body accepts neither Markdown nor HTML** — it's plain text + line breaks. Links are
+//     auto-detected by LinkedIn and turned into cards (no need to build them yourself), but
+//     **@mentions require a URN**, not an @name — so this plugin doesn't support mentions.
 //
-//  3. **图片要先注册再上传**（initializeUpload → PUT 二进制 → 拿 URN），
-//     和别家「传完拿 id」不是一个形状。
+//  3. **Images must be registered before uploading** (initializeUpload → PUT the binary → get a
+//     URN back), not the same shape as other platforms' "upload, get an id back".
 //
-//  4. **访问令牌 60 天到期，且多数自助应用拿不到 refresh_token**。
-//     到期就得人再授权一次——凭证的健康检查会在它失效时把状态标成 invalid，
-//     「凭证失效」告警会响，不至于悄悄失灵（见 dev-playbook §4.4）。
+//  4. **The access token expires in 60 days, and most self-serve apps can't get a refresh_token.**
+//     Expiry requires a human to reauthorize — the credential's health check marks it invalid when
+//     it fails, and the "credential invalid" alert fires, so it doesn't fail silently (see
+//     dev-playbook §4.4).
 package schema
 
 import (
@@ -24,7 +28,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// PostCreate 发一条动态。
+// PostCreate posts a single update.
 type PostCreate struct{}
 
 func (PostCreate) Meta() contract.Meta {
@@ -53,7 +57,7 @@ func (PostCreate) Outputs() []contract.FieldSpec {
 	}
 }
 
-// PostDelete 删一条动态。
+// PostDelete deletes a single update.
 type PostDelete struct{}
 
 func (PostDelete) Meta() contract.Meta {
@@ -71,7 +75,7 @@ func (PostDelete) Outputs() []contract.FieldSpec {
 	return []contract.FieldSpec{field.Bool("deleted").Label("已删除")}
 }
 
-// HealthCheck 凭证还能用吗（平台约定的操作 id）。
+// HealthCheck checks whether the credential still works (the platform-mandated operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -89,14 +93,15 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 type Credential struct{}
 
-// AuthMeta：LinkedIn OAuth。
+// AuthMeta: LinkedIn OAuth.
 //
-// **只申请发个人动态要的那几个**：openid/profile 用来拿账号 URN（发帖的 author 必须是它），
-// w_member_social 才是发帖权限。不申请 w_organization_social——那个要合作伙伴审批，
-// 混在这儿会让整个授权页过不了。
+// **Only requests what's needed to post a personal update**: openid/profile fetch the account
+// URN (which a post's author must be), and w_member_social is the actual posting permission.
+// w_organization_social isn't requested — that needs partner approval, and mixing it in here
+// would make the whole authorization screen fail.
 func (Credential) AuthMeta() contract.AuthMeta {
 	return auth.OAuth("linkedin", "openid", "profile", "w_member_social")
 }

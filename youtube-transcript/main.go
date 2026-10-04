@@ -1,9 +1,10 @@
-// youtube-transcript —— 取 YouTube 字幕的第一方插件（Go 实现）。
+// youtube-transcript — a first-party plugin for fetching YouTube transcripts (Go implementation).
 //
-// 取数思路参考 Python 的 jdepoix/youtube-transcript-api：走 YouTube 网页客户端自己在用的
-// 那套未公开接口，不要 API key、不要浏览器。契约与取舍见 schema/schema.go 顶部。
+// The fetching approach is modeled on the Python jdepoix/youtube-transcript-api: it uses the same
+// undocumented API the YouTube web client itself relies on, needing no API key and no browser. See the
+// top of schema/schema.go for the contract and design tradeoffs.
 //
-// 运行：SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./youtube-transcript
+// Run: SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx ./youtube-transcript
 package main
 
 //go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen

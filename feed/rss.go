@@ -1,14 +1,18 @@
 package main
 
-// RSS/Atom 适配器：**输入是 XML，输出是 JSON**。
+// RSS/Atom adapter: **input is XML, output is JSON**.
 //
-// XML 只是我们与外界的接口格式，不外泄给下游——给下游 XML 等于让每个节点都先解一次。
+// XML is only our interface format with the outside world; it never leaks to downstream nodes —
+// handing XML downstream would mean every node has to parse it itself.
 //
-// 三条容错是必需的（国内源尤其）：
-//   - **编码**：不少站点是 GBK，按 UTF-8 解会得到一串乱码（见 charset.go）；
-//   - **RSS 与 Atom 字段名不同**（item/entry、pubDate/updated、description/summary），
-//     一个解析器要同时认，否则「换个源就空了」；
-//   - **非严格模式**：国内源里非法实体（&nbsp; 之类）很常见，严格模式会整份解不动。
+// Three tolerances are necessary (especially for domestic feeds):
+//   - **Encoding**: plenty of sites use GBK, which would come out garbled if parsed as UTF-8
+//     (see charset.go);
+//   - **RSS and Atom use different field names** (item/entry, pubDate/updated,
+//     description/summary); one parser has to recognize both, otherwise "switch feeds and it's
+//     empty";
+//   - **Non-strict mode**: invalid entities (like &nbsp;) are common in domestic feeds; strict
+//     mode would fail to parse the whole document.
 
 import (
 	"encoding/xml"
@@ -42,14 +46,15 @@ type rssItem struct {
 	PubDate     string     `xml:"pubDate"`
 	Updated     string     `xml:"updated"`
 	Published   string     `xml:"published"`
-	// 作者：**RSS 与 Atom 不能各写一个字段**——encoding/xml 不允许 `author` 与 `author>name`
-	// 同时存在（会整份解析失败）。用一个嵌套结构同时接住两种形状。
+	// Author: **can't have a separate field for RSS and one for Atom** — encoding/xml
+	// doesn't allow `author` and `author>name` to coexist (the whole parse would fail).
+	// Use a single nested struct that catches both shapes.
 	Author     authorField `xml:"author"`
 	Creator    string      `xml:"creator"` // dc:creator
 	Categories []string    `xml:"category"`
 }
 
-// authorField：Atom 是 <author><name>老王</name></author>，RSS 是 <author>a@b.com</author>。
+// authorField: Atom uses <author><name>Alice</name></author>, RSS uses <author>a@b.com</author>.
 type authorField struct {
 	Name string `xml:"name"`
 	Text string `xml:",chardata"`
@@ -62,7 +67,7 @@ func (a authorField) value() string {
 	return strings.TrimSpace(a.Text)
 }
 
-// atomLink：RSS 的是 <link>地址</link>，Atom 的是 <link href="…"/>。两种都要认。
+// atomLink: RSS uses <link>url</link>, Atom uses <link href="…"/>. Both need to be recognized.
 type atomLink struct {
 	Href string `xml:"href,attr"`
 	Text string `xml:",chardata"`
@@ -128,8 +133,9 @@ func toItem(e rssItem, source string) schema.Item {
 	return it
 }
 
-// parseTime：RSS 用 RFC1123，Atom 用 RFC3339，还有一堆源两者都不守。
-// **认不出就留空，不猜**——猜错会让游标跳过真实的新条目。
+// parseTime: RSS uses RFC1123, Atom uses RFC3339, and plenty of feeds follow neither.
+// **If it can't be recognized, leave it blank — don't guess**: guessing wrong makes the cursor
+// skip genuinely new items.
 func parseTime(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -148,15 +154,18 @@ func parseTime(s string) string {
 
 var (
 	tagRe = regexp.MustCompile(`(?s)<[^>]*>`)
-	// 行内标签**去掉不留空格**：搜索结果的高亮是 <em>，按块级标签那样换成空格的话，
-	// 「贵州<em>茅台</em>三季报」会变成「贵州 茅台 三季报」——中文里那两个空格很扎眼。
+	// Inline tags are **removed without leaving a space**: search-result highlighting uses
+	// <em>, and replacing it with a space the way block-level tags are handled would turn
+	// "贵州<em>茅台</em>三季报" into "贵州 茅台 三季报" — those two spaces stand out badly
+	// in Chinese text.
 	inlineTagRe = regexp.MustCompile(`(?is)</?(em|strong|b|i|u|span|mark|font)[^>]*>`)
 	imgRe       = regexp.MustCompile(`(?i)<img[^>]+src\s*=\s*["']([^"']+)["']`)
 	wsRe        = regexp.MustCompile(`\s+`)
 )
 
-// plainText：摘要给的是纯文本——下游「喂给模型」「发通知」时要的是这个，
-// 而 RSS 的 description 里常常是一整坨 HTML。正文 HTML 另有字段，不丢。
+// plainText produces the plain text used for the summary — what downstream consumers ("feed
+// to a model", "send a notification") want, whereas an RSS description is often a blob of raw
+// HTML. The HTML body is kept in a separate field, so nothing is lost.
 func plainText(html string) string {
 	s := inlineTagRe.ReplaceAllString(html, "")
 	s = tagRe.ReplaceAllString(s, " ")

@@ -1,7 +1,8 @@
 package main
 
-// 使用说明：真的 markdown 文件，编译期 embed 进来（见 docs/dev-playbook.md §5.0.0）。
-// 随注册握手上报给平台，界面上「使用说明」看到的就是它。
+// Usage doc: a real markdown file, embedded at compile time (see docs/dev-playbook.md §5.0.0).
+// Reported to the platform during the registration handshake; what the UI shows as "usage doc" is
+// exactly this file.
 
 import _ "embed"
 

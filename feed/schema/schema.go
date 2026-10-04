@@ -1,22 +1,31 @@
-// Package schema 声明 feed 插件的操作与凭证契约。
+// Package schema declares the feed plugin's operation and credential contracts.
 //
-// **Feed 订阅的统一入口**：一个操作、多个来源（vendor），产出同一个 Item 形状。
-// 借鉴 RSSHub 的两条判断，但**不依赖它的服务**：
+// **The unified entry point for feed subscriptions**: one operation, many sources (vendors),
+// producing the same Item shape. Borrows two design decisions from RSSHub, but **does not
+// depend on its service**:
 //
-//  1. **统一条目形状**——十个来源归一到一份契约，画布上换来源不用改下游。
-//     这与本平台搜索插件（五家上游归一）、发布器（七家同一套 publish）是同一条路子。
-//  2. **一源一适配器**——加一家 = 加一个 adapter 文件，契约不动。
+//  1. **Uniform item shape** — ten sources normalized into one contract, so switching sources
+//     on the canvas doesn't require changing anything downstream. This is the same approach as
+//     this platform's search plugin (five upstreams normalized) and publisher (seven providers
+//     behind one publish).
+//  2. **One adapter per source** — adding a source = adding one adapter file, the contract
+//     doesn't change.
 //
-// 与 RSSHub 的两处**有意不同**：
+// Two places where we **intentionally differ** from RSSHub:
 //
-//   - **产出 JSON 不是 XML**。RSS 是它的输出格式，而我们的下游是工作流节点——
-//     给 XML 等于让每个下游都先解一次。要 RSS 的话在画布上加一步转换（暂时不需要）。
-//   - **不把 RSSHub 当运行时依赖**。它的 1000+ route 是它十年攒的资产也是它全部的维护成本；
-//     我们只借鉴「它怎么取数」这件知识（如雪球走 api.xueqiu.com 的 user_timeline，
-//     而不是爬网页），自己实现少而准的几家。
+//   - **Produces JSON, not XML.** RSS is its output format, but our downstream consumers are
+//     workflow nodes — handing them XML would mean every downstream node has to parse it first.
+//     Add a conversion step on the canvas if RSS is ever needed (not currently required).
+//   - **Doesn't treat RSSHub as a runtime dependency.** Its 1000+ routes are ten years of
+//     accumulated assets for it and also its entire maintenance cost; we only borrow the
+//     knowledge of "how it fetches data" (e.g. Xueqiu goes through api.xueqiu.com's
+//     user_timeline rather than scraping web pages), and implement a small, accurate set of
+//     sources ourselves.
 //
-// **增量游标是不透明串**（内含时间戳 + 最近见过的 id），调用方原样存回数据表即可——
-// 只按时间戳会漏掉同秒的条目，只按 id 集合会无限膨胀，两者合起来才既不漏也不重。
+// **The incremental cursor is an opaque string** (containing a timestamp + recently seen ids);
+// the caller just stores it back into a data table as-is — relying on the timestamp alone would
+// miss items published in the same second, relying on an id set alone would grow without bound,
+// and combining both avoids dropping or repeating items.
 package schema
 
 import (
@@ -24,7 +33,7 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/contract/field"
 )
 
-// Fetch 拉一个来源的增量。
+// Fetch pulls incremental content from one source.
 type Fetch struct{}
 
 func (Fetch) Meta() contract.Meta {
@@ -64,7 +73,8 @@ func (Fetch) Outputs() []contract.FieldSpec {
 	}
 }
 
-// HealthCheck 来源还活着吗（平台约定的操作 id）。
+// HealthCheck checks whether the source is still reachable (the platform's conventional
+// operation id).
 type HealthCheck struct{}
 
 func (HealthCheck) Meta() contract.Meta {
@@ -82,10 +92,11 @@ func (HealthCheck) Outputs() []contract.FieldSpec {
 	}
 }
 
-// Credential 凭证契约。
+// Credential is the credential contract.
 //
-// **多数来源不需要凭证**：RSS 是公开地址，雪球的读接口只要一个匿名令牌（插件自己取）。
-// 这里的字段都是「取不到/连不上时的退路」。
+// **Most sources don't need a credential**: RSS is a public URL, and Xueqiu's read API only
+// needs an anonymous token (which the plugin obtains itself). The fields here are all fallbacks
+// for "can't fetch it / can't connect."
 type Credential struct{}
 
 func (Credential) CredentialFields() []contract.FieldSpec {

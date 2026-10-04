@@ -1,33 +1,37 @@
-# telegram-bot — Telegram Bot 的发送/操作侧（第一方自部署插件）
+# telegram-bot — the send/operate side of a Telegram Bot (first-party self-hosted plugin)
 
-16 个操作（发消息/图片/文件、编辑、删除、按钮应答、webhook 管理…）+ 4 个事件
-（收到消息 / 消息被编辑 / 按钮点击 / bot 成员状态变化）。
-面向用户的说明书是 [docs/telegram-bot.md](docs/telegram-bot.md)。
+16 operations (send message/photo/document, edit, delete, answer callback query, webhook
+management…) + 4 events (message received / message edited / button tapped / bot membership
+status changed).
+The user-facing manual is [docs/telegram-bot.md](docs/telegram-bot.md).
 
-## 两条设计判断
+## Two design decisions
 
-1. **一个通用 `call` + 一组 typed 便捷操作**。`call` 收 `method` + `params`，
-   覆盖**整个** Bot API——Telegram 加新方法时这里零改代码；而常用的那十几个另做成
-   typed 操作，因为画布上要的是「填字段」而不是「拼 JSON」。两者并存不是重复：
-   前者保底，后者好用。
-2. **bot_token 绝不进节点入参与输出**。它只在插件内部拼进 URL 路径——
-   token 一旦出现在入参里，就会跟着运行记录、画布变量、日志四处扩散，而那是收不回来的。
+1. **One generic `call` + a set of typed convenience operations.** `call` takes `method` + `params`
+   and covers the **entire** Bot API — when Telegram adds a new method, this needs zero code
+   change. The dozen or so commonly used ones are also built as typed operations, because what the
+   canvas needs is "fill in fields", not "hand-assemble JSON". The two aren't redundant: one is the
+   fallback, the other is the convenient path.
+2. **bot_token never goes into a node's inputs or outputs.** It's only spliced into the URL path
+   inside the plugin — once a token shows up in an input, it spreads through run records, canvas
+   variables, and logs, and that can't be undone.
 
-## 定位：只做「发送/操作」这一半
+## Scope: only the "send/operate" half
 
-一个全功能 TG bot 分两半——发送/操作（本插件，纯出站调 `api.telegram.org`）与
-接收/触发（收到消息 → 起工作流）。后者靠平台的**事件源**机制（`updates.go` 里的长轮询），
-而不是让用户去公网架 webhook。
+A full-featured TG bot splits into two halves — send/operate (this plugin, pure outbound calls to
+`api.telegram.org`) and receive/trigger (a message comes in → a workflow starts). The latter relies
+on the platform's **event source** mechanism (the long poll in `updates.go`), rather than making
+the user stand up a public webhook.
 
-## 文件
+## Files
 
-| 文件 | 干什么 |
+| File | What it does |
 |---|---|
-| `schema/` | 契约（事实源） |
-| `updates.go` | 事件源：getUpdates 长轮询 → 四类事件 |
-| `webhook_ops.go` | webhook 的设置/查询/删除（与长轮询二选一，别同时开） |
+| `schema/` | Contracts (source of truth) |
+| `updates.go` | Event source: getUpdates long poll → 4 event types |
+| `webhook_ops.go` | Set/query/delete the webhook (mutually exclusive with long polling — don't run both) |
 
-## 开发
+## Development
 
 ```bash
 go generate ./... && go build ./... && go vet ./... && go test -race ./...

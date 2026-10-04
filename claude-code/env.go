@@ -1,19 +1,22 @@
 package main
 
-// 部署配置：插件进程的环境变量。
+// Deployment config: environment variables for the plugin process.
 //
-// 与凭证的分工是一条线：**凭证回答「用谁的额度」，环境回答「这台机器能干什么」。**
-// 仓库怎么克隆、工作区放哪、claude 在哪、走不走代理、允不允许碰工作区之外的目录——
-// 这些全是后者。它们由部署这台机器的人定，而不是由在画布上选凭证的人定。
+// The split with credentials is a clean line: **credentials answer "whose quota to use", environment
+// answers "what this machine is allowed to do".** How the repo gets cloned, where the workspace lives,
+// where claude is, whether to go through a proxy, whether directories outside the workspace are allowed —
+// all of that is the latter. These are set by whoever deploys this machine, not by whoever picks a
+// credential on the canvas.
 //
-//	SOKEL_CC_GIT_BASE      GitLab 根地址（如 https://git.example.com）
-//	SOKEL_CC_GIT_TOKEN     克隆/推送令牌。**不设就用这台机器上 git 自己的认证**
-//	                       （credential helper / .netrc / SSH），这是更干净的做法
-//	SOKEL_CC_WORKSPACE     仓库与工作树放哪，默认 <临时目录>/sokel-claude-code
-//	SOKEL_CC_CLAUDE_BIN    claude 可执行路径，默认从 PATH 找
-//	SOKEL_CC_ALLOW_EXTERNAL_DIRS=1  允许「继续任务」指定工作区之外的目录
-//	http_proxy/https_proxy CC 出站代理——**不用插件转发，CC 自己就读这些标准变量**；
-//	                       git 那边由 gitEnv() 主动剥掉（内网仓库不能走代理）
+//	SOKEL_CC_GIT_BASE      GitLab root URL (e.g. https://git.example.com)
+//	SOKEL_CC_GIT_TOKEN     clone/push token. **If unset, falls back to git's own auth on this machine**
+//	                       (credential helper / .netrc / SSH) — the cleaner option
+//	SOKEL_CC_WORKSPACE     where repos and worktrees live, default <tempdir>/sokel-claude-code
+//	SOKEL_CC_CLAUDE_BIN    path to the claude executable, default looked up from PATH
+//	SOKEL_CC_ALLOW_EXTERNAL_DIRS=1  allow "continue task" to target a directory outside the workspace
+//	http_proxy/https_proxy CC's outbound proxy — **the plugin does not forward it, CC already reads
+//	                       these standard variables itself**; the git side has it actively stripped by
+//	                       gitEnv() (internal repos must not go through the proxy)
 
 import (
 	"os"
@@ -49,5 +52,6 @@ func loadEnv() deployEnv {
 	return e
 }
 
-// cfg 进程级只读部署配置。启动时读一次：运行中改环境变量不该让同一个进程的行为漂移。
+// cfg is the process-wide read-only deployment config. Read once at startup: changing environment
+// variables while running shouldn't make the same process's behavior drift.
 var cfg = loadEnv()

@@ -1,9 +1,11 @@
 package main
 
-// 操作实现。
+// Operation implementations.
 //
-// 一条贯穿的取舍：**默认不动远端**。CC 改完代码留在工作树里，出参给 diff 与结论；
-// 要 push 得显式打开。让一个 agent 默认握着 push 权限，是那种出事之后才被发现的默认值。
+// One tradeoff runs through all of them: **don't touch the remote by default**. CC leaves its code
+// changes in the worktree, and the outputs carry the diff and the conclusion; pushing has to be turned
+// on explicitly. Giving an agent push access by default is exactly the kind of default that only gets
+// noticed after something has already gone wrong.
 
 import (
 	"fmt"
@@ -15,7 +17,9 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-const diffLimit = 60000 // diff 出参上限：再大对下游节点也没用，完整改动在工作树/分支里
+// diffLimit caps the diff output: beyond this it's no use to downstream nodes anyway, and the full
+// change still lives in the worktree/branch.
+const diffLimit = 60000
 
 func credOf(ctx plugin.Ctx) Cred {
 	var c Cred
@@ -23,14 +27,16 @@ func credOf(ctx plugin.Ctx) Cred {
 	return c
 }
 
-// streamSink 把 CC 的过程转成两路产出：
+// streamSink turns CC's progress into two output streams:
 //
-//	Text 帧 —— 调试台逐帧看的原始流
-//	JSON 帧 —— 画布节点的部分产出。**形状与最终出参一致**（都是 log 字段），
-//	           前端一套渲染就够，不必为「进行中」另写一份视图。
+//	Text frames  — the raw stream the debug console shows frame by frame
+//	JSON frames  — the canvas node's partial output. **Same shape as the final output** (both are a
+//	               log field), so the frontend needs only one rendering path, no separate "in progress"
+//	               view.
 //
-// 节流 300ms：CC 一次任务可能吐几百段文字，逐段全量 emit 会把进度通道打爆
-// （每帧都要过 NATS + SSE 桥）。
+// Throttled to 300ms: a single CC task can emit hundreds of text chunks, and emitting the full
+// accumulated log on every chunk would flood the progress channel (every frame crosses the NATS + SSE
+// bridge).
 type streamSink struct {
 	mu       sync.Mutex
 	log      strings.Builder
@@ -68,10 +74,12 @@ func (s *streamSink) text_() string {
 	return s.log.String()
 }
 
-// runOne 两个任务操作共用的主干：备工作树 → 跑 CC → 收改动 → 按需推送。
+// runOne is the shared backbone of both task operations: prepare worktree → run CC → collect changes →
+// push if requested.
 //
-// fixedTree 非空 = 接管插件之外的会话：直接在那个目录干活，不碰 git 准备逻辑
-// （那个目录多半是人自己 clone 的，不在插件工作区里）。
+// A non-empty fixedTree means taking over a session outside the plugin: work directly in that directory
+// and skip the git-preparation logic (that directory was most likely cloned by hand and isn't inside the
+// plugin's workspace).
 func runOne(ctx plugin.Ctx, project, branch, base, fixedTree string, push bool, o ccOptions,
 	emitText func(string), emitJSON func(any)) (*RunTaskOut, error) {
 
@@ -101,7 +109,7 @@ func runOne(ctx plugin.Ctx, project, branch, base, fixedTree string, push bool, 
 		}
 	}
 
-	emitJSON(map[string]any{"worktree": tree}) // 路径先交出去：跑挂了也知道去哪看现场
+	emitJSON(map[string]any{"worktree": tree}) // hand off the path early: even if it crashes, you know where to look
 	sink := &streamSink{text: emitText, json: emitJSON}
 	res, err := runClaude(ctx, c, tree, o, sink.onText, sink.onTool)
 	out := &RunTaskOut{
@@ -110,8 +118,8 @@ func runOne(ctx plugin.Ctx, project, branch, base, fixedTree string, push bool, 
 		Conclusion: res.Conclusion, OK: res.OK,
 	}
 	if err != nil {
-		// 跑挂了也要把已经发生的事交出去：日志、花掉的钱、被拦下的工具——
-		// 「失败了但看不到它做过什么」等于没法查。
+		// Even on failure, hand off what already happened: the log, the money spent, the tools that
+		// got blocked — "it failed but you can't see what it did" means you can't debug it.
 		out.ChangedFiles = changedFiles(tree)
 		out.Diff = diffText(tree, diffLimit)
 		return out, err
@@ -124,7 +132,8 @@ func runOne(ctx plugin.Ctx, project, branch, base, fixedTree string, push bool, 
 	}
 	if push {
 		if strings.TrimSpace(fixedTree) != "" {
-			// 外部目录的远端与分支是人自己配的，插件猜一个推上去太危险——让人自己 push。
+			// For an external directory, the person set up the remote and branch themselves — it's
+			// too risky for the plugin to guess and push; let them push it themselves.
 			return out, fmt.Errorf("接管外部目录时不支持推送：那个仓库的远端和分支归你管，请自行 git push")
 		}
 		if len(out.ChangedFiles) == 0 {
@@ -134,7 +143,8 @@ func runOne(ctx plugin.Ctx, project, branch, base, fixedTree string, push bool, 
 			msg := firstLine(o.Task)
 			pushed, perr := commitAndPush(tree, project, branch, "claude-code: "+msg)
 			if perr != nil {
-				// 推送失败不抹掉这次任务的成果：出参照常给，错误单独报。
+				// A push failure shouldn't erase the task's results: outputs are still returned as
+				// usual, the error is reported separately.
 				out.OK = false
 				return out, fmt.Errorf("代码已改好但推送失败: %w", perr)
 			}
@@ -180,8 +190,9 @@ func opListWorktrees(_ plugin.Ctx, in *ListWorktreesIn) (*ListWorktreesOut, erro
 
 func opCleanup(_ plugin.Ctx, in *CleanupIn) (*CleanupOut, error) {
 	branch := strings.TrimSpace(in.Branch)
-	// 既没点名分支、又没给闲置天数 = 「删光所有工作树」。这种要求必须说出口，
-	// 不能由一个空表单默默达成——工作树里可能有还没提交的改动。
+	// Neither a named branch nor an idle-days threshold means "delete every worktree". That intent
+	// must be stated explicitly, not reached silently via an empty form — a worktree may hold
+	// uncommitted changes.
 	if branch == "" && in.IdleDays <= 0 {
 		return nil, fmt.Errorf("要么点名一个分支，要么给「只删闲置超过几天的」——" +
 			"两个都不给等于删光所有工作树，这个插件不替你做这个决定")
@@ -204,8 +215,9 @@ func opCleanup(_ plugin.Ctx, in *CleanupIn) (*CleanupOut, error) {
 		if in.DryRun {
 			continue
 		}
-		// 走 git worktree remove 而不是 rm -rf：后者在仓库里留悬空记录，
-		// 下次同名分支 worktree add 直接报 already registered。
+		// Use git worktree remove rather than rm -rf: the latter leaves a dangling record in the
+		// repo, and the next worktree add for the same branch name fails outright with "already
+		// registered".
 		if _, err := git(repoPath(it.Project), "worktree", "remove", "--force", it.Path); err != nil {
 			return out, err
 		}

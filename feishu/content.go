@@ -1,11 +1,13 @@
 package main
 
-// 云文档（docx）/ 多维表格（bitable）/ 网盘（drive）。
+// Docs (docx) / Bitable / Drive.
 //
-// docx 的 Markdown 转换是**行级的、有意保守的**：# 标题、- 列表、1. 有序列表、
-// ``` 代码块、> 引用、--- 分割线 → 对应文档块，其余一律按段落。行内样式
-// （加粗/链接）原样保留为文本——docx 的行内 style 模型（elements + 坐标）复杂一个
-// 数量级，首版不碰；要精排版的走 call 直调 blocks API。20% 的转换覆盖 95% 的用法。
+// The Markdown-to-docx conversion is **line-level and intentionally conservative**: # headings,
+// - lists, 1. ordered lists, ``` code blocks, > quotes, --- dividers map to the corresponding
+// document blocks; everything else becomes a paragraph. Inline styling (bold/links) is kept as
+// plain text — docx's inline style model (elements + coordinates) is an order of magnitude more
+// complex, and the first version doesn't touch it; anyone needing precise formatting should call
+// the blocks API directly via `call`. 20% of the conversion logic covers 95% of actual usage.
 
 import (
 	"encoding/json"
@@ -22,7 +24,7 @@ import (
 
 // —— docx ——
 
-// docxBlock 一个文档块（只用到 text 系块）。
+// docxText builds one document block (only the text-family block types are used).
 func docxText(blockType int, content string) map[string]any {
 	key := map[int]string{2: "text", 3: "heading1", 4: "heading2", 5: "heading3",
 		12: "bullet", 13: "ordered", 14: "code", 15: "quote"}[blockType]
@@ -34,7 +36,7 @@ func docxText(blockType int, content string) map[string]any {
 	}
 }
 
-// mdToBlocks Markdown → 文档块列表。
+// mdToBlocks converts Markdown into a list of document blocks.
 func mdToBlocks(md string) []map[string]any {
 	var blocks []map[string]any
 	lines := strings.Split(strings.ReplaceAll(md, "\r\n", "\n"), "\n")
@@ -43,7 +45,7 @@ func mdToBlocks(md string) []map[string]any {
 	for _, line := range lines {
 		t := strings.TrimSpace(line)
 		if strings.HasPrefix(t, "```") {
-			if inCode { // 代码块收口
+			if inCode { // close out the code block
 				blocks = append(blocks, docxText(14, strings.Join(code, "\n")))
 				code, inCode = nil, false
 			} else {
@@ -76,13 +78,13 @@ func mdToBlocks(md string) []map[string]any {
 			blocks = append(blocks, docxText(2, t))
 		}
 	}
-	if inCode && len(code) > 0 { // 没闭合的代码块也别丢内容
+	if inCode && len(code) > 0 { // don't lose the content even if the code block was never closed
 		blocks = append(blocks, docxText(14, strings.Join(code, "\n")))
 	}
 	return blocks
 }
 
-// orderedRe "1. xxx" → "xxx"；不是有序列表返回空串。
+// orderedRe turns "1. xxx" into "xxx"; returns an empty string if it isn't an ordered-list item.
 func orderedRe(t string) string {
 	i := strings.Index(t, ". ")
 	if i <= 0 || i > 3 {
@@ -94,8 +96,9 @@ func orderedRe(t string) string {
 	return t[i+2:]
 }
 
-// appendBlocks 向文档根追加块。飞书单次上限 50 块，超了分批——
-// 长报告一次几百块是常态，不分批就是 invalid param。
+// appendBlocks appends blocks to the document root. Feishu caps a single call at 50 blocks, so
+// it's batched beyond that — a long report with a few hundred blocks at once is routine, and
+// without batching it's an invalid param error.
 func appendBlocks(ctx plugin.Ctx, docID string, blocks []map[string]any) (int, error) {
 	for i := 0; i < len(blocks); i += 50 {
 		end := min(i+50, len(blocks))
@@ -151,7 +154,7 @@ func opDocxCreate(ctx plugin.Ctx, in *DocxCreateIn) (*DocxCreateOut, error) {
 	return &DocxCreateOut{DocumentID: docID, URL: docURL(credOf(ctx), docID)}, nil
 }
 
-// docIDFromAny 允许直接粘文档 URL。
+// docIDFromAny allows pasting a document URL directly.
 func docIDFromAny(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.Index(s, "/docx/"); i >= 0 {
@@ -181,10 +184,10 @@ func opDocxAppend(ctx plugin.Ctx, in *DocxAppendIn) (*DocxAppendOut, error) {
 
 // —— bitable ——
 
-// btPath 记录接口的公共前缀。app_token 允许直接粘表格 URL。
+// btPath builds the records endpoint's common prefix. app_token allows pasting a table URL directly.
 func btPath(appToken, tableID string) (string, error) {
 	at, tid := strings.TrimSpace(appToken), strings.TrimSpace(tableID)
-	if i := strings.Index(at, "/base/"); i >= 0 { // 允许粘 URL
+	if i := strings.Index(at, "/base/"); i >= 0 { // allow pasting a URL
 		at = at[i+len("/base/"):]
 		if j := strings.IndexAny(at, "?#/"); j >= 0 {
 			at = at[:j]
@@ -290,14 +293,14 @@ func opBitableDeleteRecord(ctx plugin.Ctx, in *BitableDeleteRecordIn) (*BitableD
 	return &BitableDeleteRecordOut{OK: true}, nil
 }
 
-// —— drive ——
+// —— Drive ——
 
 func opDriveUpload(ctx plugin.Ctx, in *DriveUploadIn) (*DriveUploadOut, error) {
 	if in.File == nil || in.File.ID == "" {
 		return nil, fmt.Errorf("没给文件")
 	}
 	folder := strings.TrimSpace(in.FolderToken)
-	if i := strings.Index(folder, "/folder/"); i >= 0 { // 允许粘 URL
+	if i := strings.Index(folder, "/folder/"); i >= 0 { // allow pasting a URL
 		folder = folder[i+len("/folder/"):]
 		if j := strings.IndexAny(folder, "?#/"); j >= 0 {
 			folder = folder[:j]

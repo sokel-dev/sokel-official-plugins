@@ -1,12 +1,15 @@
 package main
 
-// 出站与会话。
+// Egress and session handling.
 //
-// AT Protocol 的会话是两段式：createSession 用「账号 + 应用密码」换 accessJwt(几分钟) +
-// refreshJwt(长期)。**短期那个由插件缓存与续期**——存进凭证的话，用户得每隔几分钟手动换一次。
+// AT Protocol sessions are two-tiered: createSession exchanges "identifier + app
+// password" for an accessJwt (lives minutes) + refreshJwt (long-lived). **The short-lived
+// one is cached and renewed by the plugin** — if it were stored in the credential, the
+// user would have to manually swap it out every few minutes.
 //
-// 续期策略：先用 refreshJwt 换（refreshSession），换不动就拿密码重新 createSession。
-// 两条都试是必要的：refreshJwt 也会过期，而那时不重登就是彻底失联。
+// Renewal strategy: try refreshJwt first (refreshSession); if that fails, fall back to a
+// fresh createSession with the password. Trying both is necessary: refreshJwt also
+// expires, and without re-login at that point the connection is lost for good.
 
 import (
 	"bytes"
@@ -27,7 +30,7 @@ import (
 
 const defaultPDS = "https://bsky.social"
 
-// —— HTTP 客户端（按代理缓存）——
+// —— HTTP client (cached per proxy) ——
 
 var (
 	clientMu sync.Mutex
@@ -53,7 +56,7 @@ func clientFor(proxy string) *http.Client {
 	return c
 }
 
-// —— 会话 ——
+// —— session ——
 
 type session struct {
 	AccessJwt  string `json:"accessJwt"`
@@ -64,7 +67,7 @@ type session struct {
 
 var (
 	sessMu    sync.Mutex
-	sessCache = map[string]*session{} // pds|identifier|password → 会话
+	sessCache = map[string]*session{} // pds|identifier|password → session
 )
 
 func sessKey(c Cred) string {
@@ -78,7 +81,7 @@ func pdsOf(c Cred) string {
 	return defaultPDS
 }
 
-// login：拿账号密码换会话。
+// login: exchanges identifier + password for a session.
 func login(ctx context.Context, hc *http.Client, c Cred) (*session, error) {
 	id, pw := strings.TrimSpace(c.Identifier), strings.TrimSpace(c.AppPassword)
 	if id == "" || pw == "" {
@@ -93,7 +96,7 @@ func login(ctx context.Context, hc *http.Client, c Cred) (*session, error) {
 	return &s, nil
 }
 
-// sessionFor：拿一个可用会话（缓存命中即返回）。
+// sessionFor: gets a usable session (returns immediately on a cache hit).
 func sessionFor(ctx plugin.Ctx) (*session, *http.Client, Cred, error) {
 	c := sokel.CredentialAs[Cred](ctx)
 	hc := clientFor(c.Proxy)
@@ -115,7 +118,7 @@ func sessionFor(ctx plugin.Ctx) (*session, *http.Client, Cred, error) {
 	return s, hc, c, nil
 }
 
-// renew：换一个新会话。先试 refreshJwt，不行再用密码重登。
+// renew: gets a fresh session. Tries refreshJwt first, falls back to a password re-login.
 func renew(ctx context.Context, hc *http.Client, c Cred, old *session) (*session, error) {
 	key := sessKey(c)
 	if old != nil && old.RefreshJwt != "" {
@@ -140,7 +143,7 @@ func renew(ctx context.Context, hc *http.Client, c Cred, old *session) (*session
 
 // —— XRPC ——
 
-// apiError：AT Protocol 的错误应答（error + message）。
+// apiError: AT Protocol's error response (error + message).
 type apiError struct {
 	Status  int
 	Kind    string
@@ -164,7 +167,7 @@ func (e *apiError) Error() string {
 	return fmt.Sprintf("Bluesky 返回 HTTP %d", e.Status)
 }
 
-// rpc：一次 XRPC 调用。query 非空走 GET，body 非空走 POST。
+// rpc: makes one XRPC call. A non-empty query implies GET, a non-empty body implies POST.
 func rpc(ctx context.Context, hc *http.Client, pds, token, method, nsid string,
 	query url.Values, body any, out any) error {
 	uri := pds + "/xrpc/" + nsid
@@ -175,7 +178,7 @@ func rpc(ctx context.Context, hc *http.Client, pds, token, method, nsid string,
 	ctype := ""
 	if body != nil {
 		switch b := body.(type) {
-		case []byte: // 上传 blob：原始字节
+		case []byte: // blob upload: raw bytes
 			payload = bytes.NewReader(b)
 		default:
 			raw, err := json.Marshal(b)
@@ -225,10 +228,11 @@ func rpc(ctx context.Context, hc *http.Client, pds, token, method, nsid string,
 
 type blobMimeKey struct{}
 
-// call：带鉴权与**一次自动续期**的调用。
+// call: an authenticated call with **one automatic renewal attempt**.
 //
-// accessJwt 只活几分钟，而工作流可能停在人工节点上等半天——不自动续期的话，
-// 恢复运行的第一条请求必然 401，且看起来像密码错了。
+// accessJwt only lives a few minutes, while a workflow might sit on a human-approval node
+// for hours — without auto-renewal, the first request after it resumes would always 401,
+// and would look like the password was wrong.
 func call(ctx plugin.Ctx, method, nsid string, query url.Values, body, out any) error {
 	s, hc, cred, err := sessionFor(ctx)
 	if err != nil {
@@ -257,13 +261,13 @@ func asAPIError(err error, target **apiError) bool {
 	return ok
 }
 
-// —— 地址互转 ——
+// —— address conversion ——
 
-// atURI：把 bsky.app 链接换成 at:// 地址（用户手上多半是前者）。
+// atURI: converts a bsky.app link into an at:// address (users usually have the former on hand).
 //
-//	https://bsky.app/profile/<handle 或 did>/post/<rkey>  →  at://<did>/app.bsky.feed.post/<rkey>
+//	https://bsky.app/profile/<handle or did>/post/<rkey>  →  at://<did>/app.bsky.feed.post/<rkey>
 //
-// 需要把 handle 解析成 did——链接里给的通常是 handle，而记录地址只认 did。
+// The handle needs resolving to a did — links usually give a handle, but record addresses only accept a did.
 func atURI(ctx plugin.Ctx, raw string) (string, error) {
 	s := strings.TrimSpace(raw)
 	if s == "" {
@@ -293,7 +297,7 @@ func atURI(ctx plugin.Ctx, raw string) (string, error) {
 	return "at://" + did + "/app.bsky.feed.post/" + rkey, nil
 }
 
-// webURL：at:// → 网页链接。发完给链接，下游要发通知时不必自己拼。
+// webURL: at:// → web link. Returned after posting so downstream notifications don't need to build it themselves.
 func webURL(handle, atURI string) string {
 	parts := strings.Split(strings.TrimPrefix(atURI, "at://"), "/")
 	if len(parts) != 3 {

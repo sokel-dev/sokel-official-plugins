@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// 平台没有「远程下拉选一个数据库」那种控件，所有 id 只能靠贴，而人手上有的是浏览器地址栏
-// 里那条链接。**数据库链接的 ?v= 是视图 id**——把它当数据库 id 拿去查会得到
-// object_not_found，而错因完全看不出来。
+// The platform has no "remote dropdown, pick a database" control, so every id has to be pasted in,
+// and what a person has on hand is the browser address-bar link. **A database link's ?v= is the
+// view id** — querying with it as the database id gets you an object_not_found with no clue why.
 func TestNotionID(t *testing.T) {
 	const id = "1234567890abcdef1234567890abcdef"
 	cases := []struct {
@@ -22,11 +22,11 @@ func TestNotionID(t *testing.T) {
 		{"带横线的 uuid", "12345678-90ab-cdef-1234-567890abcdef", id},
 		{"页面链接", "https://www.notion.so/myws/项目周报-" + id, id},
 		{"带 query 的页面链接", "https://www.notion.so/项目周报-" + id + "?pvs=4", id},
-		// 视图 id 在 query 里，绝不能取它
+		// The view id lives in the query — must never be picked up
 		{"数据库链接带视图 id", "https://www.notion.so/myws/" + id + "?v=ffffffffffffffffffffffffffffffff", id},
 		{"链接里两段 hex 取最后一段", "https://www.notion.so/" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + "/x-" + id, id},
 		{"空", "", ""},
-		// 认不出就原样交给 Notion，让它的错误去说话（别自作主张改成空）
+		// Unrecognized — hand it to Notion as-is and let its error speak (don't second-guess it into empty)
 		{"认不出", "我的项目库", "我的项目库"},
 	}
 	for _, c := range cases {
@@ -36,8 +36,9 @@ func TestNotionID(t *testing.T) {
 	}
 }
 
-// 读侧归一化：25 种属性值 → 平铺值。这一份是下游引用与模型读取的唯一依据，
-// 形状变了下游的引用路径就断了。
+// Read-side normalization: 25 property value types -> flat values. This is the sole source of
+// truth for downstream references and model reads; if the shape changes, downstream reference
+// paths break.
 func TestNormalizeProp(t *testing.T) {
 	cases := []struct {
 		name string
@@ -53,13 +54,15 @@ func TestNormalizeProp(t *testing.T) {
 			map[string]any{"name": "A"}, map[string]any{"name": "B"}}), []string{"A", "B"}},
 		{"复选框", prop("checkbox", "checkbox", true), true},
 		{"链接", prop("url", "url", "https://x.com"), "https://x.com"},
-		// 形状恒定：没有 end 也给 end 键，否则下游的引用路径要看运气
+		// Constant shape: give an end key even when there's no end, otherwise downstream
+		// reference paths are a gamble
 		{"日期只有开始", prop("date", "date", map[string]any{"start": "2026-08-20"}),
 			map[string]any{"start": "2026-08-20", "end": ""}},
 		{"日期区间", prop("date", "date", map[string]any{"start": "2026-08-20", "end": "2026-08-25"}),
 			map[string]any{"start": "2026-08-20", "end": "2026-08-25"}},
 		{"空日期", prop("date", "date", nil), map[string]any{"start": "", "end": ""}},
-		// 人给名字（这一列多半拿去显示）；写回时名字与 id 都认，见 peopleValue
+		// People give the name (this column is mostly used for display); writing back accepts
+		// both name and id, see peopleValue
 		{"人", prop("people", "people", []any{
 			map[string]any{"id": "u1", "name": "小明"}, map[string]any{"id": "u2"}}), []string{"小明", "u2"}},
 		{"文件取地址", prop("files", "files", []any{
@@ -67,11 +70,11 @@ func TestNormalizeProp(t *testing.T) {
 			map[string]any{"name": "b", "external": map[string]any{"url": "https://e/b"}}}),
 			[]string{"https://f/a.pdf", "https://e/b"}},
 		{"关联给 id", prop("relation", "relation", []any{map[string]any{"id": "p1"}}), []string{"p1"}},
-		// 公式/汇总：拆到里层那个值，而不是把包装原样丢给下游
+		// Formula/rollup: unwrap to the inner value instead of dumping the wrapper to downstream as-is
 		{"公式取里层", prop("formula", "formula", map[string]any{"type": "number", "number": 7.0}), 7.0},
 		{"汇总取里层", prop("rollup", "rollup", map[string]any{"type": "number", "number": 3.0}), 3.0},
 		{"唯一 id 带前缀", prop("unique_id", "unique_id", map[string]any{"prefix": "TASK", "number": 12.0}), "TASK-12"},
-		// 认不出的类型返回 nil：properties_raw 那份里有，不必在这里瞎猜
+		// Unrecognized types return nil: it's in properties_raw, no need to guess here
 		{"按钮类归一化不出", prop("button", "button", map[string]any{}), nil},
 	}
 	for _, c := range cases {
@@ -90,8 +93,8 @@ func rt(s string) map[string]any {
 	return map[string]any{"plain_text": s}
 }
 
-// 写侧：同一个字符串该包成 select 还是 status 还是 rich_text，光看值分辨不出来，
-// 所以一定按表结构里的类型来拼。
+// Write side: the same string could need wrapping as select, status, or rich_text — the value
+// alone can't tell you which — so it must always be assembled using the schema's declared type.
 func TestPropValue(t *testing.T) {
 	cases := []struct {
 		name string
@@ -109,13 +112,14 @@ func TestPropValue(t *testing.T) {
 			map[string]any{"date": map[string]any{"start": "2026-08-20"}}},
 		{"日期区间", propType{Type: "date"}, map[string]any{"start": "a", "end": "b"},
 			map[string]any{"date": map[string]any{"start": "a", "end": "b"}}},
-		// 读出来的日期（end 为空串）直接回写不能变成一个空区间
+		// A date that was read back (end is an empty string) must not turn into an empty range
+		// when written straight back
 		{"读出来的日期原样回写", propType{Type: "date"}, map[string]any{"start": "a", "end": ""},
 			map[string]any{"date": map[string]any{"start": "a"}}},
 		{"显式 null 清空", propType{Type: "rich_text"}, nil, map[string]any{"rich_text": []any{}}},
 		{"关联认链接", propType{Type: "relation"}, "https://notion.so/x-1234567890abcdef1234567890abcdef",
 			map[string]any{"relation": []any{map[string]any{"id": "1234567890abcdef1234567890abcdef"}}}},
-		// 模型经常给 "A" 而不是 ["A"]，为此报错纯属添堵
+		// Models often give "A" instead of ["A"]; erroring over this would just be friction
 		{"多选认单值", propType{Type: "multi_select"}, "A",
 			map[string]any{"multi_select": []any{map[string]any{"name": "A"}}}},
 		{"多选认逗号分隔", propType{Type: "multi_select"}, "A,B",
@@ -133,8 +137,9 @@ func TestPropValue(t *testing.T) {
 	}
 }
 
-// 候选值不匹配：select 会被 Notion 悄悄新建一个选项，status 则直接报错。
-// 两种都该在发请求前就拦住并说清可选项——这个错是给模型看的。
+// A value not among the candidates: Notion silently creates a new option for select, but errors
+// outright for status. Both should be caught before the request is sent, with the valid options
+// spelled out — this error is meant for the model to read.
 func TestPropValueRejectsUnknownOption(t *testing.T) {
 	_, err := propValue(nil, propType{Type: "status", Options: []string{"待办", "完成"}}, "进行中")
 	if err == nil {
@@ -145,8 +150,9 @@ func TestPropValueRejectsUnknownOption(t *testing.T) {
 	}
 }
 
-// 单个富文本对象上限 2000 字符，超了整条请求被 Notion 拒——
-// 而「把模型产出的长文写进某一列」恰恰是最常见的用法。
+// A single rich-text object caps out at 2000 characters; go over and Notion rejects the whole
+// request — and "writing a model's long-form output into a column" is exactly the most common use
+// case.
 func TestRichTextChunks(t *testing.T) {
 	long := strings.Repeat("字", 4500)
 	parts := richText(long)
@@ -170,8 +176,9 @@ func TestRichTextChunks(t *testing.T) {
 	}
 }
 
-// object_not_found 十有八九不是 id 写错，而是页面没交给集成——
-// Notion 的原文一个字都不提这件事，翻译不做的话每个人都要自己撞一次。
+// object_not_found is almost never a wrong id — it's a page that hasn't been shared with the
+// integration. Notion's own message never mentions this, so without a translation everyone has to
+// run into it themselves.
 func TestErrorMentionsSharing(t *testing.T) {
 	e := &apiError{Status: 404, Code: "object_not_found", Message: "Could not find page with ID x"}
 	if !strings.Contains(e.Error(), "连接") {
@@ -183,7 +190,8 @@ func TestErrorMentionsSharing(t *testing.T) {
 	}
 }
 
-// 令牌两条来源：内部集成密钥优先，其次是授权注入的 access_token。都没有就说清两条路。
+// The token has two sources: the internal integration secret takes priority, falling back to the
+// access_token injected by authorization. If neither is set, spell out both paths.
 func TestAuthToken(t *testing.T) {
 	if tok, _ := authToken(Cred{Token: "ntn_a", AccessToken: "b"}); tok != "ntn_a" {
 		t.Errorf("内部集成密钥优先, got %q", tok)
@@ -197,7 +205,8 @@ func TestAuthToken(t *testing.T) {
 	}
 }
 
-// 撞限流不是异常而是常态（3 次/秒）：按 Retry-After 等一等再来，而不是把错抛给用户。
+// Hitting the rate limit is the normal case, not an exception (3 req/sec): wait for Retry-After
+// and try again, instead of throwing the error at the user.
 func TestRetryOnRateLimit(t *testing.T) {
 	var hits int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -225,7 +234,7 @@ func TestRetryOnRateLimit(t *testing.T) {
 	}
 }
 
-// 4xx 要把 Notion 的 code 带出来（翻译依赖它）。
+// A 4xx must surface Notion's code (the translation depends on it).
 func TestAPIErrorDecoded(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
@@ -242,15 +251,17 @@ func TestAPIErrorDecoded(t *testing.T) {
 	}
 }
 
-// 一个凭证可以盯多张表，各盯各的进度：共用一个时间戳的话，
-// 一张表被大量修改会把另一张表的进度也推过去，那些行永远不会触发。
+// One credential can watch multiple tables, each tracked separately: sharing a single timestamp
+// would let heavy changes on one table drag another table's progress forward too, and that
+// table's rows would never fire.
 func TestCursorsRoundTrip(t *testing.T) {
 	in := map[string]string{"ds1": "2026-08-12T10:00:00Z", "ds2": "2026-08-11T09:00:00Z"}
 	got := parseCursors(dumpCursors(in))
 	if !reflect.DeepEqual(got, in) {
 		t.Errorf("往返丢了: %v", got)
 	}
-	// 脏数据（人手填了什么）不能让源崩掉，退化成「首次启动」即可
+	// Dirty data (whatever a person typed in by hand) must not crash the source — falling back to
+	// "first start" is fine
 	if len(parseCursors("坏掉的")) != 0 || len(parseCursors("")) != 0 {
 		t.Error("解不开的游标应退化成空")
 	}
@@ -262,7 +273,7 @@ func TestPollInterval(t *testing.T) {
 		"abc":  defaultPollSeconds * time.Second,
 		"0":    defaultPollSeconds * time.Second,
 		"120":  120 * time.Second,
-		"1":    minPollSeconds * time.Second, // 比限流还快没有意义
+		"1":    minPollSeconds * time.Second, // Faster than the rate limit itself is pointless
 		"-100": defaultPollSeconds * time.Second,
 	}
 	for in, want := range cases {
@@ -272,7 +283,8 @@ func TestPollInterval(t *testing.T) {
 	}
 }
 
-// 新增与修改对工作流的意义完全不同，而 Notion 不给这个区分。
+// Creation and modification mean completely different things to a workflow, yet Notion doesn't
+// give us this distinction.
 func TestIsCreated(t *testing.T) {
 	cases := []struct {
 		name            string
@@ -291,7 +303,8 @@ func TestIsCreated(t *testing.T) {
 	}
 }
 
-// 上限压得住：一次拉几万行会把限流吃光，也会把运行记录撑爆。
+// Keeping a cap matters: pulling tens of thousands of rows at once would burn through the rate
+// limit and bloat the run record.
 func TestClamp(t *testing.T) {
 	if clamp(0, 100, 1000) != 100 || clamp(5000, 100, 1000) != 1000 || clamp(7, 100, 1000) != 7 {
 		t.Error("clamp 的默认值/上限没生效")
@@ -308,7 +321,8 @@ func TestSplitList(t *testing.T) {
 	}
 }
 
-// 标题列的列名每个库都不同（「名称」「Name」「任务」），写标题时要按表结构找。
+// The title column's name differs per database ("名称", "Name", "任务"); writing a title means
+// looking it up from the schema.
 func TestTitleColumn(t *testing.T) {
 	specs := map[string]propType{"任务": {Type: "title"}, "状态": {Type: "status"}}
 	if got := titleColumn(specs); got != "任务" {
@@ -319,7 +333,7 @@ func TestTitleColumn(t *testing.T) {
 	}
 }
 
-// 页面标题在 properties 里那个 type=title 的列上，不是某个固定键。
+// A page's title lives in the properties column with type=title, not under some fixed key.
 func TestPageTitle(t *testing.T) {
 	props := map[string]any{
 		"状态": prop("status", "status", map[string]any{"name": "完成"}),
@@ -330,7 +344,7 @@ func TestPageTitle(t *testing.T) {
 	}
 }
 
-// parent 的 id 键名跟着类别变，写死一个键去取必然取空。
+// A parent's id key name changes with its kind; reading it off a fixed key is bound to come back empty.
 func TestParentOf(t *testing.T) {
 	kind, id := parentOf(map[string]any{"type": "data_source_id", "data_source_id": "ds1"})
 	if kind != "data_source" || id != "ds1" {

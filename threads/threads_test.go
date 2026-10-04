@@ -1,10 +1,14 @@
 package main
 
-// 假 Threads。钉四件事：
-//   - **两步发布**（建容器 → 发布），容器 id 不能当帖子 id 用；
-//   - **带媒体要等就绪**再发布——不等的话随机失败、重试又能成，最难查的那种；
-//   - 多个媒体要走**轮播**（每个先建 is_carousel_item 容器，再串成 CAROUSEL）；
-//   - 图片与视频的参数名不同（image_url / video_url），给错了 Meta 只说「缺必需参数」。
+// A fake Threads. Pins down four things:
+//   - **Two-step publishing** (create container → publish); the container id must not be used as
+//     the post id;
+//   - **Media has to wait until ready** before publishing — skip that and it's random failures that
+//     succeed on retry, the hardest kind to debug;
+//   - Multiple media go through a **carousel** (each builds an is_carousel_item container first,
+//     then they're strung into one CAROUSEL);
+//   - Images and video use different parameter names (image_url / video_url), and getting it wrong
+//     just gets "missing required parameter" from Meta.
 
 import (
 	"context"
@@ -66,7 +70,7 @@ func ctxTo(t *testing.T, cap *capture, routes map[string]func(http.ResponseWrite
 			io.WriteString(w, `{"id":"c`+string(rune('0'+n))+`"}`)
 		case strings.HasSuffix(r.URL.Path, "/threads_publishing_limit"):
 			io.WriteString(w, `{"data":[{"quota_usage":12,"quota_config":{"quota_total":250}}]}`)
-		default: // 容器状态查询
+		default: // container status query
 			io.WriteString(w, `{"status":"FINISHED"}`)
 		}
 	}))
@@ -78,7 +82,8 @@ func ctxTo(t *testing.T, cap *capture, routes map[string]func(http.ResponseWrite
 	return &fakeCtx{Context: context.Background(), cred: map[string]string{"access_token": "tok"}}
 }
 
-// 两步：建容器拿 creation_id，再发布它。**容器 id 不是帖子 id**。
+// Two steps: create a container to get a creation_id, then publish it. **The container id is not
+// the post id**.
 func TestTwoStepPublish(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -106,7 +111,8 @@ func TestTwoStepPublish(t *testing.T) {
 	}
 }
 
-// 带媒体要等容器就绪。不等的话发布会被拒，而重试又能成。
+// With media, you have to wait for the container to be ready. Skip it and publishing gets
+// rejected, but a retry succeeds.
 func TestMediaWaitsForContainerReady(t *testing.T) {
 	cap := &capture{}
 	polls := 0
@@ -132,7 +138,8 @@ func TestMediaWaitsForContainerReady(t *testing.T) {
 	}
 }
 
-// 媒体处理失败要把 Meta 给的原因带出来（多半是那个地址它下载不到）。
+// A media processing failure must carry out the reason Meta gave (most likely that it couldn't
+// download the address).
 func TestMediaErrorSurfaces(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -152,7 +159,8 @@ func TestMediaErrorSurfaces(t *testing.T) {
 	}
 }
 
-// 多个媒体走轮播：先各建 is_carousel_item 容器，再串成 CAROUSEL。
+// Multiple media go through a carousel: each one builds an is_carousel_item container first, then
+// they're strung into a CAROUSEL.
 func TestMultipleMediaUseCarousel(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -179,7 +187,8 @@ func TestMultipleMediaUseCarousel(t *testing.T) {
 	}
 }
 
-// 图片与视频的参数名不同，给错了 Meta 只说「缺必需参数」。
+// Images and video use different parameter names, and getting it wrong just gets "missing required
+// parameter" from Meta.
 func TestVideoUsesVideoURLParam(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -198,7 +207,7 @@ func TestVideoUsesVideoURLParam(t *testing.T) {
 	}
 }
 
-// 帖串：后一条回复前一条。
+// Thread chain: each post replies to the one before it.
 func TestThreadChains(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -219,7 +228,8 @@ func TestThreadChains(t *testing.T) {
 	}
 }
 
-// 健康检查顺带带出剩余额度——工作流可以据此决定还发不发。
+// The health check surfaces the remaining quota along the way — a workflow can decide whether to
+// keep publishing based on it.
 func TestHealthCheckCarriesQuota(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -236,7 +246,8 @@ func TestHealthCheckCarriesQuota(t *testing.T) {
 	}
 }
 
-// 令牌过期是结论不是故障（平台拿 ok=false 去写凭证状态），且要点出「60 天」。
+// An expired token is a conclusion, not a fault (the platform uses ok=false to write the
+// credential's status), and it must call out "60 days".
 func TestExpiredTokenIsExplained(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, map[string]func(http.ResponseWriter, *http.Request){
@@ -255,7 +266,7 @@ func TestExpiredTokenIsExplained(t *testing.T) {
 	}
 }
 
-// 超长与空内容在发出去之前拦下。
+// Overly long and empty content are caught before anything gets sent.
 func TestInputGuards(t *testing.T) {
 	cap := &capture{}
 	ctx := ctxTo(t, cap, nil)
@@ -273,11 +284,12 @@ func TestInputGuards(t *testing.T) {
 	}
 }
 
-// 平台文件带的是签名后的绝对地址；拿不到绝对地址的一律丢弃（Threads 下载不了相对路径）。
+// A platform file carries a signed absolute URL; anything without an absolute URL is discarded
+// (Threads can't download a relative path).
 func TestOnlyAbsoluteURLsAreUsed(t *testing.T) {
 	got := mediaURLs([]*plugin.File{
 		{ID: "f1", URL: "https://files.example/f1?sig=x"},
-		{ID: "f2", URL: "/api/v1/files/f2"}, // 相对路径：Threads 下载不到
+		{ID: "f2", URL: "/api/v1/files/f2"}, // relative path: Threads can't download it
 		nil,
 	}, []string{"https://cdn.example/c.jpg", "  "})
 	want := []string{"https://files.example/f1?sig=x", "https://cdn.example/c.jpg"}

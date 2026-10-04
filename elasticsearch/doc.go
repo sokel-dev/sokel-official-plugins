@@ -1,7 +1,8 @@
 package main
 
-// 插件使用说明：凭证怎么配、怎么挑操作、ES 那几个必踩的坑。
-// 界面三处读它（凭证弹窗 / 插件详情页 / 节点与 agent 工具的「使用说明」）。
+// Plugin usage doc: how to configure credentials, how to pick an operation, and the
+// handful of ES gotchas you're bound to hit. Read from three places in the UI (the
+// credential dialog / the plugin detail page / the "usage doc" on nodes and agent tools).
 
 const usageDoc = "# Elasticsearch\n\n" +
 	"把 ES 接进工作流：查日志与文档、灌数据、管索引。**ES 7/8/9 与 OpenSearch 都支持**——\n" +

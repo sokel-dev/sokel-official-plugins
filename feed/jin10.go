@@ -1,13 +1,15 @@
 package main
 
-// 金十数据快讯适配器。
+// Jin10 flash news adapter.
 //
 //	GET https://flash-api.jin10.com/get_flash_list?channel=-8200&vip=1
 //	headers: x-app-id / x-version
 //
-// **两个固定请求头是全部门槛**：少了直接被拒。没有 cookie、没有签名。
-// 接口与请求头从 RSSHub 的 jin10 route 学来（只借鉴知识，没抄代码）——
-// 这类固定值会随对方前端升级而变，所以抽成了 var，错的时候错误信息直接指向它。
+// **The two fixed headers are the whole gate**: missing either gets the request rejected
+// outright. No cookie, no signature.
+// The endpoint and headers were learned from RSSHub's jin10 route (we borrowed the knowledge,
+// not the code) — these fixed values change whenever their frontend is upgraded, so they're
+// pulled out into vars, and the error message points straight at them when something's wrong.
 
 import (
 	"encoding/json"
@@ -41,7 +43,7 @@ type jin10Flash struct {
 func fetchJin10(ctx plugin.Ctx, channel string) ([]schema.Item, error) {
 	ch := strings.TrimSpace(channel)
 	if ch == "" {
-		ch = "-8200" // 全部快讯
+		ch = "-8200" // all flash news
 	}
 	uri := jin10API + "?channel=" + ch + "&vip=1"
 
@@ -52,7 +54,7 @@ func fetchJin10(ctx plugin.Ctx, channel string) ([]schema.Item, error) {
 	}
 	req.Header.Set("User-Agent", uaOf(cred))
 	req.Header.Set("Referer", "https://www.jin10.com/")
-	// 这两个头是门槛，少一个就被拒。
+	// These two headers are the gate; missing either gets the request rejected.
 	req.Header.Set("x-app-id", jin10AppID)
 	req.Header.Set("x-version", jin10Version)
 
@@ -99,8 +101,9 @@ func jin10ToItem(f jin10Flash, channel string) schema.Item {
 	return it
 }
 
-// jin10Time：它给的是「2026-08-19 10:30:00」这种**东八区本地时间**，没有时区标注。
-// 与东财同一个坑：按 UTC 解会整体差 8 小时，而游标据此判断新旧。
+// jin10Time: what it returns is **UTC+8 local time** like "2026-08-19 10:30:00", with no
+// timezone marker. Same pitfall as Eastmoney: parsing it as UTC would be off by 8 hours across
+// the board, and the cursor uses this value to judge new vs. old.
 func jin10Time(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {

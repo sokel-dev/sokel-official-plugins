@@ -2,8 +2,9 @@ package main
 
 import "github.com/sokel-dev/sokel-plugin-sdk/plugin"
 
-// bot 配置类操作：webhook 模式铺路（setWebhook/deleteWebhook/getWebhookInfo）+ 命令菜单（setMyCommands）。
-// 都走通用 callAPI（token 从平台凭证/env 取）。
+// Bot configuration operations: paving the way for webhook mode (setWebhook/deleteWebhook/
+// getWebhookInfo) + the command menu (setMyCommands). All go through the generic callAPI
+// (the token comes from the platform credential / env).
 
 func opSetWebhook(ctx plugin.Ctx, in *SetWebhookIn) (*SetWebhookOut, error) {
 	return okOut[SetWebhookOut](ctx, "setWebhook", compact(map[string]any{

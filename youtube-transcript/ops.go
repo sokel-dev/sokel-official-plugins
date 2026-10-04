@@ -7,11 +7,14 @@ import (
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
 )
 
-// 三个操作的实现。取数细节在 youtube.go，纯逻辑在 parse.go——这里只负责
-// 「把入参归一 → 调 → 把出参填齐」，刻意保持薄。
+// Implementation of the three operations. Fetching details live in youtube.go, pure logic in
+// parse.go — this file is deliberately kept thin, responsible only for "normalize inputs → call → fill
+// outputs".
 
-// clientFor：按凭证造 HTTP 门面。凭证是**可选**的——本插件不需要 YouTube 账号，
-// 没配凭证时一切照跑（只是机房 IP 大概率会被风控挡下，那时才需要去配代理）。
+// clientFor builds the HTTP facade from the credential. The credential is **optional** — this plugin
+// doesn't need a YouTube account, so everything works fine with no credential configured (it's just that
+// a datacenter IP will most likely get blocked by anti-bot measures, which is when configuring a proxy
+// becomes necessary).
 func clientFor(ctx plugin.Ctx) (*client, error) {
 	c := sokel.CredentialAs[Cred](ctx)
 	return newClient(c.Proxy, c.UserAgent)
@@ -42,15 +45,17 @@ func opFetch(ctx plugin.Ctx, in *TranscriptFetchIn) (*TranscriptFetchOut, error)
 	if err != nil {
 		return nil, err
 	}
-	// 覆盖时长取最后一句的结束时刻。**不等于视频总长**（片尾常常没有字幕），
-	// 出参说明里写清楚了，免得下游拿它当视频时长用。
+	// Coverage duration is taken from the end time of the last line. **This is not the video's total
+	// length** (the closing credits often have no captions), and the output field's description says
+	// so, to keep downstream nodes from mistaking it for the video duration.
 	var dur float64
 	if n := len(snippets); n > 0 {
 		dur = snippets[n-1].Start + snippets[n-1].Duration
 	}
 	lang, code := picked.Info.Language, picked.Info.LanguageCode
 	if in.TranslateTo != "" {
-		// 翻译后语言就是目标语言了——照抄原轨的语言会让下游以为拿到的是中文原文。
+		// Once translated, the language is the target language — copying the original track's
+		// language code would mislead downstream into thinking it got the untranslated original.
 		code = in.TranslateTo
 		lang = fmt.Sprintf("%s（由 %s 机器翻译）", in.TranslateTo, picked.Info.LanguageCode)
 	}
@@ -96,8 +101,9 @@ func opList(ctx plugin.Ctx, in *TranscriptListIn) (*TranscriptListOut, error) {
 	}, nil
 }
 
-// opHealthCheck：本插件不需要账号，所以体检验的是**出站网络通不通、有没有被风控**。
-// 按平台约定，不可用返回 ok=false 而不是 error（见 dev-playbook §4）。
+// opHealthCheck: this plugin needs no account, so the check verifies **whether outbound network access
+// works and whether it's being blocked by anti-bot measures**. Per platform convention, unavailability
+// is returned as ok=false rather than an error (see dev-playbook §4).
 func opHealthCheck(ctx plugin.Ctx, _ *HealthCheckIn) (*HealthCheckOut, error) {
 	cl, err := clientFor(ctx)
 	if err != nil {
