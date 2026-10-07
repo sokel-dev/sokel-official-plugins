@@ -42,6 +42,7 @@ docker run -d --restart unless-stopped \
 | [`mastodon`](mastodon) | Mastodon | 发嘟文、发嘟文串、删嘟文。免费、无审批、无按次计费，且因为是联邦网络， |
 | [`notion`](notion) | Notion | 读写 Notion：搜索、查表、建页、改正文（markdown）、评论、文件，并可作为事件源—— |
 | [`producthunt`](producthunt) | Product Hunt | 读产品、评论和每日榜单；你的产品下有新评论或新回复时触发工作流。发布和回复在网页上做。 |
+| [`reddit`](reddit) | Reddit | 搜帖子、读版块和用户的帖子、读评论；你的帖子下有新评论或关键词命中时触发工作流。走公开 feed，不需要 API key；不能发帖回复。 |
 | [`redis`](redis) | Redis | 把 Redis 当工作流的共享内存：跨运行的计数器、去重集合、状态标记、队列、排行榜， |
 | [`submail`](submail) | 赛邮短信 | 通过 SUBMAIL（赛邮云通信）发国内短信与国际短信：告警通知、验证码、运营触达。 |
 | [`synology`](synology) | 群晖 NAS | 监听 NAS 目录里的文件变动并触发工作流（落定检测已内置）。**需自行部署插件进程**，且必须部署在能访问该 NAS 的机器上。 |

@@ -48,6 +48,7 @@ README and `docs/` explain what it needs.
 | [`mastodon`](mastodon) | Mastodon | Post, post threads, and delete posts. Free, no approval needed, no per-call charge, and because it is a federated network, |
 | [`notion`](notion) | Notion | Reads and writes Notion: search, query tables, create pages, edit content (markdown), comments, files, and can act as an event source — |
 | [`producthunt`](producthunt) | Product Hunt | Reads products, comments and the daily leaderboard; fires a workflow when your product gets a new comment or reply. Launching and replying happen on the site. |
+| [`reddit`](reddit) | Reddit | Search posts, read subreddit and user posts and comments; fires a workflow on new comments under your posts or on a keyword hit. Uses public feeds, no API key; cannot post or reply. |
 | [`redis`](redis) | Redis | Use Redis as shared memory for your workflow: cross-run counters, dedup sets, status flags, queues, leaderboards, |
 | [`submail`](submail) | SUBMAIL SMS | Send domestic and international SMS through SUBMAIL: alert notifications, verification codes, and marketing outreach. |
 | [`synology`](synology) | Synology NAS | Watches a NAS directory for file changes and triggers a workflow (settle detection is built in). **You must deploy the plugin process yourself**, on a machine that can access this NAS. |
