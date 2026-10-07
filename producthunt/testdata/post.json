@@ -1,0 +1,23 @@
+{
+  "post": {
+    "commentsCount": 67,
+    "createdAt": "2026-10-06T07:01:00Z",
+    "description": "Rill is an AI-native browser built around the Claude Code and Codex you already use. Browse normally, then press ⌘E on any page to turn what you're looking at into a task for your agent. Rill finds the right project, passes along the context, and the agent works while you keep browsing. It also sorts your tabs into themes, turns your history into days you can search, and brings every project your agents are working on into one place. Free, on the plan you already have.",
+    "featuredAt": "2026-10-06T07:01:00Z",
+    "id": "1270095",
+    "makers": [
+      {
+        "username": "williamgaoharvard"
+      },
+      {
+        "username": "iris_tu"
+      }
+    ],
+    "name": "Rill Browser",
+    "slug": "rill-browser",
+    "tagline": "The browser where Claude Code and Codex work beside you",
+    "url": "https://www.producthunt.com/products/rill-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+    "votesCount": 413,
+    "website": "https://www.producthunt.com/r/YZHJNNU36WBO6Q?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+  }
+}

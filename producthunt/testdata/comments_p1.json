@@ -1,0 +1,712 @@
+{
+  "post": {
+    "comments": {
+      "edges": [
+        {
+          "node": {
+            "body": "\u003cp\u003eHi Product Hunt, I'm William! I made Rill because I want to always stay in the flow. \u003cbr\u003e\u003c/p\u003e\u003cp\u003eAs an ADHD, I never liked code-switching. My best ideas for work come when I'm supposedly not working at all: watching something for fun, reading things and following a rabbit hole, looking at how someone else solved a problem. Then when an idea hit me, I'd have to stop, switch to coding agents, find the project and explain it all, and most of the time I just didn't.\u003c/p\u003e\u003cp\u003e\u003c/p\u003e\u003cp\u003eRill is my way of removing that code-switching. It's a browser with your Claude Code or Codex working alongside you. When something on a page gives you an idea, you say so right there, and an agent starts on it in the right project. You don't have to spend time looking for the right folder, rephrasing everything you just saw on the web, and you don't switch in and out of work mode. The work goes on with you in the flow.\u003c/p\u003e\u003cp\u003eThis matters now more than ever. Agents have shortened the distance between ideas to output near zero. So the bottleneck is capturing the idea at the moment you have it. That moment is nearly always while you're taking something in, and that is what a browser is for.\u003cbr\u003e\u003c/p\u003e\u003cp\u003eRill is a free AI-native browser. It's WebKit-based, which means it's native to Mac. And it runs on the Claude Code or Codex plan you already have, so you don't have to buy a new subscription for all of its agentic capabilities.c\u003cbr\u003e\u003c/p\u003e\u003cp\u003eHow do you keep an idea today when it shows up at the wrong time?\u003c/p\u003e",
+            "createdAt": "2026-10-05T07:00:22Z",
+            "id": "5920840",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e\u0026nbsp;just installed it opened Projects, and every repo I've touched with Claude Code was already there, very quick setup.\u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:24:11Z",
+                    "id": "5924296",
+                    "parentId": "5920840",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924296\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 4
+                  }
+                },
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e\u0026nbsp;found a layout i liked on someone protfolio pointed at it and said make my homepage do this is anyone else using it mostly for design?\u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:35:07Z",
+                    "id": "5924331",
+                    "parentId": "5920840",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924331\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 1
+                  }
+                },
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e\u0026nbsp;The 'following a rabbit hole' design philosophy is too real. Devs do their best architectural heavy lifting when they aren't technically 'at work.' Letting Claude Code natively tail your browser research streams fixes a massive production logic bottleneck. Beautifully explained context, man!\u003c/p\u003e",
+                    "createdAt": "2026-10-06T14:28:37Z",
+                    "id": "5925140",
+                    "parentId": "5920840",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5925140\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                },
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e\u0026nbsp;You're right that the bottleneck is catching the idea in the moment now. agents are fast, but they can't help if the thought is gone by the time I open a terminal.\u003c/p\u003e",
+                    "createdAt": "2026-10-06T21:08:10Z",
+                    "id": "5926119",
+                    "parentId": "5920840",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926119\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 2
+                  }
+                },
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e\u0026nbsp;This hits a real problem for me. I'm building client sites all day (Next.js/Vercel stack), and half my best fixes come from randomly looking at someone else's live site mid-browsing, a layout choice, a hover state, whatever. By the time I'd switch over to the actual project and explain what I saw, the idea's already lost half its detail. Being able to just flag it right there and have the agent pick up the right project context is the actual unlock, not another AI sidebar. Curious how it handles multiple active client projects though, does it get the right one reliably when you've got a dozen repos open, or do you still have to nudge it toward the right context sometimes?\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:41:59Z",
+                    "id": "5926273",
+                    "parentId": "5920840",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926273\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5920840\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 13
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eCongrats on the launch!!\u003cbr\u003e\u003c/p\u003e\u003cp\u003equick question, does the console go across too? i'm usually just looking at my own localhost and the thing i actually need is whatevers in the console, plus the request that failed under it. right now thats me copy pasting it in every time and how does it know which project. \u003c/p\u003e\u003cp\u003ei have the same app running on like three ports half the time.\u003c/p\u003e",
+            "createdAt": "2026-10-07T06:39:53Z",
+            "id": "5926901",
+            "parentId": null,
+            "replies": {
+              "edges": []
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926901\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eHey \u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" data-node-type=\"mention\" data-mention-type=\"user\" data-mention-id=\"williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e Congrats on your launch and leading the chart. Is this mobile compatible, can we send tasks from mobile, we could do with Claude?\u003c/p\u003e\u003cp\u003e\u003c/p\u003e",
+            "createdAt": "2026-10-07T02:34:06Z",
+            "id": "5926528",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@srinivasareddy\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@srinivasareddy\u003c/a\u003e\u0026nbsp;Thanks! At the moment it's Mac only. But mobile version is on the road map. Stay tuned!\u003c/p\u003e",
+                    "createdAt": "2026-10-07T02:41:19Z",
+                    "id": "5926534",
+                    "parentId": "5926528",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926534\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926528\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eI opened History at the end of the day and it read like a diary. I’ve never looked at my Chrome history for fun.\u003cbr\u003eCongratulations on the launch\u003c/p\u003e",
+            "createdAt": "2026-10-07T01:45:07Z",
+            "id": "5926451",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@genedai\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@genedai\u003c/a\u003e\u0026nbsp;Thanks! Small features like this make Rill truly AI-native. Feel free to shoot suggestions on more features that are fun to you\u003c/p\u003e",
+                    "createdAt": "2026-10-07T02:19:03Z",
+                    "id": "5926512",
+                    "parentId": "5926451",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926512\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926451\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eI’d love to queue up a few tasks at night and wake up to them done. Is anyone already using it like that?\u003c/p\u003e",
+            "createdAt": "2026-10-07T01:43:52Z",
+            "id": "5926450",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@irving_ai\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@irving_ai\u003c/a\u003e\u0026nbsp;I definitely am! Super satisfying to know that agents are doing great works when I'm asleep. Codex and Claude Code can already make that happen but Rill can make that happen even more. You should try it!\u003c/p\u003e",
+                    "createdAt": "2026-10-07T06:25:21Z",
+                    "id": "5926882",
+                    "parentId": "5926450",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926882\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926450\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eI use Codex for research too, so I can see this being useful beyond coding. Being able to trace a draft back to the pages that informed it would matter more to me than just handing over the tabs.\u003c/p\u003e",
+            "createdAt": "2026-10-07T00:58:42Z",
+            "id": "5926413",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@znu\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@znu\u003c/a\u003e\u0026nbsp;Great to know! Research is one of the areas I've been designing it for, so that I don't need to leave the paper when ideas struck but I'm half way reading it. What do you mean by tracing a draft back?\u003c/p\u003e",
+                    "createdAt": "2026-10-07T06:24:24Z",
+                    "id": "5926879",
+                    "parentId": "5926413",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926879\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926413\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eThis is a pretty need tool. I have always been a fan of these tools that kind of act as a surface to multiple products. I would recommend expanding to include other tools as more tools outside of Codex and Claude Code will come out and being able to \"plug and play\" would be cool.\u003c/p\u003e",
+            "createdAt": "2026-10-06T21:18:40Z",
+            "id": "5926141",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@cloudalchemist\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@cloudalchemist\u003c/a\u003e\u0026nbsp;I totally agree. Break the border and bring things together. What are some tools you'd want to include?\u003c/p\u003e",
+                    "createdAt": "2026-10-06T21:34:38Z",
+                    "id": "5926172",
+                    "parentId": "5926141",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926172\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926141\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eHi William, great job defining the use case, e.g. I have an idea, I want to tell my agent about this idea immediately, and then send my agent off to work on my idea. I have a question about the project view (or any of the views). is there a way to view the progress of the agents once they are working on or have completed a task?\u003c/p\u003e",
+            "createdAt": "2026-10-06T20:09:07Z",
+            "id": "5926018",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@sara_ford_goog\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@sara_ford_goog\u003c/a\u003e\u0026nbsp;Thank you Sara! Yes, the agents working will occupy a small At Work tray on bottom right, and have different indicator colors for different states, as well as a brief line of current progress\u003c/p\u003e",
+                    "createdAt": "2026-10-06T21:59:55Z",
+                    "id": "5926224",
+                    "parentId": "5926018",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926224\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5926018\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eQQ: how is Rill different from Claude in Chrome?\u003c/p\u003e",
+            "createdAt": "2026-10-06T18:11:24Z",
+            "id": "5925749",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@ysssss33\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@ysssss33\u003c/a\u003e\u0026nbsp;Rill is more comparable to Claude desktop app (as an interface to the underlying Claude Code model capability), which is far more powerful than Claude in Chrome\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:03:39Z",
+                    "id": "5926230",
+                    "parentId": "5925749",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926230\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5925749\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eI use Claude Code every day, often while I'm in the browser checking Search Console or a store page, so ⌘E-to-task is exactly the jump I make by hand now: copy the URL, switch to the terminal, explain the context. Is a Windows version on the roadmap? I'm on Windows 11 and would try it the day it ships.\u003c/p\u003e",
+            "createdAt": "2026-10-06T16:49:55Z",
+            "id": "5925539",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@arouna_zanre\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@arouna_zanre\u003c/a\u003e\u0026nbsp;Yes, though it might take some time. Rill is Swift+Webkit right now. We'll need a rather different architecture to support Windows. But we'll get there!\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:07:44Z",
+                    "id": "5926234",
+                    "parentId": "5925539",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926234\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                },
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@arouna_zanre\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@arouna_zanre\u003c/a\u003e\u0026nbsp;Rill’s approach to keeping the browser and coding agents in the same workflow is particularly interesting. Being \u003ca href=\"https://iso9001-2026.com/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003efdis iso 9001 version 2026 pdf \u003c/a\u003eable to turn a page into a task without constantly switching between the browser, projects, and coding tools could make agent-assisted development feel much more natural.\u003c/p\u003e",
+                    "createdAt": "2026-10-07T06:34:29Z",
+                    "id": "5926893",
+                    "parentId": "5925539",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926893\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5925539\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eThe idea of turning a random thought while browsing into actual work without breaking your focus feels genuinely useful.Congrats \u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" data-node-type=\"mention\" data-mention-type=\"user\" data-mention-id=\"williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e \u003c/p\u003e",
+            "createdAt": "2026-10-06T16:38:46Z",
+            "id": "5925509",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@angelo_bram\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@angelo_bram\u003c/a\u003e\u0026nbsp;Thank you! So much innovation and productivity can come when we treat our random thoughts seriously\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:11:06Z",
+                    "id": "5926240",
+                    "parentId": "5925509",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926240\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5925509\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003ethe per-turn snapshot and Undo you mentioned in another thread is the detail that got me, I've been asking a version of this question on a few launches lately - does that snapshot/undo only cover the git state, or does it also know about anything the agent did outside the repo during that turn (an API call it made, a form it submitted on the page it was reading)? code is easy to revert, a request that already fired isn't, and that gap is the part I haven't seen anyone solve yet\u003c/p\u003e",
+            "createdAt": "2026-10-06T14:55:59Z",
+            "id": "5925223",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@galdayan\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@galdayan\u003c/a\u003e\u0026nbsp;it knows everything the agent knows through that turn. due to practical reason we can't save every turn that ever happened, but all recent turns will have a good snapshot\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:04:50Z",
+                    "id": "5926231",
+                    "parentId": "5925223",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926231\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 1
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5925223\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eCongrats on the launch, William! The code-switching problem is real. Ideas tend to hit when I'm reading something unrelated, and having ⌘E turn the page into a task for the agent in the right project sounds like a great way to catch them. Looking forward to trying it out.\u003c/p\u003e",
+            "createdAt": "2026-10-06T13:23:59Z",
+            "id": "5924996",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@adityaharish2002\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@adityaharish2002\u003c/a\u003e\u0026nbsp;Thank you! Please do give it a try and share any feedback you have\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:09:57Z",
+                    "id": "5926237",
+                    "parentId": "5924996",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926237\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924996\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003esending an idea straight from the page makes sense. does the task keep a snapshot of that page, so the agent still has the original context if i navigate away or the site changes?\u003c/p\u003e",
+            "createdAt": "2026-10-06T13:09:30Z",
+            "id": "5924962",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@jeetendra_kumar2\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@jeetendra_kumar2\u003c/a\u003e\u0026nbsp;The agent has original context. So once you sent your ask, you can keep browsing as you always do - jump through tabs, close tabs, etc\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:05:36Z",
+                    "id": "5926233",
+                    "parentId": "5924962",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926233\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924962\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eTurning the page you are already looking at into a task for your agent with one shortcut is a really natural way to blend browsing and building. Passing along the right project context is the part that usually goes wrong in these setups, so handling that automatically is nice. Does the agent stay in the background while you keep browsing other tabs?\u003c/p\u003e",
+            "createdAt": "2026-10-06T12:02:36Z",
+            "id": "5924773",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@karimbenkeroum\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@karimbenkeroum\u003c/a\u003e\u0026nbsp;Yes. The key idea is that you send the request the moment you got an idea, and once you sent the request you don't need to do anything else. You can browse this tab, other tabs, close any tabs, or even close Rill and come back later. Agents will continue working on the background \u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:09:26Z",
+                    "id": "5926236",
+                    "parentId": "5924773",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926236\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924773\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "Was reading a paper on arXiv and asked it to try the method on my own data. Kept reading, and the chart was there before I reached the conclusion. Anyone else using it for research?",
+            "createdAt": "2026-10-06T11:49:40Z",
+            "id": "5924728",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@priyankamandal\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@priyankamandal\u003c/a\u003e\u0026nbsp;yep that's one of the use cases that got me started building Rill as well\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:01:45Z",
+                    "id": "5926227",
+                    "parentId": "5924728",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926227\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924728\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@williamgaoharvard\" data-node-type=\"mention\" data-mention-type=\"user\" data-mention-id=\"williamgaoharvard\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@williamgaoharvard\u003c/a\u003e Making the browser the place where you actually kick off the work makes a lot of sense. Nice launch.\u003c/p\u003e",
+            "createdAt": "2026-10-06T11:26:01Z",
+            "id": "5924665",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@harshyadav\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@harshyadav\u003c/a\u003e\u0026nbsp;Right? Most of the inspiration comes when I browse and most of the work happens when I code. They should be all-in-one!\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:02:41Z",
+                    "id": "5926228",
+                    "parentId": "5924665",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926228\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924665\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eInteresting! Is it a built-in AI that forwards the tasks to Claude and Codex or do you directly integrate your already existing Claude or Codex subscriptions API keys into Rill? Congrats on the launch! 🚀\u003c/p\u003e\u003cp\u003e\u003c/p\u003e",
+            "createdAt": "2026-10-06T11:05:52Z",
+            "id": "5924611",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@emad_khair\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@emad_khair\u003c/a\u003e\u0026nbsp;Thanks! Rill uses your already existing Claude or Codex subscriptions on your Mac. You don't need API keys. If you're using either on your Mac, Rill can call upon them directly\u003c/p\u003e",
+                    "createdAt": "2026-10-06T22:00:56Z",
+                    "id": "5926226",
+                    "parentId": "5924611",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5926226\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 1
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924611\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eHaha my reader later tab just got nervous \u003c/p\u003e",
+            "createdAt": "2026-10-06T10:00:30Z",
+            "id": "5924421",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@jojo_li\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@jojo_li\u003c/a\u003e\u0026nbsp;hahah I have so many of those read-it-later tabs too. That's the goal - closing them confidently by turning them into action\u003c/p\u003e",
+                    "createdAt": "2026-10-06T10:13:51Z",
+                    "id": "5924463",
+                    "parentId": "5924421",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924463\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924421\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eYou know when you’re reading something and suddenly think I could build this? This feels pretty useful for that.\u003c/p\u003e",
+            "createdAt": "2026-10-06T09:42:53Z",
+            "id": "5924362",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@kyle_bennett6\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@kyle_bennett6\u003c/a\u003e\u0026nbsp;Right? There are so many times I felt that, reading papers, scrolling through X.com, watching videos etc. This is largely why I built Rill, so that moment of \"suddenly think I could build this\" doesn't go away but becomes concrete improvement. Imagine how that'll multiply\u003c/p\u003e",
+                    "createdAt": "2026-10-06T10:10:54Z",
+                    "id": "5924454",
+                    "parentId": "5924362",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924454\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924362\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        }
+      ],
+      "pageInfo": {
+        "endCursor": "MjA",
+        "hasNextPage": true
+      },
+      "totalCount": 28
+    },
+    "commentsCount": 67,
+    "id": "1270095",
+    "name": "Rill Browser",
+    "url": "https://www.producthunt.com/products/rill-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+  }
+}

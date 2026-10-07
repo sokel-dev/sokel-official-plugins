@@ -1,0 +1,502 @@
+{
+  "posts": {
+    "edges": [
+      {
+        "node": {
+          "commentsCount": 67,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Rill is an AI-native browser built around the Claude Code and Codex you already use. Browse normally, then press ⌘E on any page to turn what you're looking at into a task for your agent. Rill finds the right project, passes along the context, and the agent works while you keep browsing. It also sorts your tabs into themes, turns your history into days you can search, and brings every project your agents are working on into one place. Free, on the plan you already have.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270095",
+          "makers": [
+            {
+              "username": "williamgaoharvard"
+            },
+            {
+              "username": "iris_tu"
+            }
+          ],
+          "name": "Rill Browser",
+          "slug": "rill-browser",
+          "tagline": "The browser where Claude Code and Codex work beside you",
+          "url": "https://www.producthunt.com/products/rill-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 413,
+          "website": "https://www.producthunt.com/r/YZHJNNU36WBO6Q?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 62,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "OpenBot is an open-source workspace for AI teammates. Connect Claude, ChatGPT, Grok, OpenCode, or custom agents on Mac, Windows, and iOS. Give agents clear roles, let them delegate work, and invite your team to collaborate live with the same agents.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1264594",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "norbertbodziony"
+            }
+          ],
+          "name": "OpenBot",
+          "slug": "openbot-4",
+          "tagline": "Grok Bot alternative: free, local, open-source, multiplayer",
+          "url": "https://www.producthunt.com/products/openbot-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 346,
+          "website": "https://www.producthunt.com/r/6MPDE2Q3ZJDJZF?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 55,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "AUDR (Agent Usage Detail Record) is an open standard, for capturing who initiated an agent run and what it cost across every system that run touches. Inspired by the telecom industry's Call Detail Record, AUDR defines a common JSON schema that any harness, router, or billing system can emit and ingest. Three core rules make it work: a shared run ID minted by the harness, clear field ownership, and strict merge rules where conflicts are rejected and corrections are new records.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1262537",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "nikhil_muralitharan"
+            }
+          ],
+          "name": "AUDR by Chargebee",
+          "slug": "audr-by-chargebee",
+          "tagline": "Open standard for tracking agent run costs",
+          "url": "https://www.producthunt.com/products/chargebee?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 326,
+          "website": "https://www.producthunt.com/r/LKE36PULC3BUKW?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 32,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Your GTM stack shouldn’t need a dozen tools, subscriptions, and APIs. Fuse gives developers and AI agents one SDK and MCP for the entire workflow. Think OpenRouter x Apollo x Clay x Zapier. Fuse takes care of web automations, data enrichment, multi-channel outreach, workflows, and AI agents. Build unlimited workflows and agents on top, without stitching together separate GTM products for every step.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1266988",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "nicoofrancken"
+            }
+          ],
+          "name": "Fuse AI",
+          "slug": "fuse-ai",
+          "tagline": "Build a Custom GTM Stack. One SDK. One MCP.",
+          "url": "https://www.producthunt.com/products/fuseai?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 308,
+          "website": "https://www.producthunt.com/r/I3CDQPOEFCTVY6?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 38,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Incredible is your personal AI assistant that gets work done on your computer. It learns how you work by watching you do it. Show it a task on your computer, talk through the steps, and let it handle the routine from there, from processing invoices and updating your CRM to editing spreadsheets.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1264151",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "anika_gautam_at_incredible"
+            }
+          ],
+          "name": "Incredible",
+          "slug": "incredible-3",
+          "tagline": "Vibe computing. Control your computer with your voice.",
+          "url": "https://www.producthunt.com/products/incredible?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 279,
+          "website": "https://www.producthunt.com/r/4HJ5NAOQFNL6CT?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 47,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Extrovert finds prospects, suggests who to comment on or DM today, and prepares drafts in your voice. Review in 20 minutes a day, or hand the whole job to your Claude.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1271039",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "dmitry_bergelson"
+            }
+          ],
+          "name": "Extrovert",
+          "slug": "extrovert-10",
+          "tagline": "Run LinkedIn outreach from your agent",
+          "url": "https://www.producthunt.com/products/extrovert?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 266,
+          "website": "https://www.producthunt.com/r/7SIV3AMV5HON7K?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 15,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Willow Knowledge lets you bring your writing style and personal context into Willow from ChatGPT, Claude, Gemini, or any AI you use. It's like giving superpowers to Willow Scribe. From now on, your email, slack msg, prompt, or wherever you write will sound exactly like you when you dictate.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270741",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "jesslynteojy"
+            }
+          ],
+          "name": "Willow Knowledge",
+          "slug": "willow-knowledge",
+          "tagline": "Your AI already knows you. Now Willow can too.",
+          "url": "https://www.producthunt.com/products/willow-voice?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 143,
+          "website": "https://www.producthunt.com/r/GG2FLKBOEACAJO?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 21,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Coddy teaches you to code with short, interactive lessons you actually finish. 20+ languages (Python, JS, C++, SQL, Rust, Go...), a real code editor in the browser with test cases, streaks, weekly leagues and Bugsy - an AI tutor that gives hints, not answers. Everything is free with a daily limit, on web, iOS and Android. 5M+ learners so far. Product Hunt visitors get 50% off any plan for 72h, applied automatically.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1245696",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "kevin_spektor"
+            }
+          ],
+          "name": "Coddy",
+          "slug": "coddy-2",
+          "tagline": "Learn to code 20+ languages in a fun way with short lessons",
+          "url": "https://www.producthunt.com/products/coddy?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 133,
+          "website": "https://www.producthunt.com/r/UKMYYMNUR2X4TH?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 11,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Instead of one form per company, Ghostifier starts from your inbox. It finds who holds your data, unsubscribes you and opts you out of sale and sharing on day one, waits out the return window, then sends deletion requests and tracks every reply. Banks, insurers and your employer are left alone. It also asks data brokers to delete you. Gmail access is headers only, so it never reads your email bodies, and there is no AI: every decision follows fixed rules.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1264891",
+          "makers": [
+            {
+              "username": "jonathan_wise"
+            }
+          ],
+          "name": "Ghostifier",
+          "slug": "ghostifier",
+          "tagline": "Companies have your data. Ghostifier gets them to delete it.",
+          "url": "https://www.producthunt.com/products/ghostifier?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 110,
+          "website": "https://www.producthunt.com/r/QG5QFVAPFLFDXH?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 8,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Yet another notes app with AI? Nah. This one is supercharged, and the AI never leaves your device. Jot anything down and NoteWorthy titles it and files it under Tasks, Ideas, Info, Personal or your own labels. One tap turns a messy brain-dump into clean headings and checklists. Long note? Summed up in a line. It all runs on your iPhone, iPad or Mac. Works offline, no account, no subscription, and not a single note sent to a server. Free. ⚡️",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1263693",
+          "makers": [
+            {
+              "username": "sumanhansada"
+            }
+          ],
+          "name": "NoteWorthy",
+          "slug": "noteworthy-2",
+          "tagline": "Notes supercharged with AI, all on-device",
+          "url": "https://www.producthunt.com/products/noteworthy?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 109,
+          "website": "https://www.producthunt.com/r/WS7WVPXAYGK4KS?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 5,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "iphone-use gives an AI agent a real iPhone: the screen as text, tap, type and scroll over WebDriverAgent, with an honest answer for every action (applied, not sent, or unknown). Payment apps that block screenshots come back as a wireframe. A task done once becomes a flow that replays with no model. HTTP API, a 21-tool MCP server for Claude Code, and remote control from a browser or iOS app. Open source, MIT.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270701",
+          "makers": [],
+          "name": "iphone-use",
+          "slug": "iphone-use",
+          "tagline": "Let AI agents drive a real iPhone, even apps with no API",
+          "url": "https://www.producthunt.com/products/iphone-use?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 111,
+          "website": "https://www.producthunt.com/r/P4NPAMMP35SW4H?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 13,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "ruOS is a private cloud desktop with an AI team built in. Ask for research, writing or code and the agents (Claude Code, Codex, ruflo swarms) do it while you watch or step away. Opens in any browser on Mac, iPad or Chromebook, nothing to install. Files and AI memory persist across devices. Power users get a real Linux box plus an MCP server, so ChatGPT or Claude can drive it. Try ruOS Lite free in seconds, no sign-up.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270752",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "nicholas_ruest"
+            }
+          ],
+          "name": "ruOS",
+          "slug": "ruos",
+          "tagline": "A cloud desktop where AI agents do the work for you",
+          "url": "https://www.producthunt.com/products/ruos?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 102,
+          "website": "https://www.producthunt.com/r/4ACSOCNAGQZXIY?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 15,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Scumble is a free, open-source desktop editor for AI inpainting. Select part of a picture, say what belongs there, and the result lands as its own colour-matched layer. Runs on your own ComfyUI or your own API keys: FLUX 3, GPT Image, Nano Banana and more.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270976",
+          "makers": [
+            {
+              "username": "denrakeiw"
+            }
+          ],
+          "name": "Scumble",
+          "slug": "scumble",
+          "tagline": "The open-source editor for AI inpainting",
+          "url": "https://www.producthunt.com/products/scumble?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 100,
+          "website": "https://www.producthunt.com/r/43V4BH4RAPGKZR?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 12,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Meet Doco - an expressive Android companion for focus, music and everyday moments, with an optional Windows desktop visitor. Everyday mode is playful and warm; Focus mode cuts the noise with a little friendly sarcasm. Fully animated, zero setup. Connect Spotify and Doco plays music that fits the moment, staying close to your taste with room for something new. Add your own Gemini API key for camera-based reactions and AI captions. Pre-launch - join the waitlist at getdoco.app.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1261059",
+          "makers": [
+            {
+              "username": "vatsal_upadhyay1"
+            }
+          ],
+          "name": "Doco",
+          "slug": "doco-4",
+          "tagline": "Good Company. Music that fits.",
+          "url": "https://www.producthunt.com/products/doco-4?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 96,
+          "website": "https://www.producthunt.com/r/YK7QKNO2AXQ47T?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 9,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Measure how you and your team actually work with AI coding agents. Pheebs is an open-source AI telemetry tool created by Eversynced. It sits quietly inside Claude Code, Cursor, and Codex via hooks, capturing lightweight interaction signals: the shape of the session, not its contents.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1265090",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "pratesd"
+            }
+          ],
+          "name": "Pheebs",
+          "slug": "pheebs",
+          "tagline": "Measure how engineers and teams actually work with AI",
+          "url": "https://www.producthunt.com/products/pheebs?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 95,
+          "website": "https://www.producthunt.com/r/IY3PPXWLFB445M?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 9,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "A time blocking app for Mac that puts your tasks and calendar in one place. Drag a task onto your day and it becomes a block, and a countdown shows how long is left on it. Syncs both ways with Google, Outlook and Apple Calendar, and pulls in Apple Reminders. Save a good day as a template, or ask Claude to plan your week. Your data stays on your Macs and syncs through your own iCloud. No subscription, 7 days free no card required.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1271029",
+          "makers": [
+            {
+              "username": "dudley_spence"
+            }
+          ],
+          "name": "Chunk",
+          "slug": "chunk-6",
+          "tagline": "The time-blocking app for macOS",
+          "url": "https://www.producthunt.com/products/chunk-2?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 94,
+          "website": "https://www.producthunt.com/r/ZMQP7N5RVB7DVU?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 6,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "CodeCrab is a native desktop app that reviews Pull Requests in seconds using your local CLIs. 100% client-side — your code never leaves your machine.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270952",
+          "makers": [
+            {
+              "username": "edyluisrey"
+            }
+          ],
+          "name": "CodeCrab",
+          "slug": "codecrab",
+          "tagline": "100% local-first AI pull request reviewer",
+          "url": "https://www.producthunt.com/products/codecrab?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 90,
+          "website": "https://www.producthunt.com/r/7TZNGCQJSOJEVG?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 9,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Put an AI support agent on your website with one script tag. It answers from the content your site already publishes, so when you update a page, the answers update too. Set the name, color, greeting, and a few suggested questions. When the agent can't help, the visitor leaves an email and the question. You get the email. They get a confirmation. Try Leo answering questions about Cosmic, then activate your own: https://www.cosmicjs.com/ai/support-agent",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270653",
+          "makers": [
+            {
+              "username": "tonyspiro"
+            }
+          ],
+          "name": "Cosmic AI Support Agent",
+          "slug": "cosmic-ai-support-agent",
+          "tagline": "An AI support agent that stays in sync with your site",
+          "url": "https://www.producthunt.com/products/cosmic?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 89,
+          "website": "https://www.producthunt.com/r/T34MMFDFVDNU62?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 2,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Working with several Claude Code chats at once? GeckIt puts them on a Kanban board, so you see which one is working, which one waits for you and which one is done. It runs your own Claude Code on your Claude subscription, no API key. Free and open source, Mac, Windows, Linux.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1263021",
+          "makers": [
+            {
+              "username": "aleksandr_netrebskii"
+            }
+          ],
+          "name": "GeckIt",
+          "slug": "geckit",
+          "tagline": "Kanban board for your Claude Code chats",
+          "url": "https://www.producthunt.com/products/geckit?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 85,
+          "website": "https://www.producthunt.com/r/UXUE6AMO5TAQW3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 4,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "EasyCut turns Claude-made motion videos into a fully editable timeline. Every title, scene, image, sound and element is kept on its own track, so you can select anything and ask Claude to change just that part without rebuilding the whole video. Adjust timing, add your brand, fit music to the edit, create smooth slow-mo, resize for different platforms and export when you're done. Free in your browser. Your files stay on your device.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270754",
+          "makers": [
+            {
+              "username": "mesimhadri"
+            }
+          ],
+          "name": "EasyCut",
+          "slug": "easycut-2",
+          "tagline": "Edit your Claude motion videos",
+          "url": "https://www.producthunt.com/products/easycut-2?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 84,
+          "website": "https://www.producthunt.com/r/PPNEF4LJHOXSQG?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      }
+    ],
+    "pageInfo": {
+      "endCursor": "MjA",
+      "hasNextPage": true
+    }
+  }
+}

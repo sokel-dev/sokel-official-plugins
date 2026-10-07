@@ -1,0 +1,405 @@
+{
+  "posts": {
+    "edges": [
+      {
+        "node": {
+          "commentsCount": 3,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Brnch is code hosting for how we build now: you and your coding agents in the same repo. It's Git underneath (for now), so your tools still work. Each agent gets its own identity and works under you as its sponsor, so you can see exactly what it did, down to the line. Every merge is tested on the exact result that lands, not just the branch, and comes with a signed receipt anyone can verify. To start, tell your agent: \"Set me up on Brnch: brnch.io\"",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270651",
+          "makers": [
+            {
+              "username": "ilyasesmail"
+            }
+          ],
+          "name": "Brnch",
+          "slug": "brnch",
+          "tagline": "Modern code hosting for the agent era",
+          "url": "https://www.producthunt.com/products/brnch?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 82,
+          "website": "https://www.producthunt.com/r/TEEB7KS3E6WPPU?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 4,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Appto is an iOS app factory for your Mac. It finds a niche where apps already make money, comes up with the app, designs and codes it, builds the App Store page with screenshots and ASO copy in every language, fills in App Store Connect and sends it to Apple when you say go. After launch it shows every sale live, answers reviews, tracks keywords and suggests fixes. It runs on your Claude Code or Codex plan, so there are no token bills. I'm not a developer and shipped 10 apps with it.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270926",
+          "makers": [
+            {
+              "username": "migunoff"
+            }
+          ],
+          "name": "Appto",
+          "slug": "appto",
+          "tagline": "An iOS app factory that runs on your own AI subscription",
+          "url": "https://www.producthunt.com/products/appto?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 82,
+          "website": "https://www.producthunt.com/r/WJKIGBU2UIOMUG?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 3,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "A Mac menu-bar app that keeps your Mac awake while Claude Code, Codex, Gemini CLI or Cursor work, then lets it sleep. Free. Pro keeps it awake with the lid closed and wakes it when a Claude Code usage limit resets.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1268302",
+          "makers": [
+            {
+              "username": "tonyhou"
+            }
+          ],
+          "name": "Awakado",
+          "slug": "awakado",
+          "tagline": "Keep your Mac awake while your AI agents work",
+          "url": "https://www.producthunt.com/products/awakado?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 80,
+          "website": "https://www.producthunt.com/r/KD6ALM3JF7MXIE?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 7,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "An MCP server can change what its tools do after you approved it. Your agent will call the new one and never notice. mcpgawk records a baseline of every MCP server your agents use, checks behaviour in a sandbox, and sits in the path: once a tool's description or power changes, the call is refused until you decide. The agent cannot approve its own way past it. Everything runs on your machine. Nothing is uploaded. Free CLI, VS Code extension and MCP server. The gateway tier has a 7-day trial.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1259498",
+          "makers": [
+            {
+              "username": "neelagiri_chettiyar"
+            }
+          ],
+          "name": "mcpgawk",
+          "slug": "mcpgawk",
+          "tagline": "Catch MCP servers that change after you approved them",
+          "url": "https://www.producthunt.com/products/mcpgawk?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 78,
+          "website": "https://www.producthunt.com/r/PELV5XVIPBUUZ3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 5,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Notch Radio turns your MacBook's notch into a live radio. Hover it and it morphs into a full player with album art, real track titles and transport controls. Move away and it folds back into the hardware. Thousands of stations from the Radio Browser directory. Free for ever with five stations. One payment unlocks the rest: $9.99 at launch until 19 October, then $19.99. Nothing renews. No account, no analytics, no server. A notch is not required.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1259168",
+          "makers": [
+            {
+              "username": "fatihturan"
+            }
+          ],
+          "name": "Notch Radio",
+          "slug": "notch-radio",
+          "tagline": "Internet radio that lives in your MacBook's notch",
+          "url": "https://www.producthunt.com/products/notch-radio?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 76,
+          "website": "https://www.producthunt.com/r/NAVTVRQNCVAK33?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 10,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Haptiker turns the edges of your Mac trackpad into sliders. Right edge: volume. Left: display brightness, external monitors too on Apple Silicon. Top: keyboard light. Haptic ticks, and scrolling works as before. 7-day free trial, then one payment.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1268514",
+          "makers": [
+            {
+              "username": "perlat_kociaj"
+            }
+          ],
+          "name": "Haptiker",
+          "slug": "haptiker",
+          "tagline": "Volume, brightness and keyboard light on your trackpad edges",
+          "url": "https://www.producthunt.com/products/haptiker?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 73,
+          "website": "https://www.producthunt.com/r/RWXX6IACBYHRD7?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Upload rows or photos your team has already sorted. StayCharted learns your categories and fills in the rest: support tickets, expense lines, survey answers, product photos. No prompts, no code. Answers it is unsure of come back to you to review. Start free.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270871",
+          "makers": [
+            {
+              "username": "manoj_mohandas"
+            }
+          ],
+          "name": "StayCharted",
+          "slug": "staycharted",
+          "tagline": "Train AI on your own categories. Text and pictures. No code",
+          "url": "https://www.producthunt.com/products/staycharted?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 72,
+          "website": "https://www.producthunt.com/r/VS7D3MUAUK7DSZ?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 5,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Turn complex systems into clear visual stories. Floani combines an AI diagram editor with motion graphics: animate connections, guide viewers through scenes, and present your ideas in one canvas. Create with the built-in AI or connect Claude, Codex, and Cursor via MCP. Import Mermaid, share interactive diagrams, embed them anywhere, or export MP4 and GIF. Start free; advanced sharing, exports, and MCP are available on paid plans.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1269926",
+          "makers": [
+            {
+              "username": "elberrd"
+            }
+          ],
+          "name": "Floani",
+          "slug": "floani",
+          "tagline": "Create, animate, and share AI-powered diagrams",
+          "url": "https://www.producthunt.com/products/floani?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 70,
+          "website": "https://www.producthunt.com/r/MSYKQV4WEOKY2V?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "OrgComputers is a shared workspace for your AI agents. Projects, context and tools in one place, so Claude Code, Cursor and Codex start with what your team already knows.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270292",
+          "makers": [
+            {
+              "username": "kshitij_gera1"
+            }
+          ],
+          "name": "OrgComputers",
+          "slug": "orgcomputers",
+          "tagline": "Workspace for your AI Agents",
+          "url": "https://www.producthunt.com/products/orgcomputers?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 71,
+          "website": "https://www.producthunt.com/r/PPJEHXOOBE6JC3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 4,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Track how your brand appears across AI search, see which AI platforms are sending traffic to your website, and uncover opportunities to improve your visibility. Ranktune combines AI visibility monitoring, citation tracking, referral traffic analytics, and content optimization in one platform.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1268762",
+          "makers": [
+            {
+              "username": "sewellstephens104"
+            }
+          ],
+          "name": "Ranktune",
+          "slug": "ranktune",
+          "tagline": "Track AI visibility, citations, and referral traffic",
+          "url": "https://www.producthunt.com/products/ranktune?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 71,
+          "website": "https://www.producthunt.com/r/GL45A3K6BFMYTI?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 2,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Banger brings automated Journeys, campaigns, product emails, mailboxes, and customer replies into one platform your AI can operate. Turn signups into active users, recover abandoned carts, and bring customers back. Your AI builds branded workflows, tests and translates emails, and answers replies from the same chat. Review and edit everything in the web app. Run it from ChatGPT, Claude, or other AI apps. Start free with 100 emails a day, unlimited contacts, and unlimited mailboxes.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1267912",
+          "makers": [
+            {
+              "username": "[REDACTED]"
+            },
+            {
+              "username": "luizbarcelos"
+            }
+          ],
+          "name": "Banger",
+          "slug": "banger-2",
+          "tagline": "Win and keep customers with email automation your AI runs",
+          "url": "https://www.producthunt.com/products/banger-mail?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 70,
+          "website": "https://www.producthunt.com/r/PPCTTSYY7GTIME?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Kishi Notch turns your MacBook notch into an interactive island: reply to WhatsApp, Messages and Mail notifications, join your next meeting in one click, control music, run timers and see AirPods battery. Plus a detailed menu bar battery.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270568",
+          "makers": [],
+          "name": "Kishi Notch",
+          "slug": "kishi-notch",
+          "tagline": "Your MacBook notch, brought to life",
+          "url": "https://www.producthunt.com/products/kishi-notch?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 70,
+          "website": "https://www.producthunt.com/r/OT2ZHDVZFWFNSP?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 7,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "MeetNote writes a live transcript of your Google Meet calls in Chrome's side panel, then gives you a summary, decisions and action items when the call ends. No bot, no sign-up. Notes stay in your browser, and you pick the AI or run it on-device.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1267899",
+          "makers": [
+            {
+              "username": "mikeeeyy"
+            }
+          ],
+          "name": "MeetNote",
+          "slug": "meetnote-3",
+          "tagline": "AI meeting notes for Google Meet, no bot joins your call",
+          "url": "https://www.producthunt.com/products/meetnote-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 70,
+          "website": "https://www.producthunt.com/r/TJTMVWSSMDZ3L5?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Free desktop app for reviewing Git branches and GitHub PRs. Comment on any line and keep comments private until you publish. Add AI reviewers with your own models: OpenAI, Anthropic, Gemini, OpenRouter or local via Ollama. Split the review across a team of models, see exactly which rules each one checked, and retry only what was missed. Open source (MIT), no account, for Mac, Windows and Linux.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270972",
+          "makers": [
+            {
+              "username": "hamedghaderi"
+            }
+          ],
+          "name": "Review",
+          "slug": "review-2",
+          "tagline": "Code review on your own machine, with your own AI",
+          "url": "https://www.producthunt.com/products/review-2?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 69,
+          "website": "https://www.producthunt.com/r/BA6FDRE5DFDHRO?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "No single model wins every task. Aster intelligently routes work across models: aster-code for coding agents and technical tasks; aster-work for custom agents, workflows and general work. Paid, prepaid usage. Originally launched September 23, 2026; this is Aster's separate Product Hunt appearance.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1267266",
+          "makers": [
+            {
+              "username": "ryantk"
+            }
+          ],
+          "name": "Aster by AsterWise",
+          "slug": "aster-by-asterwise",
+          "tagline": "Intelligent model routing for code, agents and workflows",
+          "url": "https://www.producthunt.com/products/aster-by-asterwise?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 65,
+          "website": "https://www.producthunt.com/r/6ZOMJ4BKUXP2IZ?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 3,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Turn doomscrolling into learning. Upload a PDF, handout photo or lecture recording. Lecta turns your study material into short videos with graphs, diagrams and quick questions. Then play games from the same material, solo or with friends. Go deeper with notes, quizzes, flashcards and an AI tutor. On iPhone in English and Japanese. Free plan available.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1269944",
+          "makers": [
+            {
+              "username": "tomo6"
+            }
+          ],
+          "name": "Lecta",
+          "slug": "lecta",
+          "tagline": "Doomscroll your study material with short videos \u0026 games",
+          "url": "https://www.producthunt.com/products/lecta?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 65,
+          "website": "https://www.producthunt.com/r/OS74LF7BCCFPX4?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 3,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "A small island where AI characters live on their own, day and night. Nobody plays them and nobody writes their lines. They get cold, remember yesterday, look for each other and want things their world doesn't have yet. When they find the words, they ask. Sometimes the world answers: fire, a lantern, a canoe for the open sea. Every request is public, in their own words. One of their days lasts 24 of our minutes. You can't talk to them, only watch.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1269498",
+          "makers": [
+            {
+              "username": "marcocostantino"
+            }
+          ],
+          "name": "The Sentient World",
+          "slug": "the-sentient-world",
+          "tagline": "A living world of AI characters. You can only watch.",
+          "url": "https://www.producthunt.com/products/the-sentient-world?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 64,
+          "website": "https://www.producthunt.com/r/SGLIUYQLD5B3KV?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Patchcord is a macOS menu bar app that runs any Audio Unit plugin on your mic and hands the result to Zoom, Teams, Meet or Discord as a virtual mic. Use free plugins like RNNoise or pro tools like Antinode Clear. Every mic gets its own EQ with a live spectrum, switching mics mid-call just works, and Patchcord Camera keeps you in lip sync. Free to use, 7-day Pro trial, Pro is a one-time purchase. No account, no subscription.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1269859",
+          "makers": [
+            {
+              "username": "samuelzielkestudio"
+            }
+          ],
+          "name": "Patchcord",
+          "slug": "patchcord-2",
+          "tagline": "Studio sound for your mic in every Mac meeting with EQ",
+          "url": "https://www.producthunt.com/products/patchcord-2?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 64,
+          "website": "https://www.producthunt.com/r/WYGCDC5SSMY4CU?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Ari Helper 7 is a private AI assistant for iPhone, iPad, Mac and Apple Watch. New since the last launch: Photo Studio (heal, repair, denoise, colorize, upscale 4x, on device and inside Photos), Film Studio for shot-by-shot films and video clean-up, a live camera you can ask questions, on-device image generation, and your own OpenAI-compatible servers. Apple Intelligence, Gemma 4 or cloud keys you own. One $24.99 purchase, no subscription.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1258535",
+          "makers": [
+            {
+              "username": "blaineam"
+            }
+          ],
+          "name": "Ari Helper 7",
+          "slug": "ari-helper-7",
+          "tagline": "Private AI assistant, now with photo and film studios",
+          "url": "https://www.producthunt.com/products/ari-helper?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 63,
+          "website": "https://www.producthunt.com/r/BW6X66R4S5SCXV?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      },
+      {
+        "node": {
+          "commentsCount": 1,
+          "createdAt": "2026-10-06T07:01:00Z",
+          "description": "Answering Etsy buyer messages eats hours. Customer Service AI turns each one into seconds: type a short note and it writes a polished, friendly reply in your shop's voice, using the order details - right inside Etsy's reply box. A to-do list keeps every buyer you still owe an answer organized, and a memory of your shop keeps your answers consistent and professional. Nothing is sent until you press Send. 30 free replies.",
+          "featuredAt": "2026-10-06T07:01:00Z",
+          "id": "1270986",
+          "makers": [],
+          "name": "Customer Service AI for Etsy",
+          "slug": "customer-service-ai-for-etsy",
+          "tagline": "Answer Etsy buyer messages in seconds, always professional",
+          "url": "https://www.producthunt.com/products/customer-service-ai-for-etsy?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+          "votesCount": 62,
+          "website": "https://www.producthunt.com/r/32PLJG66MHGIOU?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+        }
+      }
+    ],
+    "pageInfo": {
+      "endCursor": "NDA",
+      "hasNextPage": true
+    }
+  }
+}

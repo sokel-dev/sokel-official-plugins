@@ -1,0 +1,273 @@
+{
+  "post": {
+    "comments": {
+      "edges": [
+        {
+          "node": {
+            "body": "What happens when it picks the wrong project? Does my agent start editing the wrong repo before I notice?",
+            "createdAt": "2026-10-06T09:30:03Z",
+            "id": "5924316",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@meet_patel24\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@meet_patel24\u003c/a\u003e\u0026nbsp;You get to see the project it picks when you send it - everything is visible so it's one click away to correct it\u003cbr\u003eIn case it still ends up in the wrong folder, Rill comes with its own Undo and Review, based on per-turn snapshot that's independent of the git you already have. So one more way to revert things\u003c/p\u003e",
+                    "createdAt": "2026-10-06T10:08:38Z",
+                    "id": "5924449",
+                    "parentId": "5924316",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924449\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924316\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eCongrats on the launch!\u003c/p\u003e\u003cp\u003eIt looks really fun to turn something into a task for an agent while browsing. And I can’t not mention how cool your landing page is!\u003c/p\u003e\u003cp\u003eGood luck, guys!\u003c/p\u003e",
+            "createdAt": "2026-10-06T09:23:07Z",
+            "id": "5924291",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@adana\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@adana\u003c/a\u003e\u0026nbsp;Thank you! Hope you enjoy using Rill. \u003cbr\u003eAnd thanks for liking the landing page, I put in a lot of personal attention on it. Every painting is hand-picked to match the vibe of that section\u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:50:22Z",
+                    "id": "5924383",
+                    "parentId": "5924291",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924383\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924291\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 0
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eRead a migration guide for a library we're two major versions behind on, and told it to do the migration in our repo from that page. It took the guide as the brief. That used to be a ticket nobody picked up.\u003c/p\u003e",
+            "createdAt": "2026-10-06T08:59:00Z",
+            "id": "5924215",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@jitendra_bhatt\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@jitendra_bhatt\u003c/a\u003e\u0026nbsp;Glad it helped! Cool use case. That's exactly the idea behind Rill - when context is right there, we shouldn't need to code-switch and tell it to agents all over again. One simple ask should do\u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:32:17Z",
+                    "id": "5924320",
+                    "parentId": "5924215",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924320\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 2
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924215\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 2
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eWhat a challenge it is to launch a browser nowadays! Why did you take that bet instead of building a Chrome extension? How are people reacting to the change?\u003cbr\u003e\u003cbr\u003eAll the best for the launch!\u003c/p\u003e",
+            "createdAt": "2026-10-06T08:56:52Z",
+            "id": "5924209",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@patatruffe\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@patatruffe\u003c/a\u003e\u0026nbsp;Thank you Romain! It definitely takes some courage to do a browser. We choose this form factor because we see agents as first-citizens. Chrome Extensions can only touch what's on browser and improve it, but we want to bring the agent capabilities into where people browse and have ideas. \u003cbr\u003e\u003cbr\u003eWe're very thankful to the whole WebKit infrastructure. Without it, Rill won't be possible. We've done some technical deep dive into Chromium and I can tell you it's crazy down there. \u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:29:11Z",
+                    "id": "5924312",
+                    "parentId": "5924209",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924312\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924209\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 3
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eWhat would it take to send a task from my phone and have it run on my Mac at home? That would be the dream.\u003c/p\u003e",
+            "createdAt": "2026-10-06T08:56:36Z",
+            "id": "5924207",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@deepaksingh09\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@deepaksingh09\u003c/a\u003e\u0026nbsp;We're thinking about it! Stay tuned for the mobile version!\u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:30:36Z",
+                    "id": "5924317",
+                    "parentId": "5924207",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924317\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924207\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eHow is this different from Atlas, Comet or Dia? They all put AI next to the page.\u003c/p\u003e",
+            "createdAt": "2026-10-06T08:41:57Z",
+            "id": "5924153",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@justin2025\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@justin2025\u003c/a\u003e\u0026nbsp;Great question Justin! We're fundamentally different from all of them because we treat AI agents as first citizens. \u003cbr\u003eThose \"AI browsers\" have a lot of cute functions that uses AI to improve your browsing, but they don't help with the actual heavy lifting that coding agents are doing today - run 1 week straight to solve a research problem, run 4 hours to create a great motion graphics video, go through 2000 old excel sheets with manual errors and sort all of them together. These are all things you can do with Astra and Fable today, and these are also things you can ask Rill to work on.  \u003cbr\u003eWe have deep respect for that incredible capability coding agents bring, so we see browsing not as something to be dramatically improved with AI gimmicks, but as the starting point of innovative ideas that can lead to real building. \u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:48:18Z",
+                    "id": "5924381",
+                    "parentId": "5924153",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924381\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 1
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924153\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 4
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eNo Chrome extensions is a real cost for me, mostly the password manager. Just curious are people using this as the daily driver or as a second browser?\u003c/p\u003e",
+            "createdAt": "2026-10-06T08:39:29Z",
+            "id": "5924135",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@polman_trudo\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@polman_trudo\u003c/a\u003eWhat password manager do you use? Right now we use Mac's keychain to save the passwords, and have enabled importing Chrome and other browsers' password into it. Happy to support 3rd party password manager as well. \u003cbr\u003eChrome extensions are definitely great. One feature we'll launch in the future is \"Make your own extension\". The top left beautiful painting island is actually reserved for that. This way you're able to create your own extension with one simple ask, and customize them however you want. \u003c/p\u003e",
+                    "createdAt": "2026-10-06T09:38:59Z",
+                    "id": "5924351",
+                    "parentId": "5924135",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5924351\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5924135\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 3
+          }
+        },
+        {
+          "node": {
+            "body": "\u003cp\u003eGreat product, I really like the landing page oil painting and water skill background, I'd been playing with it for a while. I highly recommend turn the landing page into a product. \u003c/p\u003e\u003cp\u003e\u003c/p\u003e\u003cp\u003eJokes aside, the browser has amazing taste, and really helps my busy and hustle daily work flow\u003c/p\u003e",
+            "createdAt": "2026-10-06T07:54:39Z",
+            "id": "5923926",
+            "parentId": null,
+            "replies": {
+              "edges": [
+                {
+                  "node": {
+                    "body": "\u003cp\u003e\u003ca href=\"https://www.producthunt.com/@kelly_peng5\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003e@kelly_peng5\u003c/a\u003e\u0026nbsp;Thanks! We put a lot of thought into it (Rill but also \u003ca href=\"https://rill.love\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"\u003erill.love\u003c/a\u003e :). I hope Rill browser brings you a productive experience that keep you in the flow state!\u003c/p\u003e",
+                    "createdAt": "2026-10-06T08:01:44Z",
+                    "id": "5923954",
+                    "parentId": "5923926",
+                    "url": "https://www.producthunt.com/products/rill-3?comment=5923954\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+                    "user": {
+                      "isViewer": false,
+                      "username": "[REDACTED]"
+                    },
+                    "votesCount": 0
+                  }
+                }
+              ]
+            },
+            "url": "https://www.producthunt.com/products/rill-3?comment=5923926\u0026utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29",
+            "user": {
+              "isViewer": false,
+              "username": "[REDACTED]"
+            },
+            "votesCount": 1
+          }
+        }
+      ],
+      "pageInfo": {
+        "endCursor": "Mjg",
+        "hasNextPage": false
+      },
+      "totalCount": 28
+    },
+    "commentsCount": 67,
+    "id": "1270095",
+    "name": "Rill Browser",
+    "url": "https://www.producthunt.com/products/rill-3?utm_campaign=producthunt-api\u0026utm_medium=api-v2\u0026utm_source=Application%3A+sokel+%28ID%3A+304976%29"
+  }
+}
