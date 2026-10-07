@@ -1,0 +1,155 @@
+# Releases one plugin: push the tag <name>/vX.Y.Z (on a commit of main).
+#
+#   1. builds ghcr.io/<owner>/sokel-plugin-<name>:X.Y.Z for linux/amd64 and linux/arm64 and records its digest;
+#   2. rewrites the plugin's entry in the catalog (github.com/sokel-dev/sokel-registry): the contract as the code
+#      exports it, plugin.version, the image pinned by that digest (scripts/registry-entry.py), and runs the catalog's
+#      own admission and version gate against it;
+#   3. opens the pull request in the catalog when REGISTRY_TOKEN is set (a token allowed to push a branch and open a
+#      pull request there, best from a bot account so a maintainer can approve it); without the token the rewritten
+#      entry is attached to the run to submit by hand;
+#   4. publishes a GitHub release here with the image reference.
+#
+# Merging the pull request publishes the entry on the catalog page; platforms pick it up at their next refresh, and
+# the platform's built-in snapshot when its pin of the catalog moves.
+name: Release
+
+on:
+  push:
+    tags: ['*/v[0-9]*.[0-9]*.[0-9]*']
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  CATALOG_REPO: sokel-dev/sokel-registry
+  REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Plugin and version from the tag
+        id: tag
+        run: |
+          plugin="${GITHUB_REF_NAME%%/*}"; version="${GITHUB_REF_NAME#*/}"
+          { echo "plugin=$plugin"; echo "version=$version"; echo "semver=${version#v}"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - name: The plugin exists
+        run: test -f "${{ steps.tag.outputs.plugin }}/go.mod" || { echo "::error::no plugin directory named ${{ steps.tag.outputs.plugin }} (tags are <plugin>/vX.Y.Z)"; exit 1; }
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26', cache-dependency-path: '${{ steps.tag.outputs.plugin }}/go.sum' }
+      - name: Generated code is current; export the contract
+        working-directory: ${{ steps.tag.outputs.plugin }}
+        run: |
+          GOFLAGS=-mod=mod go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+          GOFLAGS=-mod=mod go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen export yaml . > "$RUNNER_TEMP/export.yml"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            PLUGIN=${{ steps.tag.outputs.plugin }}
+            VERSION=${{ steps.tag.outputs.version }}
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/sokel-plugin-${{ steps.tag.outputs.plugin }}:${{ steps.tag.outputs.semver }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: false
+          cache-from: type=gha,scope=${{ steps.tag.outputs.plugin }}
+          cache-to: type=gha,mode=max,scope=${{ steps.tag.outputs.plugin }}
+
+      - name: Catalog checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.CATALOG_REPO }}
+          path: catalog
+          fetch-depth: 0
+          token: ${{ secrets.REGISTRY_TOKEN || github.token }}
+      - name: Rewrite the entry
+        id: entry
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/sokel-plugin-${{ steps.tag.outputs.plugin }}:${{ steps.tag.outputs.semver }}@${{ steps.build.outputs.digest }}
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
+          python3 scripts/registry-entry.py --plugin "${{ steps.tag.outputs.plugin }}" --version "${{ steps.tag.outputs.version }}" \
+            --image "$IMAGE" --export "$RUNNER_TEMP/export.yml" --catalog catalog | tee "$RUNNER_TEMP/entry.json"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "summary=$(cat "$RUNNER_TEMP/entry.json")" >> "$GITHUB_OUTPUT"
+      - name: Catalog admission and version gate
+        working-directory: catalog
+        run: |
+          git worktree add "$RUNNER_TEMP/base" origin/main
+          go run ./cmd/build-index -base "$RUNNER_TEMP/base" .
+      - name: Pull request body
+        run: |
+          s='${{ steps.entry.outputs.summary }}'
+          prev=$(echo "$s" | python3 -c 'import json,sys;print(json.load(sys.stdin)["previous"])')
+          refreshed=$(echo "$s" | python3 -c 'import json,sys;d=json.load(sys.stdin);print("yes" if d["contract_refreshed"] else "no")')
+          changed=$(echo "$s" | python3 -c 'import json,sys;d=json.load(sys.stdin);print("yes" if d["contract_changed"] else "no")')
+          {
+            echo "**What this changes**"
+            echo
+            echo "- [x] New version of \`sokel/${{ steps.tag.outputs.plugin }}\` (\`plugin.version\` raised): $prev → ${{ steps.tag.outputs.version }}"
+            echo
+            echo "**For a plugin**"
+            echo
+            echo "- Source: ${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/${{ steps.tag.outputs.plugin }}"
+            echo "- Image: \`${{ steps.entry.outputs.image }}\` (built by [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))"
+            echo "- Contract rewritten from \`sokel-gen export\`: $refreshed. Contract differs from the previous entry: $changed."
+            if [ "$refreshed" = no ]; then echo "  The entry declares capabilities (\`implements\`), so its contract was left as it is; refresh it with the platform's catalog tools if the plugin's operations changed."; fi
+            if [ "$changed" = yes ]; then echo "  New source strings in the contract need an English line in \`locales/en.json\`."; fi
+            echo "- [x] \`go run ./cmd/build-index -base\` passed in the release run"
+            echo
+            echo "Opened by the Release workflow of ${{ github.repository }} for tag \`${{ github.ref_name }}\`."
+          } > "$RUNNER_TEMP/body.md"
+      - name: Pull request in the catalog
+        if: env.REGISTRY_TOKEN != ''
+        working-directory: catalog
+        env:
+          GH_TOKEN: ${{ env.REGISTRY_TOKEN }}
+        run: |
+          branch="release/${{ steps.tag.outputs.plugin }}-${{ steps.tag.outputs.version }}"
+          git config user.name "sokel-release[bot]"
+          git config user.email "release@sokel.dev"
+          git checkout -b "$branch"
+          git add "plugins/sokel/${{ steps.tag.outputs.plugin }}"
+          git commit -m "sokel/${{ steps.tag.outputs.plugin }} ${{ steps.tag.outputs.version }}"
+          git push --force origin "$branch"
+          title="sokel/${{ steps.tag.outputs.plugin }} ${{ steps.tag.outputs.version }}"
+          n=$(gh pr list --repo "$CATALOG_REPO" --head "$branch" --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then gh pr edit "$n" --repo "$CATALOG_REPO" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else gh pr create --repo "$CATALOG_REPO" --head "$branch" --base main --title "$title" --body-file "$RUNNER_TEMP/body.md"; fi
+          gh pr view --repo "$CATALOG_REPO" "$branch" --json url --jq .url > "$RUNNER_TEMP/pr-url"
+      - name: Entry as an artifact (no REGISTRY_TOKEN)
+        if: env.REGISTRY_TOKEN == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-entry-${{ steps.tag.outputs.plugin }}-${{ steps.tag.outputs.version }}
+          path: |
+            catalog/plugins/sokel/${{ steps.tag.outputs.plugin }}
+            ${{ runner.temp }}/body.md
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr=$(cat "$RUNNER_TEMP/pr-url" 2>/dev/null || echo "not opened (REGISTRY_TOKEN is not set; the entry is attached to the workflow run as an artifact)")
+          {
+            echo "Image: \`${{ steps.entry.outputs.image }}\`"
+            echo
+            echo "Catalog pull request: $pr"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --title "${{ steps.tag.outputs.plugin }} ${{ steps.tag.outputs.version }}" --notes-file "$RUNNER_TEMP/notes.md"

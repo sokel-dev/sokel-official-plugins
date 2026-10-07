@@ -67,7 +67,22 @@ docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # 
 cd telegram-bot && go generate ./... && go test ./...                         # after changing a plugin's schema
 ```
 
-Images for linux/amd64 and linux/arm64 are published to ghcr by the Images workflow on every push to `main`.
+Images for linux/amd64 and linux/arm64 are published to ghcr by the Images workflow on every push to `main`
+(`:latest` and `:sha-<commit>`).
+
+## Releasing
+
+A plugin is released by tagging a commit of `main` as `<plugin>/vX.Y.Z`:
+
+```bash
+git tag discord/v1.0.1 && git push origin discord/v1.0.1
+```
+
+The Release workflow then builds `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`, rewrites the plugin's entry in the
+[catalog](https://github.com/sokel-dev/sokel-registry) (contract from `sokel-gen export`, `plugin.version`, the image
+pinned by its digest), checks it with the catalog's own admission and version gate, opens the pull request there and
+publishes a GitHub release here. Merging that pull request puts the version on the catalog page. The version must go
+up from the entry's current one; a plugin's first entry is created by hand (see the catalog's CONTRIBUTING).
 
 ## Contributing
 

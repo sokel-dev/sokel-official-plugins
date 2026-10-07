@@ -61,7 +61,19 @@ docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # 
 cd telegram-bot && go generate ./... && go test ./...                         # 改了插件 schema 之后
 ```
 
-每次推送到 `main`，Images 流水线都会构建 linux/amd64 和 linux/arm64 镜像并发布到 ghcr。
+每次推送到 `main`，Images 流水线都会构建 linux/amd64 和 linux/arm64 镜像并发布到 ghcr（`:latest` 和 `:sha-<提交>`）。
+
+## 发版
+
+给 `main` 上的提交打 `<插件>/vX.Y.Z` 标签就是发版：
+
+```bash
+git tag discord/v1.0.1 && git push origin discord/v1.0.1
+```
+
+Release 流水线随即构建 `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`，重写它在[插件目录](https://github.com/sokel-dev/sokel-registry)里的条目
+（契约取自 `sokel-gen export`、`plugin.version`、按摘要钉死的镜像），用目录自己的准入检查和版本门校验，到那边开 PR，并在本仓发一个 GitHub release。
+合并那个 PR，新版本就上了目录页。版本号必须比条目现有的高；插件的第一个条目要手工建（见目录仓的 CONTRIBUTING）。
 
 ## 参与贡献
 
