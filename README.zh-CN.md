@@ -77,6 +77,8 @@ Release 流水线随即构建 `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`，�
 （契约取自 `sokel-gen export`、`plugin.version`、按摘要钉死的镜像），用目录自己的准入检查和版本门校验，到那边开 PR，并在本仓发一个 GitHub release。
 合并那个 PR，新版本就上了目录页。版本号必须比条目现有的高；插件的第一个条目要手工建（见目录仓的 CONTRIBUTING）。
 
+**一次最多推三个标签**：一次推送里标签超过三个时，GitHub 对其中任何一个都不触发工作流，所以给一堆插件打完标签后 `git push --tags` 什么都不会发布。要三个一组地推。
+
 ## 参与贡献
 
 欢迎提 PR 修 bug 和改进。这些插件在 Sokel 项目里维护、同步到这里，合并的改动由维护者带回去。

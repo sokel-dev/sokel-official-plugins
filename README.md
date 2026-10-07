@@ -86,6 +86,9 @@ pinned by its digest), checks it with the catalog's own admission and version ga
 publishes a GitHub release here. Merging that pull request puts the version on the catalog page. The version must go
 up from the entry's current one; a plugin's first entry is created by hand (see the catalog's CONTRIBUTING).
 
+Push **at most three tags at a time**: GitHub starts no workflow for any of the tags in a push that carries more than
+three, so `git push --tags` after tagging many plugins releases nothing. Push them in groups of three instead.
+
 ## Contributing
 
 Bug fixes and improvements are welcome as pull requests. The plugins are maintained in the Sokel project and mirrored
