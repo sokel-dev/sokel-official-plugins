@@ -354,3 +354,52 @@ func TestPgvectorArrayAndExcludeFilters(t *testing.T) {
 		}
 	}
 }
+
+// Range bounds (main-repo docs/kb-metadata.md M3): a numeric bound compares numbers (10 ≥ 3), only JSON numbers take
+// part so a stray text value never fails the cast; other bounds compare text (dates arrive as YYYY-MM-DD); an
+// excluded range keeps rows without the field.
+func TestPgvectorRangeFilters(t *testing.T) {
+	ctx := liveCtx(t)
+	const kb = "range_case"
+	const dims = 4
+	t.Cleanup(func() { _, _ = opKBDrop(ctx, &KbDropIn{KbID: kb}) })
+	_, _ = opKBDrop(ctx, &KbDropIn{KbID: kb})
+	if _, err := opKBCreate(ctx, &KbCreateIn{KbID: kb, Dims: dims}); err != nil {
+		t.Fatal(err)
+	}
+	chunks := []schema.Chunk{
+		{ID: "r2", DocID: "d1", Content: "二", Role: "child", Fields: map[string]any{"rating": 2, "published": "2026-09-30"}, Embedding: vec(dims, 0)},
+		{ID: "r10", DocID: "d2", Content: "十", Role: "child", Fields: map[string]any{"rating": 10, "published": "2026-10-05"}, Embedding: vec(dims, 1)},
+		{ID: "txt", DocID: "d3", Content: "文", Role: "child", Fields: map[string]any{"rating": "高", "published": "2026-10-31"}, Embedding: vec(dims, 2)},
+		{ID: "none", DocID: "d4", Content: "无", Role: "child", Embedding: vec(dims, 3)},
+	}
+	for _, c := range chunks {
+		if _, err := opUpsert(ctx, &ChunksUpsertIn{KbID: kb, DocID: c.DocID, Chunks: []schema.Chunk{c}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := func(fs ...schema.Filter) []string {
+		out, err := opVectorQuery(ctx, &VectorQueryIn{KbID: kb, Embedding: toF64(vec(dims, 0)), K: 10, Filters: fs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := ids(out.Hits)
+		sort.Strings(got)
+		return got
+	}
+	cases := []struct {
+		name string
+		f    schema.Filter
+		want []string
+	}{
+		{"numeric lower bound", schema.Filter{Field: "rating", Gte: "3"}, []string{"r10"}},
+		{"closed numeric range", schema.Filter{Field: "rating", Gte: "1", Lte: "5"}, []string{"r2"}},
+		{"date range as text", schema.Filter{Field: "published", Gte: "2026-10-01", Lte: "2026-10-31"}, []string{"r10", "txt"}},
+		{"excluded range keeps rows without the field", schema.Filter{Field: "rating", Gte: "3", Exclude: true}, []string{"none", "r2", "txt"}},
+	}
+	for _, c := range cases {
+		if got := q(c.f); !slices.Equal(got, c.want) {
+			t.Errorf("%s: got %v want %v", c.name, got, c.want)
+		}
+	}
+}

@@ -44,6 +44,7 @@ func main() {
 	p.SetCapabilities(map[string]bool{
 		sokel.CapKeywordBM25: true, sokel.CapRecency: true, sokel.CapTimeRange: true, sokel.CapFieldBoosts: true,
 		sokel.CapArrayFilters: true, // term queries match any element of an array field
+		sokel.CapRangeFilters: true, // gte / lte become a range clause, compared by the field mapping
 	})
 	p.SetDoc(usageDoc, "") // usage doc (docs/*.md): reported to the platform with the handshake
 	reg := func(id, label string, h any) {}
@@ -186,6 +187,23 @@ func buildBool(filters []schema.Filter, timeRange schema.TimeRange) map[string]a
 		}
 		if f.Missing {
 			mustNot = append(mustNot, map[string]any{"exists": map[string]any{"field": fieldPath(field)}})
+			continue
+		}
+		if f.Gte != "" || f.Lte != "" {
+			// Range on a metadata field: ES compares by the field's mapping (numbers numerically, dates as dates).
+			rng := map[string]any{}
+			if f.Gte != "" {
+				rng["gte"] = f.Gte
+			}
+			if f.Lte != "" {
+				rng["lte"] = f.Lte
+			}
+			clause := map[string]any{"range": map[string]any{fieldPath(field): rng}}
+			if f.Exclude {
+				mustNot = append(mustNot, clause)
+			} else {
+				must = append(must, clause)
+			}
 			continue
 		}
 		if len(f.Values) == 0 {

@@ -27,6 +27,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,6 +57,7 @@ func main() {
 		sokel.CapKeywordBM25: false, sokel.CapRecency: false,
 		sokel.CapTimeRange: true, sokel.CapFieldBoosts: true,
 		sokel.CapArrayFilters: true, // array fields match element-wise since 0812062
+		sokel.CapRangeFilters: true, // gte / lte: numbers numerically, other bounds as text
 	})
 	p.SetDoc(usageDoc, "")
 	OnKbCreate(p, opKBCreate)
@@ -433,6 +435,28 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 		// fields->>'x' = ANY($n) covers numeric/boolean scalars (compared as text).
 		key := quoteLit(f.Field)
 		switch {
+		case f.Gte != "" || f.Lte != "":
+			// Range: a numeric bound compares numbers, and only JSON numbers take part (a text value never reaches
+			// the cast); any other bound compares text — dates arrive as YYYY-MM-DD. NULL for a missing field,
+			// folded to false so an excluded range keeps those rows.
+			var conds []string
+			for _, b := range []struct{ op, v string }{{">=", f.Gte}, {"<=", f.Lte}} {
+				if b.v == "" {
+					continue
+				}
+				args = append(args, b.v)
+				if _, err := strconv.ParseFloat(b.v, 64); err == nil {
+					conds = append(conds, fmt.Sprintf("(CASE WHEN jsonb_typeof(fields->%s) = 'number' THEN (fields->>%s)::numeric END) %s $%d::numeric", key, key, b.op, len(args)))
+				} else {
+					conds = append(conds, fmt.Sprintf("fields->>%s %s $%d", key, b.op, len(args)))
+				}
+			}
+			hit := "COALESCE(" + strings.Join(conds, " AND ") + ", false)"
+			if f.Exclude {
+				sb.WriteString(" AND NOT " + hit)
+			} else {
+				sb.WriteString(" AND " + hit)
+			}
 		case f.Missing:
 			sb.WriteString(fmt.Sprintf(" AND (fields->>%s IS NULL)", key))
 		case len(f.Values) > 0:

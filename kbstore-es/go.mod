@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/kbstore-es
 
 go 1.25.6
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.4
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.6
 
 require (
 	github.com/klauspost/compress v1.18.5 // indirect

@@ -13,6 +13,8 @@ type Filter struct {
 	Values  []string `json:"values,omitempty" sokel:"values,optional" label:"取值（任一命中）"`
 	Missing bool     `json:"missing,omitempty" sokel:"missing,optional" label:"取「该字段不存在」" desc:"为真时忽略 values"`
 	Exclude bool     `json:"exclude,omitempty" sokel:"exclude,optional" label:"反选" desc:"命中的排除掉"`
+	Gte     string   `json:"gte,omitempty" sokel:"gte,optional" label:"下限（含）" desc:"范围过滤：按字段映射比较（数值按数值、日期按日期）"`
+	Lte     string   `json:"lte,omitempty" sokel:"lte,optional" label:"上限（含）"`
 }
 
 // TimeRange is a time range (closed interval; empty means unbounded).

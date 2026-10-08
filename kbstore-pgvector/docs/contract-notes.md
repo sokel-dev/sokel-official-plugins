@@ -39,6 +39,9 @@
    **2026-10-04 补：数组字段**——契约的 Filter 语义是「字段可为标量或标量数组，任一元素相等即命中」（ES 的 terms 天然如此）。
    此前 `fields->>'x' = ANY($n)` 对数组只拿到 JSON 文本，永远不命中；现为 `fields->>'x' = ANY($n) OR fields->'x' ?| $n`，
    `fields` 列加 GIN 索引（老库在下一次 kb_create 时补上）；反选包 `COALESCE(…, false)`，缺字段的行保留（与 ES must_not 一致）。
+   **2026-10-08 补：范围过滤**——Filter 加 `gte` / `lte`（SDK v0.7.6 能力位 `range_filters`）。能解析成数字的边界按数值比，
+   且只让 JSON 数字参与（`CASE WHEN jsonb_typeof(...) = 'number'`，文本值不会撞到 `::numeric` 转换失败）；其余按文本比——平台把日期
+   统一成 YYYY-MM-DD 再发，文本序就是日期序。没有走索引（数据量大时是全表过滤，与上面「类型退化」同一笔账）。
 
 7. **`recency`（时效加权）本插件未实现** → **已按建议改掉契约（2026-08-11）**。
    ES 有 `distance_feature` 一把梭，PG 要自己写衰减表达式并入排序。当时契约**没有"能力声明"的位置**，

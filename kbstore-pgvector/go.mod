@@ -4,7 +4,7 @@ go 1.25.6
 
 require (
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/sokel-dev/sokel-plugin-sdk v0.7.4
+	github.com/sokel-dev/sokel-plugin-sdk v0.7.6
 )
 
 require (
