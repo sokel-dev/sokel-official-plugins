@@ -110,7 +110,9 @@ jobs:
             echo "- Source: ${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/${{ steps.tag.outputs.plugin }}"
             echo "- Image: \`${{ steps.entry.outputs.image }}\` (built by [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))"
             echo "- Contract rewritten from \`sokel-gen export\`: $refreshed. Contract differs from the previous entry: $changed."
-            if [ "$refreshed" = no ]; then echo "  The entry declares capabilities (\`implements\`), so its contract was left as it is; refresh it with the platform's catalog tools if the plugin's operations changed."; fi
+            unlisted=$(echo "$s" | python3 -c 'import json,sys;print(", ".join(json.load(sys.stdin).get("unlisted_inputs") or []))')
+            if [ "$refreshed" = no ]; then echo "  The entry declares capabilities (\`implements\`): its shape was kept and the inputs / outputs it lists were refreshed from the export."; fi
+            if [ -n "$unlisted" ]; then echo "  Inputs the plugin has that the entry does not list (left out; add them with the platform's catalog tools if a capability should take them): \`$unlisted\`."; fi
             if [ "$changed" = yes ]; then echo "  New source strings in the contract need an English line in \`locales/en.json\`."; fi
             echo "- [x] \`go run ./cmd/build-index -base\` passed in the release run"
             echo

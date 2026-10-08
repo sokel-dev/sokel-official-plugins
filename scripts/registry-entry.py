@@ -8,10 +8,14 @@
 The entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
 emits it from the plugin's code (credential, operations, events...), the entry's own plugin section (org, label,
 desc, doc, icon) with the new version, and its deployment section with the container target pointing at the
-released image, pinned by digest. An entry that declares capabilities (`implements`) keeps its contract untouched:
-those sections are maintained with the platform's catalog tools, so only the version and the image move.
+released image, pinned by digest. An entry that declares capabilities (`implements`) keeps its shape — which
+operations sit under which capability, and which inputs each lists (a capability tier may leave out optional inputs
+it does not support) — but the definitions of the inputs and outputs it lists are refreshed from the export, so a
+field added inside an existing input (a new filter bound, say) reaches the catalog. Inputs the export has and the
+entry does not list are reported, not added: whether a tier takes them is the platform catalog tools' call.
 
-Prints one JSON line: {"previous": ..., "version": ..., "contract_refreshed": bool, "contract_changed": bool}.
+Prints one JSON line: {"previous": ..., "version": ..., "contract_refreshed": bool, "contract_changed": bool,
+"unlisted_inputs": [...]}.
 Exits 2 when the version does not go up (the catalog's version gate would refuse it anyway).
 """
 import argparse
@@ -41,6 +45,35 @@ def contract_of(doc):
             continue
         out[k] = by_id(v) if k in ("operations", "events") and isinstance(v, list) else v
     return out
+
+
+def refresh_listed(entry, export):
+    """Refreshes, in place, the definitions of the inputs and outputs an implements-declaring entry lists — under
+    implements and in a flat operations list alike — from the export's operation of the same id. Returns the inputs
+    the export has that the entry does not list, as "op.input"."""
+    ops = by_id(export.get("operations"))
+    unlisted = []
+
+    def fix(op):
+        new = ops.get(op.get("id"))
+        if not new:
+            return
+        for key in ("inputs", "outputs"):
+            fresh = {f.get("name"): f for f in new.get(key) or []}
+            listed = op.get(key) or []
+            for i, f in enumerate(listed):
+                if f.get("name") in fresh:
+                    listed[i] = fresh[f["name"]]
+            if key == "inputs":
+                names = {f.get("name") for f in listed}
+                unlisted.extend(f"{op['id']}.{n}" for n in fresh if n not in names)
+
+    for cap in entry.get("implements") or []:
+        for op in cap.get("operations") or []:
+            fix(op)
+    for op in entry.get("operations") or []:
+        fix(op)
+    return unlisted
 
 
 def dump(obj):
@@ -95,14 +128,16 @@ def main():
         if n != 1:
             sys.exit("export has no plugin block")
         text = body.rstrip("\n") + "\n" + dump({"deployment": deployment})
+        unlisted = []
     else:
-        text = entry_text
-        text, n = re.subn(r"(?m)^(\s*version:\s*)\S+$", lambda m: m.group(1) + a.version, text, count=1)
-        if n != 1:
-            sys.exit("entry has no plugin.version line")
-        text = dump_deployment_in_place(text, deployment)
+        unlisted = refresh_listed(entry, export)
+        entry["plugin"] = plugin
+        entry["deployment"] = deployment
+        head = "".join(l for l in entry_text.splitlines(True) if l.startswith("#"))  # leading comment header
+        text = head + dump(entry)
     open(path, "w", encoding="utf-8").write(text)
-    print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed}))
+    print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed,
+                      "unlisted_inputs": unlisted}))
 
 
 def dump_deployment_in_place(text, deployment):
