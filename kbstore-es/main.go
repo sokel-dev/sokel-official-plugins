@@ -119,6 +119,17 @@ func (e *es) do(ctx context.Context, method, path string, body any) (map[string]
 	return out, nil
 }
 
+// read is do for queries of a knowledge base's index: an index that does not exist (never written, or dropped) holds
+// nothing, so its search / mget answer empty instead of an index_not_found_exception — the platform checks a store
+// this way before moving a knowledge base in.
+func (e *es) read(ctx context.Context, method, path string, body any) (map[string]any, error) {
+	out, err := e.do(ctx, method, path, body)
+	if err != nil && strings.Contains(err.Error(), "index_not_found_exception") {
+		return map[string]any{}, nil
+	}
+	return out, err
+}
+
 func (e *es) bulk(ctx context.Context, lines []any) (map[string]any, error) {
 	var buf bytes.Buffer
 	for _, l := range lines {
@@ -415,7 +426,7 @@ func opVectorQuery(ctx sokel.Ctx, in *VectorQueryIn) (*VectorQueryOut, error) {
 		return nil, err
 	}
 	knn := map[string]any{"field": "embedding", "query_vector": in.Embedding, "k": in.K, "num_candidates": in.K * 5, "filter": buildBool(in.Filters, in.TimeRange)}
-	out, err := e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_search",
+	out, err := e.read(ctx, "POST", "/"+e.alias(in.KbID)+"/_search",
 		map[string]any{"knn": knn, "size": in.K, "_source": srcFields})
 	if err != nil {
 		return nil, err
@@ -451,7 +462,7 @@ func opKeywordQuery(ctx sokel.Ctx, in *KeywordQueryIn) (*KeywordQueryOut, error)
 		}
 		b["should"] = []any{map[string]any{"distance_feature": map[string]any{"field": "datetime", "origin": "now", "pivot": pivot, "boost": bst}}}
 	}
-	out, err := e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_search",
+	out, err := e.read(ctx, "POST", "/"+e.alias(in.KbID)+"/_search",
 		map[string]any{"query": map[string]any{"bool": b}, "size": in.K, "_source": srcFields})
 	if err != nil {
 		return nil, err
@@ -473,7 +484,7 @@ func opBrowse(ctx sokel.Ctx, in *ChunksBrowseIn) (*ChunksBrowseOut, error) {
 		},
 		"size": in.K, "from": in.Offset, "_source": srcFields,
 	}
-	out, err := e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_search", body)
+	out, err := e.read(ctx, "POST", "/"+e.alias(in.KbID)+"/_search", body)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +502,7 @@ func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
 	}
 	// _mget's _source filtering can only go through the query parameter (a top-level _source in the
 	// request body triggers a parsing_exception)
-	out, err := e.do(ctx, "POST", "/"+e.alias(in.KbID)+"/_mget?_source="+strings.Join(srcFields, ","),
+	out, err := e.read(ctx, "POST", "/"+e.alias(in.KbID)+"/_mget?_source="+strings.Join(srcFields, ","),
 		map[string]any{"ids": in.IDs})
 	if err != nil {
 		return nil, err
