@@ -434,6 +434,25 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 		// terms): fields->'x' ?| $n matches string arrays element-wise and string scalars by value;
 		// fields->>'x' = ANY($n) covers numeric/boolean scalars (compared as text).
 		key := quoteLit(f.Field)
+		if col, core := coreCols[f.Field]; core {
+			// The chunk's own columns (doc_id / role / parent_no …): filtering them as fields keys matched nothing.
+			switch {
+			case f.Missing && f.Field == "child_no":
+				// child_no is NOT NULL DEFAULT 0, so "no child number" is a rule, not a NULL: a reading unit is a
+				// parent, or a general-mode chunk that is its own parent.
+				sb.WriteString(" AND (role = 'parent' OR parent_id = id)")
+			case f.Missing:
+				sb.WriteString(fmt.Sprintf(" AND (%s IS NULL)", col))
+			case len(f.Values) > 0:
+				args = append(args, f.Values)
+				hit := fmt.Sprintf("COALESCE(%s = ANY($%d), false)", col, len(args))
+				if f.Exclude {
+					hit = "NOT " + hit
+				}
+				sb.WriteString(" AND " + hit)
+			}
+			continue
+		}
 		switch {
 		case f.Gte != "" || f.Lte != "":
 			// Range: a numeric bound compares numbers, and only JSON numbers take part (a text value never reaches
@@ -480,6 +499,13 @@ func buildWhere(filters []schema.Filter, tr schema.TimeRange) (string, []any) {
 		sb.WriteString(fmt.Sprintf(" AND datetime <= $%d::timestamptz", len(args)))
 	}
 	return sb.String(), args
+}
+
+// coreCols maps the contract's core fields to this table's columns, as text (filter values are strings).
+var coreCols = map[string]string{
+	"id": "id", "doc_id": "doc_id", "role": "role", "parent_id": "parent_id",
+	"title": "title", "summary": "summary", "boundary": "boundary",
+	"parent_no": "parent_no::text", "child_no": "child_no::text", "page_no": "page_no::text",
 }
 
 // quoteLit safely embeds a field name into a SQL string literal (JSONB key access can't be

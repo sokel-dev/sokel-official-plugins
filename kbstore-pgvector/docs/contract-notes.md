@@ -42,6 +42,10 @@
    **2026-10-08 补：范围过滤**——Filter 加 `gte` / `lte`（SDK v0.7.6 能力位 `range_filters`）。能解析成数字的边界按数值比，
    且只让 JSON 数字参与（`CASE WHEN jsonb_typeof(...) = 'number'`，文本值不会撞到 `::numeric` 转换失败）；其余按文本比——平台把日期
    统一成 YYYY-MM-DD 再发，文本序就是日期序。没有走索引（数据量大时是全表过滤，与上面「类型退化」同一笔账）。
+   **2026-10-08 补：核心列过滤**——`doc_id` / `role` / `parent_no` 等是本表的列，此前却一律当成 `fields` 的键去查，
+   按文档、按角色、按父块号过滤全部返回空（文档详情页、混合检索的子块腿都受影响），`{child_no, missing}`（只要阅读单元）又因为
+   `fields` 里永远没有 child_no 而恒真、把子块也列出来。现按列映射（`coreCols`）；`child_no` 列是 `NOT NULL DEFAULT 0`，
+   「没有子块号」改按规则判：`role = 'parent' OR parent_id = id`（父块，或自成父块的通用分块），老数据同样适用。
 
 7. **`recency`（时效加权）本插件未实现** → **已按建议改掉契约（2026-08-11）**。
    ES 有 `distance_feature` 一把梭，PG 要自己写衰减表达式并入排序。当时契约**没有"能力声明"的位置**，

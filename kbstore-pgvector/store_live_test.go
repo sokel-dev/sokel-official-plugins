@@ -403,3 +403,56 @@ func TestPgvectorRangeFilters(t *testing.T) {
 		}
 	}
 }
+
+// Filters on the chunk's own columns (main-repo platform: doc_id / role / parent_no for the document page, and
+// {child_no, missing} for "reading units only"): they are columns here, not keys of the fields JSONB, so looking them
+// up in fields matched nothing — or, for missing, everything. A reading unit is a parent, or a general-mode chunk
+// that is its own parent; only a child of another chunk has a child number.
+func TestPgvectorCoreColumnFilters(t *testing.T) {
+	ctx := liveCtx(t)
+	const kb = "core_case"
+	const dims = 4
+	t.Cleanup(func() { _, _ = opKBDrop(ctx, &KbDropIn{KbID: kb}) })
+	_, _ = opKBDrop(ctx, &KbDropIn{KbID: kb})
+	if _, err := opKBCreate(ctx, &KbCreateIn{KbID: kb, Dims: dims}); err != nil {
+		t.Fatal(err)
+	}
+	chunks := []schema.Chunk{
+		{ID: "d1#p0", DocID: "d1", Content: "父", Role: "parent", ParentID: "d1#p0", ParentNo: 0, Embedding: vec(dims, 0)},
+		{ID: "d1#p0#c0", DocID: "d1", Content: "子0", Role: "child", ParentID: "d1#p0", ParentNo: 0, ChildNo: 0, Embedding: vec(dims, 1)},
+		{ID: "d1#p0#c1", DocID: "d1", Content: "子1", Role: "child", ParentID: "d1#p0", ParentNo: 0, ChildNo: 1, Embedding: vec(dims, 2)},
+		{ID: "d2#p0", DocID: "d2", Content: "通用", Role: "child", ParentID: "d2#p0", ParentNo: 0, Embedding: vec(dims, 3)},
+	}
+	for _, c := range chunks {
+		if _, err := opUpsert(ctx, &ChunksUpsertIn{KbID: kb, DocID: c.DocID, Chunks: []schema.Chunk{c}, Append: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := func(fs ...schema.Filter) []string {
+		out, err := opBrowse(ctx, &ChunksBrowseIn{KbID: kb, K: 50, Filters: fs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, c := range out.Chunks {
+			got = append(got, c.ID)
+		}
+		sort.Strings(got)
+		return got
+	}
+	cases := []struct {
+		name string
+		fs   []schema.Filter
+		want []string
+	}{
+		{"doc_id", []schema.Filter{{Field: "doc_id", Values: []string{"d1"}}}, []string{"d1#p0", "d1#p0#c0", "d1#p0#c1"}},
+		{"role", []schema.Filter{{Field: "role", Values: []string{"child"}}}, []string{"d1#p0#c0", "d1#p0#c1", "d2#p0"}},
+		{"parent_no and role", []schema.Filter{{Field: "doc_id", Values: []string{"d1"}}, {Field: "role", Values: []string{"child"}}, {Field: "parent_no", Values: []string{"0"}}}, []string{"d1#p0#c0", "d1#p0#c1"}},
+		{"reading units (no child number)", []schema.Filter{{Field: "child_no", Missing: true}}, []string{"d1#p0", "d2#p0"}},
+	}
+	for _, c := range cases {
+		if got := q(c.fs...); !slices.Equal(got, c.want) {
+			t.Errorf("%s: got %v want %v", c.name, got, c.want)
+		}
+	}
+}

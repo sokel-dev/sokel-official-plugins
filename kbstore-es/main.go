@@ -186,6 +186,15 @@ func buildBool(filters []schema.Filter, timeRange schema.TimeRange) map[string]a
 			continue
 		}
 		if f.Missing {
+			absent := map[string]any{"bool": map[string]any{"must_not": []any{map[string]any{"exists": map[string]any{"field": fieldPath(field)}}}}}
+			if field == "child_no" {
+				// "Reading units only". Chunks indexed before chunkDoc stopped writing child_no on non-children carry
+				// child_no 0 on parents too; role parent keeps them in. (General-mode chunks from then still carry it:
+				// re-ingesting the document fixes those.)
+				must = append(must, map[string]any{"bool": map[string]any{"minimum_should_match": 1,
+					"should": []any{absent, map[string]any{"term": map[string]any{"role": "parent"}}}}})
+				continue
+			}
 			mustNot = append(mustNot, map[string]any{"exists": map[string]any{"field": fieldPath(field)}})
 			continue
 		}
@@ -519,6 +528,12 @@ func chunkDoc(c schema.Chunk) map[string]any {
 	var m map[string]any
 	_ = json.Unmarshal(b, &m)
 	delete(m, "id")
+	// The contract carries child_no as an int, so "no child number" arrives as 0. Only a real child chunk has one
+	// (role child, parent another chunk); written on parents and general-mode chunks it made "missing child_no"
+	// (the platform's reading-units browse) match nothing.
+	if c.Role != "child" || c.ParentID == c.ID {
+		delete(m, "child_no")
+	}
 	return m
 }
 
