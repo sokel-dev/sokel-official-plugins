@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +45,9 @@ type upload struct {
 // refuses (414, what a real DSM 7 answered; the guide says 1805), with overwrite=false it skips (blSkip), with true it overwrites.
 type fakeDSM struct {
 	mu        sync.Mutex
-	loginCode int // 0 = accept
+	loginCode int    // 0 = accept
+	dropAll   bool   // every upload answers 119
+	dropSID   string // an upload with this sid answers 119 (session gone), as DSM sometimes does mid-run
 	existing  map[string]bool
 	logins    []map[string]string
 	uploads   []upload
@@ -72,7 +75,7 @@ func (d *fakeDSM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(d.loginCode)
 			return
 		}
-		ok(map[string]string{"sid": "sid-1"})
+		ok(map[string]string{"sid": fmt.Sprintf("sid-%d", len(d.logins))})
 	case r.URL.Path == "/webapi/auth.cgi" && q.Get("method") == "logout":
 		d.logouts = append(d.logouts, q.Get("_sid"))
 		ok(nil)
@@ -97,6 +100,10 @@ func (d *fakeDSM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		d.uploads = append(d.uploads, u)
+		if d.dropAll || (d.dropSID != "" && u.sid == d.dropSID) {
+			fail(119)
+			return
+		}
 		if d.existing[u.name] {
 			switch u.values["overwrite"] {
 			case "":
@@ -257,5 +264,38 @@ func TestNonDSMAnswers(t *testing.T) {
 				t.Errorf("got ok=%v %q err=%v", out.OK, out.Message, err)
 			}
 		})
+	}
+}
+
+// A session DSM drops mid-call (119; 106 / 107 alike) gets one fresh login and the file is sent again, instead of
+// failing the report: seen on a real DSM with uploads running side by side (2026-10-13).
+func TestUploadRetriesOnLostSession(t *testing.T) {
+	d := &fakeDSM{dropSID: "sid-1"}
+	srv := httptest.NewServer(d)
+	defer srv.Close()
+	out, err := uploadFile(newCtx(srv.URL), &UploadFileIn{Files: twoFiles, Dir: "/research", OnConflict: "error"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.logins) != 2 || len(d.uploads) != 3 || d.uploads[1].sid != "sid-2" || d.uploads[2].sid != "sid-2" {
+		t.Errorf("want a second login and the rest on its session: logins %d, uploads %+v", len(d.logins), d.uploads)
+	}
+	if out.Uploaded != 2 {
+		t.Errorf("uploaded %d", out.Uploaded)
+	}
+	if len(d.logouts) != 1 || d.logouts[0] != "sid-2" {
+		t.Errorf("the live session is the one logged out: %v", d.logouts)
+	}
+}
+
+// A session that is lost again right after the fresh login fails the call (no retry loop).
+func TestUploadGivesUpAfterOneRelogin(t *testing.T) {
+	d := &fakeDSM{dropSID: "*"}
+	srv := httptest.NewServer(d)
+	defer srv.Close()
+	d.dropAll = true
+	_, err := uploadFile(newCtx(srv.URL), &UploadFileIn{Files: twoFiles[:1], Dir: "/research"})
+	if err == nil || !strings.Contains(err.Error(), "会话无效") || len(d.logins) != 2 {
+		t.Errorf("want one retry then the session error, got %v after %d logins", err, len(d.logins))
 	}
 }

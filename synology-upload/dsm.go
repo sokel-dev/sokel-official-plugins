@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -65,9 +66,24 @@ func (c *dsmClient) call(req *http.Request, errText func(int) string) (json.RawM
 		if r.Error != nil {
 			code = r.Error.Code
 		}
-		return nil, fmt.Errorf("%s（错误码 %d）", errText(code), code)
+		return nil, &dsmError{Code: code, Text: errText(code)}
 	}
 	return r.Data, nil
+}
+
+// dsmError is DSM answering success=false: the code, and its text for the API called.
+type dsmError struct {
+	Code int
+	Text string
+}
+
+func (e *dsmError) Error() string { return fmt.Sprintf("%s（错误码 %d）", e.Text, e.Code) }
+
+// sessionLost reports a DSM error meaning the session is gone (timed out, ended by a duplicate login, not found):
+// a fresh login fixes it.
+func sessionLost(err error) bool {
+	var e *dsmError
+	return errors.As(err, &e) && (e.Code == 106 || e.Code == 107 || e.Code == 119)
 }
 
 // login opens a FileStation session and returns its sid. Auth API version 6 is accepted by both DSM 6.x and 7.x.

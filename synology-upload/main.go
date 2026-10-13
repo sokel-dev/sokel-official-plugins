@@ -79,7 +79,8 @@ func uploadFile(ctx plugin.Ctx, in *UploadFileIn) (*UploadFileOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer c.logout(sid)
+	defer func() { c.logout(sid) }() // the session in use at the end: a re-login below replaces it
+	relogged := false
 
 	out := &UploadFileOut{Files: make([]schema.Uploaded, 0, len(in.Files))}
 	for i, f := range in.Files {
@@ -96,6 +97,15 @@ func uploadFile(ctx plugin.Ctx, in *UploadFileIn) (*UploadFileOut, error) {
 		}
 		// Files already sent stay on the NAS when a later one fails; the error names the file it stopped at.
 		skipped, err := c.upload(ctx, sid, dir, name, data, onConflict, in.CreateParents)
+		// DSM sometimes drops a session mid-call (119 with uploads running side by side, seen 2026-10-13): one fresh
+		// login, and the file is sent again on it. Once per call, so a DSM that keeps dropping sessions still fails.
+		if err != nil && sessionLost(err) && !relogged {
+			relogged = true
+			if fresh, lerr := c.login(ctx, cred.Username, cred.Password); lerr == nil {
+				sid = fresh
+				skipped, err = c.upload(ctx, sid, dir, name, data, onConflict, in.CreateParents)
+			}
+		}
 		if err != nil {
 			if out.Uploaded > 0 {
 				return nil, fmt.Errorf("%w（此前 %d 个已传完）", err, out.Uploaded)
