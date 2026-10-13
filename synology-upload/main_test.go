@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,8 +20,10 @@ import (
 
 type fakeCtx struct {
 	context.Context
-	cred  map[string]string
-	files map[string][]byte // platform file id → bytes
+	cred      map[string]string
+	files     map[string][]byte // platform file id → bytes
+	fetchErrs []error           // errors the next Fetch calls return, in order, before succeeding
+	fetches   int
 }
 
 func (f *fakeCtx) Credential() map[string]string { return f.cred }
@@ -30,7 +33,15 @@ func (f *fakeCtx) Upload(string, string, []byte) (*plugin.File, error) {
 func (f *fakeCtx) UploadReader(string, string, io.Reader) (*plugin.File, error) {
 	return &plugin.File{ID: "f"}, nil
 }
-func (f *fakeCtx) Fetch(pf *plugin.File) ([]byte, error) { return f.files[pf.ID], nil }
+func (f *fakeCtx) Fetch(pf *plugin.File) ([]byte, error) {
+	f.fetches++
+	if len(f.fetchErrs) > 0 {
+		err := f.fetchErrs[0]
+		f.fetchErrs = f.fetchErrs[1:]
+		return nil, err
+	}
+	return f.files[pf.ID], nil
+}
 
 // upload is what the fake DSM saw for one upload request.
 type upload struct {
@@ -297,5 +308,36 @@ func TestUploadGivesUpAfterOneRelogin(t *testing.T) {
 	_, err := uploadFile(newCtx(srv.URL), &UploadFileIn{Files: twoFiles[:1], Dir: "/research"})
 	if err == nil || !strings.Contains(err.Error(), "会话无效") || len(d.logins) != 2 {
 		t.Errorf("want one retry then the session error, got %v after %d logins", err, len(d.logins))
+	}
+}
+
+// Reading the platform file times out now and then (a chunk request not answered in 30s, seen on 2026-10-13 in a
+// batch run); the read is tried again a couple of times. Other errors (a file that is gone) fail at once.
+func TestFetchRetries(t *testing.T) {
+	fetchRetryGap = 0
+	cases := []struct {
+		name        string
+		errs        []error
+		wantErr     string
+		wantFetches int
+	}{
+		{"timeouts then success", []error{errors.New("fetching chunk 0: nats: timeout"), errors.New("fetching chunk 3: nats: timeout")}, "", 3},
+		{"keeps timing out", []error{errors.New("nats: timeout"), errors.New("nats: timeout"), errors.New("nats: timeout")}, "nats: timeout", 3},
+		{"not found is not retried", []error{errors.New("file not found")}, "file not found", 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(&fakeDSM{})
+			defer srv.Close()
+			ctx := newCtx(srv.URL)
+			ctx.fetchErrs = tc.errs
+			_, err := uploadFile(ctx, &UploadFileIn{Files: twoFiles[:1], Dir: "/research"})
+			if tc.wantErr == "" && err != nil || tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Errorf("err = %v, want %q", err, tc.wantErr)
+			}
+			if ctx.fetches != tc.wantFetches {
+				t.Errorf("fetches = %d, want %d", ctx.fetches, tc.wantFetches)
+			}
+		})
 	}
 }

@@ -29,6 +29,9 @@ credential and deployment shape, hence a separate plugin rather than a mode on t
 - **A lost session gets one fresh login.** DSM sometimes answers an upload with 119 (session not found) while uploads
   run side by side — seen on a real DSM 7 in the first batch run, not reproduced on demand. On 106 / 107 / 119 the call
   logs in again once and sends the file again; a second loss fails the call.
+- **Reading the platform file is retried on a timeout** (3 tries, 2s / 4s apart). The SDK pulls the file in 1 MB
+  chunks over NATS with 30s a chunk; in the first batch run some reads timed out on a chunk while most went through.
+  Other errors (a file that is gone) fail at once.
 - The multipart body is streamed through a pipe while it is sent; the file bytes are already one full copy in memory
   (the SDK's `Fetch` returns the whole file), a buffered body would make it two.
 - Error codes follow Synology's DSM Login and File Station API guides (`authErrText` / `uploadErrText`).

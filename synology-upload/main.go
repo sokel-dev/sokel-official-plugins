@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/sokel-dev/sokel-official-plugins/synology-upload/schema"
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
@@ -91,7 +92,7 @@ func uploadFile(ctx plugin.Ctx, in *UploadFileIn) (*UploadFileOut, error) {
 		if name == "" || name == "." || name == "/" {
 			return nil, fmt.Errorf("第 %d 个文件没有文件名", i+1)
 		}
-		data, err := ctx.Fetch(f)
+		data, err := fetchRetrying(ctx, f)
 		if err != nil {
 			return nil, fmt.Errorf("读取平台文件 %s 失败: %w", name, err)
 		}
@@ -121,6 +122,32 @@ func uploadFile(ctx plugin.Ctx, in *UploadFileIn) (*UploadFileOut, error) {
 	}
 	return out, nil
 }
+
+// fetchRetrying reads a platform file, trying again when it times out. The SDK pulls the file in chunks over NATS and
+// gives each chunk 30s; in a batch run on 2026-10-13 some reads timed out on a chunk while most went through — a
+// passing delay on the platform side, which a second try rides out. Other errors (a file that is gone) fail at once.
+func fetchRetrying(ctx plugin.Ctx, f *plugin.File) ([]byte, error) {
+	var err error
+	for attempt := 0; attempt < fetchAttempts; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(attempt) * fetchRetryGap):
+			}
+		}
+		var data []byte
+		if data, err = ctx.Fetch(f); err == nil || !strings.Contains(err.Error(), "timeout") {
+			return data, err
+		}
+	}
+	return nil, err
+}
+
+const fetchAttempts = 3
+
+// var, not const: tests set it to 0 so the retry cases do not sleep.
+var fetchRetryGap = 2 * time.Second
 
 // healthCheck logs in once. Unavailable is ok=false + message, not an error: an error would only show a red cross,
 // while the message tells a wrong address from a certificate, a password or a two-step-verification problem.
