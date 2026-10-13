@@ -496,6 +496,10 @@ func opBrowse(ctx sokel.Ctx, in *ChunksBrowseIn) (*ChunksBrowseOut, error) {
 }
 
 func opMget(ctx sokel.Ctx, in *MgetIn) (*MgetOut, error) {
+	// ES rejects an empty _mget with HTTP 400; no ids means nothing to fetch.
+	if len(in.IDs) == 0 {
+		return &MgetOut{Chunks: []schema.Chunk{}}, nil
+	}
 	e, err := esOf(ctx)
 	if err != nil {
 		return nil, err

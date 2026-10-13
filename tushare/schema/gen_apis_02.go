@@ -1338,7 +1338,7 @@ type IndexDailyRecord struct {
 	High       float64 `json:"high" sokel:"high" label:"最高点位"`
 	Low        float64 `json:"low" sokel:"low" label:"最低点位"`
 	Pre_close  float64 `json:"pre_close" sokel:"pre_close" label:"昨日收盘点"`
-	Change     string  `json:"change" sokel:"change" label:"涨跌点"`
+	Change     float64 `json:"change" sokel:"change" label:"涨跌点"`
 	Pct_chg    float64 `json:"pct_chg" sokel:"pct_chg" label:"涨跌幅（%）"`
 	Vol        float64 `json:"vol" sokel:"vol" label:"成交量（手）"`
 	Amount     float64 `json:"amount" sokel:"amount" label:"成交额（千元）"`

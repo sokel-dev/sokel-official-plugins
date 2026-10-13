@@ -12070,7 +12070,7 @@
       },
       {
         "name": "change",
-        "type": "floa",
+        "type": "float",
         "desc": "涨跌点"
       },
       {
