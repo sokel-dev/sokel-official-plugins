@@ -4,11 +4,56 @@ plugin:
   name: youtube
   label: YouTube
   desc: 取视频信息、下载视频/音频、抓字幕文本（基于 yt-dlp）
-  version: 0.2.1
+  version: 0.3.0
   doc: docs/youtube.md
 
 
+credential:
+  fields:
+    - name: cookies
+      label: 登录 Cookies
+      type: secret
+      help: 粘贴 Netscape 格式 cookies.txt 的完整内容；留空使用部署配置或匿名访问。
+    - name: proxy
+      label: 代理地址
+      type: secret
+      help: 可选，填写插件进程可访问的代理地址；留空使用 YTDLP_PROXY。
+
 operations:
+  - id: channel_latest
+    label: 获取账号最新发布
+    desc: 按频道列表顺序获取最近的视频、Shorts 或直播记录，仅取元数据，不下载媒体；可选 cookies 与代理凭证。
+    timeoutSec: 120
+    inputs:
+      - { name: channel, label: 频道账号, type: string, required: true, desc: 频道链接或 @账号，例如 https://www.youtube.com/@YouTube }
+      - name: content_type
+        label: 发布类型
+        type: enum
+        default: videos
+        options:
+          - { value: videos, label: 视频 }
+          - { value: shorts, label: Shorts }
+          - { value: streams, label: 直播记录 }
+      - { name: limit, label: 返回条数, type: int, default: 10, desc: 1 到 50；默认最近 10 条 }
+    outputs:
+      - { name: channel_name, label: 频道名称, type: string }
+      - { name: channel_id, label: 频道 ID, type: string }
+      - { name: channel_url, label: 频道链接, type: string, required: true }
+      - { name: count, label: 返回数量, type: int, required: true }
+      - name: videos
+        label: 发布列表
+        type: array
+        goType: ChannelVideo
+        fields:
+          - { name: id, label: 视频 ID, type: string, required: true }
+          - { name: title, label: 标题, type: string }
+          - { name: url, label: 视频链接, type: string, required: true }
+          - { name: upload_date, label: 发布日期, type: string, desc: YYYY-MM-DD；上游列表未提供时为空，不推测日期 }
+          - { name: duration_seconds, label: 时长(秒), type: int }
+          - { name: view_count, label: 播放量, type: int }
+          - { name: thumbnail, label: 封面链接, type: string }
+          - { name: live_status, label: 直播状态, type: string }
+
   - id: video_info
     label: 取视频信息
     desc: 只读元数据，不下载。用来在下载前判断时长/体积，或只需要标题与简介时。
@@ -143,7 +188,7 @@ operations:
 
   - id: health_check
     label: 凭证体检
-    desc: 平台约定的保留 id。这里没有凭证，检的是 yt-dlp 与 ffmpeg 在不在、以及出网通不通。
+    desc: 检查 cookies 格式、本地工具和代理出网；登录状态是否有效需通过具体视频试调用确认。
     inputs: []
     outputs:
       - { name: ok, label: 可用, type: boolean, required: true }

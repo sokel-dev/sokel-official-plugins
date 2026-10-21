@@ -33,10 +33,9 @@ SOKEL_ENDPOINT=http://localhost:8088 SOKEL_TOKEN=skp_xxx python main.py
 
 ## 几个刻意的取舍
 
-- **不声明凭证**。平台一旦收到 `credential_schema` 就把插件标成 `auth_required`，
-  于是下载一个公开视频也要先建一条凭证。代理与 cookies 走部署级环境变量
-  （`YTDLP_PROXY` / `YTDLP_COOKIES`）——那本来就是部署的事。
-  将来若真需要「每个空间一套 cookies」，再加凭证契约，那时这条取舍要一并改。
+- **可选凭证**：`cookies` 与 `proxy` 都声明为可选密文，沿用平台的可选凭证路由。
+  从 SDK 的 typed credential 读取；非空字段优先于部署环境变量。cookies 只写入每次提取的
+  `0600` 临时文件，yt-dlp 退出后清理；不修改环境变量、不缓存跨调用会话。
 - **默认 720p / 512MB，且超限时不下载；但 `0` = 不限**。平台侧分块上传没有体积上限
   （`storage/files.go` 只累加 up.size），所以这道闸是插件自己的护栏，真要整部片子时能关掉。
   先探体积再决定，比下到一半失败可读得多（用户看到的会是一句网络错误，真实原因却是体积）。
@@ -92,3 +91,16 @@ match the previous generated contract. The catalog's `go test -race ./...` and
 `go run ./cmd/build-index -base <baseline> -site <output> .` pass with an isolated
 first-release fixture. Its synthetic digest is test data only, never a publishable image reference.
 Live platform registration and downloads against the external service were not exercised.
+
+## Optional credentials and channel releases (0.3.0)
+
+`test_credentials.py` exercises SDK dispatch, all four media operations, concurrent cookie isolation,
+format validation, secret-safe health errors and anonymous access. Run `python -m unittest discover -v`.
+The existing secret form supports multiline paste; use `secret`, not the JSON-specific `secret-file` control.
+Cookie files must remain writable until yt-dlp closes. The health probe checks connectivity and syntax,
+not account validity; use a real target video to verify the session after configuring credentials.
+
+`channel_latest` accepts a channel URL or handle plus a bounded limit and content tab. It preserves
+playlist results rather than the single-video helper's first-entry behavior. `test_channel.py`
+covers metadata-only extraction, credentials, order, empty/unavailable entries, and invalid input.
+Publication 0.3.0 adds this operation and optional credentials without changing existing media I/O.

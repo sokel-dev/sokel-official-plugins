@@ -51,7 +51,7 @@ class PluginTest(unittest.IsolatedAsyncioTestCase):
                                        ('download_audio', {'audio_format': 'mp3'}, 'mp3')]:
             with self.subTest(operation=operation, ext=ext):
                 paths, options = [], []
-                def extract(url, opts=None, download=False):
+                def extract(url, opts=None, download=False, **kwargs):
                     options.append(dict(opts or {}))
                     if download:
                         path = Path(opts['outtmpl']).parent / ('sample.' + ext)
@@ -91,7 +91,7 @@ class PluginTest(unittest.IsolatedAsyncioTestCase):
     async def test_subtitle_text_without_video_download(self):
         for automatic in (False, True):
             with self.subTest(automatic=automatic):
-                def extract(url, opts=None, download=False):
+                def extract(url, opts=None, download=False, **kwargs):
                     if download:
                         self.assertTrue(opts['skip_download'])
                         self.assertEqual(opts['writeautomaticsub'], automatic)

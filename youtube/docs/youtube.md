@@ -48,16 +48,37 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 - 只下载你有权下载的内容。公开可看 ≠ 可任意再分发——YouTube 的服务条款与视频本身的
   版权是两回事，转载、二次分发前请自行确认。
 
-## 部署侧的两个开关
+## 获取账号最新发布
 
-都是环境变量，配在容器上，不需要在平台里建凭证：
+输入频道链接或 `@账号`，例如 `https://www.youtube.com/@YouTube` 或 `@YouTube`。
+默认返回最近 10 条，可设为 1–50；发布类型可选「视频」「Shorts」「直播记录」。
+每次只读取所选类型的频道列表，保留上游最近发布的顺序，不下载媒体，也不扫描全部历史。
+不包含社区文字帖子。
 
-| 变量 | 作用 |
-|---|---|
-| `YTDLP_PROXY` | 出网代理，如 `http://127.0.0.1:7897`。机器直连不了 YouTube 时必填 |
-| `YTDLP_COOKIES` | cookies 文件路径（Netscape 格式），用于会员/年龄限制内容 |
+输出 `videos` 数组，每项包含 `id`、`title`、`url`、时长、播放量、封面，以及上游提供的发布日期和直播状态。
+频道列表不总是给出日期，缺失时 `upload_date` 为空；其他缺失数值为 0，不代表实际统计值为零。
+需要完整元数据时，将该项的 `url` 交给「取视频信息」。
 
-「凭证体检」会告诉你 yt-dlp 与 ffmpeg 在不在、出网通不通。
+监控示例：定时触发 → 获取账号最新发布 → 按视频 ID 与数据表中的记录去重 → 抓字幕 / 下载 → 保存 ID。
+这个操作只返回当前列表；跨次去重由工作流维护，插件不保存监控状态。cookies 和代理使用同一套可选凭证。
+
+## 配置可选凭证
+
+从插件详情的凭证入口新建 YouTube 凭证，填写后绑定到接入组，或在试调用、工作流节点中选择它。
+
+- **登录 Cookies**：粘贴 Netscape 格式 `cookies.txt` 的完整内容，不是文件路径，也不是浏览器请求里的 Cookie 请求头。输入框会保留换行，保存后按密文显示。
+- **代理地址**：选填插件进程可访问的代理 URL，例如 `http://proxy.example.com:7897`；支持含账号密码的地址，按密文保存。
+
+两项均可选：不绑定凭证仍可匿名调用。每项非空凭证配置优先于对应环境变量；空值继续使用
+`YTDLP_COOKIES`（文件路径）或 `YTDLP_PROXY`。共享副本的部署配置会供所有未覆盖该字段的调用使用。
+每次提取使用独立的 cookies 临时文件，结束后删除，不把刷新后的 cookies 回写到平台凭证。
+
+按 [yt-dlp 官方导出说明](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies)
+导出 YouTube cookies；不要在聊天、日志或工作流普通参数中传递。cookies 失效后在凭证里更换即可，无需重启副本。
+出现登录验证时，检查 cookies 有效性和代理出口；配置凭证不保证消除上游风控。
+
+「凭证体检」检查 cookies 格式、ffmpeg 和代理出网。体检通过不代表已验证登录会话；保存后用
+目标视频执行「取视频信息」试调用确认。
 
 ## 官方目录与部署
 
@@ -70,8 +91,8 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-plugin-youtube:0.2.0
+  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.0
 ```
 
-代理通过 `YTDLP_PROXY` 配置；如需 cookies，将文件只读挂载进容器，再将
-`YTDLP_COOKIES` 设为容器内路径。副本使用同一套部署配置，请仅用于你授权处理的内容。
+优先在平台凭证里配置 cookies 和代理。兼容已有部署环境变量：`YTDLP_COOKIES` 必须指向可写文件，
+因为 yt-dlp 会回写 cookies；若使用只读挂载，启动时先复制到权限为 `0600` 的临时文件，再将变量指向副本。
