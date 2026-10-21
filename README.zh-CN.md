@@ -45,7 +45,7 @@ docker run -d --restart unless-stopped \
 | [`reddit`](reddit) | Reddit | 搜帖子、读版块和用户的帖子、读评论；你的帖子下有新评论或关键词命中时触发工作流。走公开 feed，不需要 API key；不能发帖回复。 |
 | [`redis`](redis) | Redis | 把 Redis 当工作流的共享内存：跨运行的计数器、去重集合、状态标记、队列、排行榜， |
 | [`submail`](submail) | 赛邮短信 | 通过 SUBMAIL（赛邮云通信）发国内短信与国际短信：告警通知、验证码、运营触达。 |
-| [`synology-upload`](synology-upload) | synology-upload |  |
+| [`synology-upload`](synology-upload) | 群晖上传 | 把工作流里的文件上传到群晖 NAS 的文件夹，走 DSM 的 FileStation 接口，Synology Drive / Cloud Sync 能照常同步。**需自行部署插件进程**，部署在能访问到 DSM 的机器上即可。 |
 | [`synology`](synology) | 群晖 NAS | 监听 NAS 目录里的文件变动并触发工作流（落定检测已内置）。**需自行部署插件进程**，且必须部署在能访问该 NAS 的机器上。 |
 | [`telegram-bot`](telegram-bot) | Telegram Bot | 把 Telegram 机器人接进工作流：收消息触发、发消息/图片/文件、下载用户发来的附件，也可以直调任意 Bot API 方法。 |
 | [`threads`](threads) | Threads | 发帖、发帖串。免费、无按次计费；受众规模是这批海外渠道里最大的之一。 |

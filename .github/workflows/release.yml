@@ -49,7 +49,7 @@ jobs:
             GOFLAGS=-mod=mod go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
             GOFLAGS=-mod=mod go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen export yaml . > "$RUNNER_TEMP/export.yml"
           else
-            go install github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.6
+            go install github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7
             sokel-gen check .
             sokel-gen export yaml . > "$RUNNER_TEMP/export.yml"
           fi

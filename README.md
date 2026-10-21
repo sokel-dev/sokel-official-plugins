@@ -51,7 +51,7 @@ README and `docs/` explain what it needs.
 | [`reddit`](reddit) | Reddit | Search posts, read subreddit and user posts and comments; fires a workflow on new comments under your posts or on a keyword hit. Uses public feeds, no API key; cannot post or reply. |
 | [`redis`](redis) | Redis | Use Redis as shared memory for your workflow: cross-run counters, dedup sets, status flags, queues, leaderboards, |
 | [`submail`](submail) | SUBMAIL SMS | Send domestic and international SMS through SUBMAIL: alert notifications, verification codes, and marketing outreach. |
-| [`synology-upload`](synology-upload) | synology-upload |  |
+| [`synology-upload`](synology-upload) | Synology Upload | Upload files from a workflow into a Synology NAS folder through DSM's FileStation API, so Synology Drive / Cloud Sync sync them as usual. **You deploy the plugin process yourself**, on any machine that can reach DSM. |
 | [`synology`](synology) | Synology NAS | Watches a NAS directory for file changes and triggers a workflow (settle detection is built in). **You must deploy the plugin process yourself**, on a machine that can access this NAS. |
 | [`telegram-bot`](telegram-bot) | Telegram Bot | Connects a Telegram bot into your workflow: trigger on incoming messages, send messages/images/files, download attachments users send, or call any Bot API method directly. |
 | [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. |

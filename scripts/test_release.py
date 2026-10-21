@@ -82,12 +82,17 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(second.returncode, 2, 'Releasing the same version must still fail')
             command[command.index('--version') + 1] = 'v0.3.0'
             command[command.index('--image') + 1] = 'ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.0@sha256:' + 'b' * 64
+            (assets / 'locales/en.json').write_text('{"视频": "Video", "# Video plugin\\n": "# Usage guide\\n"}\n')
+            (entry_dir / 'locales/en.json').write_text('{"视频": "Video", "Catalog-only": "Keep this"}\n')
             upgraded = subprocess.run(command, cwd=root, text=True, capture_output=True)
             self.assertEqual(upgraded.returncode, 0, upgraded.stderr)
             updated = yaml.safe_load((entry_dir / 'manifest.yml').read_text())
             self.assertEqual(updated['plugin']['version'], 'v0.3.0')
             self.assertEqual(updated['deployment']['targets'][0]['ref'], command[command.index('--image') + 1])
             self.assertEqual(updated['plugin']['label'], entry['plugin']['label'])
+            translations = json.loads((entry_dir / 'locales/en.json').read_text())
+            self.assertEqual(translations['Catalog-only'], 'Keep this')
+            self.assertEqual(translations.get('# Video plugin\n'), '# Usage guide\n')
             self.assertEqual((entry_dir / 'README.md').read_text(), '# Video plugin\n')
 
 

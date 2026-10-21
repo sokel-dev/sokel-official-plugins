@@ -158,6 +158,16 @@ def main():
         target.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(doc, target / "README.md")
         shutil.copytree(locales, target / "locales", dirs_exist_ok=True)
+    else:
+        # New translations, including usage markdown, ship with every release.
+        # Keep catalog-only translations for catalog-owned descriptions and notes.
+        target = Path(path).parent / "locales"
+        for locale in (Path(a.plugin) / "locales").glob("*.json"):
+            target.mkdir(parents=True, exist_ok=True)
+            dest = target / locale.name
+            merged = json.loads(dest.read_text(encoding="utf-8")) if dest.exists() else {}
+            merged.update(json.loads(locale.read_text(encoding="utf-8")))
+            dest.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     Path(path).write_text(text, encoding="utf-8")
     print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed,
                       "unlisted_inputs": unlisted}))

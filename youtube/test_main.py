@@ -17,6 +17,15 @@ class Files:
 
 
 class PluginTest(unittest.IsolatedAsyncioTestCase):
+    def test_usage_document_has_english_translation(self):
+        root = Path(__file__).parent
+        source = (root / "docs/youtube.md").read_text()
+        translations = json.loads((root / "locales/en.json").read_text())
+        translated = translations.get(source, "")
+        self.assertIn("## What it does", translated)
+        self.assertIn("YTDLP_PROXY", translated)
+        self.assertIn("format_id", translated)
+
     async def call(self, operation, **inputs):
         return await main.p.dispatch_buffered({'operation': operation, 'input': inputs}, files=self.files)
 
