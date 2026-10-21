@@ -12,8 +12,10 @@ stdout——中间多一层进程与文本解析，错误信息还会退化成�
 from __future__ import annotations
 
 import asyncio
+import base64
 from contextlib import contextmanager
 from http.cookiejar import MozillaCookieJar
+import importlib.util
 import logging
 import os
 import re
@@ -21,7 +23,7 @@ import shutil
 import tempfile
 import warnings
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, quote_plus, unquote, urlsplit
 
 import yt_dlp
 
@@ -117,6 +119,35 @@ def credential_opts(credential: Optional[Credential] = None):
         yield opts
 
 
+def safe_extraction_error(error: Exception, opts: Dict[str, Any]) -> str:
+    """Keep the upstream reason while removing configured secrets and all URLs."""
+    fallback = "Media extraction failed; check video access, login cookies and proxy connectivity"
+    secrets = set()
+    try:
+        proxies = [opts.get("proxy"), *(os.environ.get(key) for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"))]
+        for proxy in filter(None, proxies):
+            parsed = urlsplit(proxy)
+            secrets.update((proxy, unquote(parsed.username or ""), unquote(parsed.password or "")))
+            if parsed.username is not None:
+                auth = unquote(parsed.username) + ":" + unquote(parsed.password or "")
+                secrets.add(base64.b64encode(auth.encode()).decode())
+        if path := opts.get("cookiefile"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                jar = MozillaCookieJar(path)
+                jar.load(ignore_discard=True, ignore_expires=True)
+            secrets.update(cookie.value for cookie in jar if cookie.value)
+    except (ValueError, OSError):
+        return fallback
+    message = re.sub(r"\x1b\[[0-9;]*m", "", str(error))
+    message = re.sub(r"(?i)\b[a-z][a-z0-9+.-]*://\S+", "[URL redacted]", message)
+    variants = {value for secret in secrets if secret for value in (secret, quote(secret, safe=""), quote_plus(secret))}
+    for secret in sorted(variants, key=len, reverse=True):
+        message = message.replace(secret, "[redacted]")
+    message = " ".join(message.split())[:1000]
+    return fallback + (": " + message if message else "")
+
+
 def extract(url: str, extra: Optional[Dict[str, Any]] = None, download: bool = False,
             *, credential: Optional[Credential] = None, keep_playlist: bool = False) -> Dict[str, Any]:
     """跑一次 yt-dlp。**同步阻塞**，调用方一律用 asyncio.to_thread 包起来——
@@ -126,8 +157,8 @@ def extract(url: str, extra: Optional[Dict[str, Any]] = None, download: bool = F
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=download)
-        except yt_dlp.DownloadError:
-            raise RuntimeError("Media extraction failed; check video access, login cookies and proxy connectivity") from None
+        except yt_dlp.DownloadError as error:
+            raise RuntimeError(safe_extraction_error(error, opts)) from None
     # 播放列表：只取第一条，别让「一个链接下出 200 个文件」成为默认行为
     if not keep_playlist and info.get("_type") == "playlist" and info.get("entries"):
         info = info["entries"][0]
@@ -467,11 +498,15 @@ async def health_check(ctx: Ctx, _in: HealthCheckIn) -> HealthCheckOut:
             proxy = opts.get("proxy")
     except ValueError:
         return HealthCheckOut(ok=False, message="Invalid cookies: paste the contents of a Netscape cookies.txt file")
+    if shutil.which("deno") is None:
+        return HealthCheckOut(ok=False, message="Missing Deno JavaScript runtime; update the plugin image before fetching video details or media")
+    if importlib.util.find_spec("yt_dlp_ejs") is None:
+        return HealthCheckOut(ok=False, message="Missing yt-dlp-ejs player challenge scripts; reinstall yt-dlp with its default dependencies")
     try:
         await asyncio.to_thread(probe_network, proxy)
     except Exception:  # noqa: BLE001
         return HealthCheckOut(ok=False, message="Cannot reach YouTube; check the proxy and outbound network")
-    return HealthCheckOut(ok=True, message=f"yt-dlp {yt_dlp.version.__version__}, ffmpeg and network ready; cookie login validity requires a video call")
+    return HealthCheckOut(ok=True, message=f"yt-dlp {yt_dlp.version.__version__}, Deno, EJS, ffmpeg and network ready; cookie login validity requires a video call")
 
 
 on_health_check(p, health_check)

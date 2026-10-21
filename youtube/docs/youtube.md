@@ -77,7 +77,7 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 导出 YouTube cookies；不要在聊天、日志或工作流普通参数中传递。cookies 失效后在凭证里更换即可，无需重启副本。
 出现登录验证时，检查 cookies 有效性和代理出口；配置凭证不保证消除上游风控。
 
-「凭证体检」检查 cookies 格式、ffmpeg 和代理出网。体检通过不代表已验证登录会话；保存后用
+「凭证体检」检查 cookies 格式、ffmpeg、Deno、EJS 和代理出网。体检通过不代表已验证登录会话；保存后用
 目标视频执行「取视频信息」试调用确认。
 
 ## 官方目录与部署
@@ -91,8 +91,14 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.1
+  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.2
 ```
 
 优先在平台凭证里配置 cookies 和代理。兼容已有部署环境变量：`YTDLP_COOKIES` 必须指向可写文件，
 因为 yt-dlp 会回写 cookies；若使用只读挂载，启动时先复制到权限为 `0600` 的临时文件，再将变量指向副本。
+
+## 列表成功但详情或下载失败
+
+频道列表只读取发布列表；视频详情和下载还需要解析播放器及媒体地址。镜像必须包含 Deno JavaScript 运行时和与 yt-dlp 匹配的 EJS 脚本；官方镜像已包含，源码部署请安装 Deno 并用 `pip install -r requirements.txt` 安装完整依赖。先运行体检，缺少依赖会明确报错。
+
+提取失败会显示脱敏后的上游原因。若仍要求登录验证，请检查所选凭证中的 cookies 是否有效、是否能访问目标视频，以及插件代理出口；列表成功和体检成功都不证明视频可下载。

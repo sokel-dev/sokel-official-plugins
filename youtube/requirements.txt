@@ -1,4 +1,4 @@
 # Keep the runtime SDK aligned with the code generator used by CI.
 sokel-plugin-sdk @ https://github.com/sokel-dev/sokel-plugin-sdk/archive/refs/tags/v0.7.7.tar.gz#subdirectory=sdk-python
 # Rebuild regularly to pick up upstream extractor changes.
-yt-dlp>=2025.1.1
+yt-dlp[default]>=2026.8.19

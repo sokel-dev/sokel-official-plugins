@@ -109,3 +109,12 @@ Version 0.3.1 fixes release packaging: later releases refresh the catalog usage 
 translations for removed source strings. The v0.3.0 image built successfully but catalog admission
 correctly blocked the stale documentation bundle. The public release-tool regression reproduces
 that failure before the fix, and the real catalog admission passes with the rebuilt bundle.
+
+## Player runtime (0.3.2)
+
+The image bundles Deno and the matching `yt-dlp[default]` EJS scripts. A flat channel list
+does not exercise player challenge solving, so it is insufficient as the media acceptance check.
+The Docker build executes Deno and imports EJS; health checks also report missing dependencies.
+`test_runtime.py` checks missing runtime/components and redaction without discarding the upstream
+reason. Extractor logs remain suppressed. Test the actual image with `--network none` and the
+Python suite mounted, then verify video metadata and a bounded media sample on a working exit.
