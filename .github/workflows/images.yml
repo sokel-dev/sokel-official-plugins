@@ -22,15 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: l
-        run: echo "plugins=$(for d in */; do d=${d%/}; [ -f "$d/go.mod" ] && [ -f "$d/main.go" ] && echo "$d"; done | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+        run: |
+          plugins=$(python3 scripts/plugin-matrix.py)
+          echo "plugins=$plugins" >> "$GITHUB_OUTPUT"
 
   image:
     needs: list
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        plugin: ${{ fromJSON(needs.list.outputs.plugins) }}
+      matrix: ${{ fromJSON(needs.list.outputs.plugins) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -49,8 +50,8 @@ jobs:
             type=sha,prefix=sha-
       - uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           build-args: |
             PLUGIN=${{ matrix.plugin }}

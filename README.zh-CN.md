@@ -56,15 +56,25 @@ docker run -d --restart unless-stopped \
 | [`x`](x) | X (Twitter) | 发推、发推串、传图传视频、点赞转推、搜索与时间线、私信、列表，以及被提及 / 关键词命中时触发工作流。 |
 | [`xueqiu`](xueqiu) | 雪球（非官方） | 发帖（可带图）+ 检查凭证。 |
 | [`youtube-transcript`](youtube-transcript) | YouTube 字幕 | 取任意公开 YouTube 视频的字幕，产出带时间轴的分句和拼好的全文。不需要 YouTube 账号，也不需要 API … |
+| [`youtube`](youtube) | YouTube | 取视频信息、下载视频/音频、抓字幕文本（基于 yt-dlp） |
 
 ## 构建
 
 ```bash
-docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # 所有插件共用一份镜像配方
+docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # Go 插件共用一份镜像配方
 cd telegram-bot && go generate ./... && go test ./...                         # 改了插件 schema 之后
 ```
 
 每次推送到 `main`，Images 流水线都会构建 linux/amd64 和 linux/arm64 镜像并发布到 ghcr（`:latest` 和 `:sha-<提交>`）。
+
+Python 插件保留各自的 Dockerfile，例如：
+
+```bash
+docker build -f youtube/Dockerfile -t sokel-plugin-youtube youtube
+cd youtube && pip install -r requirements.txt && python -m unittest discover -v
+```
+
+CI 检查两种运行时。Python 契约用 SDK v0.7.6 的 `sokel-gen generate .` 重新生成。
 
 ## 发版
 
@@ -76,7 +86,7 @@ git tag discord/v1.0.1 && git push origin discord/v1.0.1
 
 Release 流水线随即构建 `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`，重写它在[插件目录](https://github.com/sokel-dev/sokel-registry)里的条目
 （契约取自 `sokel-gen export`、`plugin.version`、按摘要钉死的镜像），用目录自己的准入检查和版本门校验，到那边开 PR，并在本仓发一个 GitHub release。
-合并那个 PR，新版本就上了目录页。版本号必须比条目现有的高；插件的第一个条目要手工建（见目录仓的 CONTRIBUTING）。
+合并那个 PR，新版本就上了目录页。版本号必须比条目现有的高；首次发版会使用导出的契约、本地使用文档和 `locales/en.json` 创建条目，镜像摘要取自实际构建结果；目录 PR 仍须维护者审核。
 
 **一次最多推三个标签**：一次推送里标签超过三个时，GitHub 对其中任何一个都不触发工作流，所以给一堆插件打完标签后 `git push --tags` 什么都不会发布。要三个一组地推。
 

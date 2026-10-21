@@ -5,7 +5,8 @@
         --image ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1@sha256:... \
         --export export.yml --catalog <checkout of sokel-dev/sokel-registry>
 
-The entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
+A first release creates its entry from the export, <plugin>/docs and <plugin>/locales.
+An existing entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
 emits it from the plugin's code (credential, operations, events...), the entry's own plugin section (org, label,
 desc, doc, icon) with the new version, and its deployment section with the container target pointing at the
 released image, pinned by digest. An entry that declares capabilities (`implements`) keeps its shape — which
@@ -20,6 +21,8 @@ Exits 2 when the version does not go up (the catalog's version gate would refuse
 """
 import argparse
 import json
+from pathlib import Path
+import shutil
 import re
 import sys
 
@@ -90,21 +93,36 @@ def main():
     a = ap.parse_args()
 
     path = f"{a.catalog}/plugins/sokel/{a.plugin}/manifest.yml"
-    try:
-        entry_text = open(path, encoding="utf-8").read()
-    except OSError:
-        sys.exit(f"no catalog entry at {path}: a first release needs the entry created by hand (see CONTRIBUTING there)")
-    entry = yaml.safe_load(entry_text)
-    export_text = open(a.export, encoding="utf-8").read()
+    export_text = Path(a.export).read_text(encoding="utf-8")
     export = yaml.safe_load(export_text)
+    if export.get("plugin", {}).get("name") != a.plugin:
+        sys.exit(f"export is for {export.get('plugin', {}).get('name')!r}, not {a.plugin}")
+    first_release = not Path(path).exists()
+    if first_release:
+        # The first release supplies the contract and local documentation; the built image supplies its digest.
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.plugin):
+            sys.exit("invalid plugin name")
+        if not re.search(r"@sha256:[0-9a-f]{64}$", a.image):
+            sys.exit("a first official release requires an image digest")
+        plugin = dict(export["plugin"], org="sokel", version="v0.0.0")
+        source = Path(a.plugin).resolve()
+        doc = (source / plugin.get("doc", "docs/" + a.plugin + ".md")).resolve()
+        if not doc.is_relative_to(source) or not doc.is_file():
+            sys.exit("a first release requires a local usage document")
+        locales = source / "locales"
+        if not (locales / "en.json").is_file():
+            sys.exit("a first release requires locales/en.json")
+        plugin["doc"] = "README.md"
+        entry = {"plugin": plugin}
+        entry_text = ""
+    else:
+        entry_text = Path(path).read_text(encoding="utf-8")
+        entry = yaml.safe_load(entry_text)
 
     previous = str(entry["plugin"].get("version", "v0.0.0"))
     if semver(a.version) <= semver(previous):
         print(f"{a.plugin}: {a.version} does not go up from {previous}", file=sys.stderr)
         sys.exit(2)
-    if export.get("plugin", {}).get("name") != a.plugin:
-        sys.exit(f"export is for {export.get('plugin', {}).get('name')!r}, not {a.plugin}")
-
     # deployment: the first container target gets the released image; everything else stays.
     deployment = entry.get("deployment") or {"targets": [{"kind": "container", "ref": a.image}]}
     for t in deployment.get("targets", []):
@@ -135,7 +153,12 @@ def main():
         entry["deployment"] = deployment
         head = "".join(l for l in entry_text.splitlines(True) if l.startswith("#"))  # leading comment header
         text = head + dump(entry)
-    open(path, "w", encoding="utf-8").write(text)
+    if first_release:
+        target = Path(path).parent
+        target.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(doc, target / "README.md")
+        shutil.copytree(locales, target / "locales", dirs_exist_ok=True)
+    Path(path).write_text(text, encoding="utf-8")
     print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed,
                       "unlisted_inputs": unlisted}))
 

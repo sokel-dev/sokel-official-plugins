@@ -62,16 +62,26 @@ README and `docs/` explain what it needs.
 | [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. |
 | [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. |
 | [`youtube-transcript`](youtube-transcript) | YouTube transcript | Fetches the transcript of any public YouTube video, producing timestamped segments and the assembled full text. No YouTube account or API … |
+| [`youtube`](youtube) | YouTube | Fetch video information, download video or audio, and extract subtitle text with yt-dlp |
 
 ## Build
 
 ```bash
-docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # one image recipe for all plugins
+docker build --build-arg PLUGIN=telegram-bot -t sokel-plugin-telegram-bot .   # shared recipe for Go plugins
 cd telegram-bot && go generate ./... && go test ./...                         # after changing a plugin's schema
 ```
 
 Images for linux/amd64 and linux/arm64 are published to ghcr by the Images workflow on every push to `main`
 (`:latest` and `:sha-<commit>`).
+
+Python plugins keep a Dockerfile in their directory; for example:
+
+```bash
+docker build -f youtube/Dockerfile -t sokel-plugin-youtube youtube
+cd youtube && pip install -r requirements.txt && python -m unittest discover -v
+```
+
+CI checks both runtimes. Regenerate Python contracts with `sokel-gen generate .` (SDK v0.7.6).
 
 ## Releasing
 
@@ -85,7 +95,8 @@ The Release workflow then builds `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`,
 [catalog](https://github.com/sokel-dev/sokel-registry) (contract from `sokel-gen export`, `plugin.version`, the image
 pinned by its digest), checks it with the catalog's own admission and version gate, opens the pull request there and
 publishes a GitHub release here. Merging that pull request puts the version on the catalog page. The version must go
-up from the entry's current one; a plugin's first entry is created by hand (see the catalog's CONTRIBUTING).
+up from the entry's current one. A first release creates its entry from the exported contract, local usage document
+and `locales/en.json`, using the image digest returned by the build. The catalog still requires maintainer review.
 
 Push **at most three tags at a time**: GitHub starts no workflow for any of the tags in a push that carries more than
 three, so `git push --tags` after tagging many plugins releases nothing. Push them in groups of three instead.
