@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import base64
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from http.cookiejar import MozillaCookieJar
 import importlib.util
 import logging
@@ -23,7 +24,7 @@ import shutil
 import tempfile
 import warnings
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote, quote_plus, unquote, urlsplit
+from urllib.parse import quote, quote_plus, unquote, urlencode, urlsplit
 
 import yt_dlp
 
@@ -32,6 +33,8 @@ from sokel_gen import (
     ChannelLatestIn,
     ChannelLatestOut,
     ChannelVideo,
+    SearchIn,
+    SearchOut,
     Credential,
     credential as read_credential,
     DownloadAudioIn,
@@ -48,6 +51,7 @@ from sokel_gen import (
     new_plugin,
     on_download,
     on_channel_latest,
+    on_search,
     on_download_audio,
     on_health_check,
     on_transcript,
@@ -184,35 +188,114 @@ def channel_tab_url(channel: str, tab: str) -> str:
     return "https://www.youtube.com/" + quote("/".join(parts[:size]), safe="/@%") + "/" + tab
 
 
-async def channel_latest(ctx: Ctx, in_: ChannelLatestIn) -> ChannelLatestOut:
-    if not 1 <= in_.limit <= 50:
+def discovery_bound(limit: int, scan_limit: int, access_filter: str) -> int:
+    if not 1 <= limit <= 50:
         raise ValueError("limit must be between 1 and 50")
-    url = channel_tab_url(in_.channel, in_.content_type)
-    info = await asyncio.to_thread(extract, url, {
-        "extract_flat": "in_playlist", "playlistend": in_.limit, "skip_download": True,
-    }, credential=read_credential(ctx), keep_playlist=True)
+    if not 1 <= scan_limit <= 50:
+        raise ValueError("scan_limit must be between 1 and 50")
+    if access_filter != "all" and scan_limit < limit:
+        raise ValueError("scan_limit must be at least limit when filtering")
+    return limit if access_filter == "all" else scan_limit
+
+
+def utc_time(value: Any) -> str:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return ""
+    try:
+        return datetime.fromtimestamp(value, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    except (ValueError, OverflowError, OSError):
+        return ""
+
+
+def discovery_videos(info: Dict[str, Any], limit: int, bound: int, access_filter: str):
+    """Only classify access supported by metadata; a missing badge is not public access."""
     videos = []
-    for entry in info.get("entries") or []:
-        if not isinstance(entry, dict) or not entry.get("id"):
+    seen = set()
+    scanned = unknown = 0
+    for entry in (info.get("entries") or [])[:bound]:
+        if not isinstance(entry, dict) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", str(entry.get("id") or "")):
+            continue
+        if entry.get("ie_key") not in (None, "Youtube"):
+            continue
+        if entry["id"] in seen:
+            continue
+        seen.add(entry["id"])
+        scanned += 1
+        availability = entry.get("availability")
+        if availability not in ("public", "subscriber_only", "premium_only", "private", "unlisted", "needs_auth"):
+            availability = "unknown"
+            unknown += 1
+        selected = "subscriber_only" if access_filter == "members_only" else access_filter
+        if selected != "all" and availability != selected:
+            continue
+        if len(videos) >= limit:
             continue
         date = str(entry.get("upload_date") or "")
+        try:
+            date = datetime.strptime(date, "%Y%m%d").date().isoformat()
+        except ValueError:
+            date = ""
+        published_at = utc_time(entry.get("timestamp"))
         thumbnails = entry.get("thumbnails") or []
         videos.append(ChannelVideo(
             id=str(entry["id"]), title=str(entry.get("title") or ""),
             url="https://www.youtube.com/watch?v=" + quote(str(entry["id"]), safe=""),
-            upload_date=f"{date[:4]}-{date[4:6]}-{date[6:]}" if len(date) == 8 else "",
+            upload_date=date,
             duration_seconds=int(entry.get("duration") or 0), view_count=int(entry.get("view_count") or 0),
             thumbnail=str(entry.get("thumbnail") or (thumbnails[-1].get("url") if thumbnails else "") or ""),
             live_status=str(entry.get("live_status") or ""),
+            availability=availability,
+            published_at=published_at,
+            published_time_precision="approximate" if published_at else "date" if date else "unknown",
+            release_at=utc_time(entry.get("release_timestamp")),
+            duration_known=entry.get("duration") is not None,
+            view_count_known=entry.get("view_count") is not None,
+            description=str(entry.get("description") or ""),
+            channel_name=str(entry.get("channel") or entry.get("uploader") or info.get("channel") or info.get("uploader") or ""),
+            channel_id=str(entry.get("channel_id") or info.get("channel_id") or ""),
+            channel_url=str(entry.get("channel_url") or info.get("channel_url") or ""),
         ))
-        if len(videos) == in_.limit:
-            break
+    return videos, scanned, unknown
+
+
+async def discovery_extract(ctx: Ctx, url: str, bound: int):
+    return await asyncio.to_thread(extract, url, {
+        "extract_flat": "in_playlist", "playlistend": bound, "skip_download": True,
+        "extractor_args": {"youtubetab": {"approximate_date": ["true"]}},
+    }, credential=read_credential(ctx), keep_playlist=True)
+
+
+async def channel_latest(ctx: Ctx, in_: ChannelLatestIn) -> ChannelLatestOut:
+    bound = discovery_bound(in_.limit, in_.scan_limit, in_.access_filter)
+    url = channel_tab_url(in_.channel, in_.content_type)
+    info = await discovery_extract(ctx, url, bound)
+    videos, scanned, unknown = discovery_videos(info, in_.limit, bound, in_.access_filter)
     return ChannelLatestOut(channel_name=str(info.get("channel") or info.get("uploader") or ""),
                             channel_id=str(info.get("channel_id") or ""), channel_url=url,
-                            count=len(videos), videos=videos)
+                            count=len(videos), videos=videos, scanned_count=scanned, unknown_access_count=unknown)
 
 
 on_channel_latest(p, channel_latest)
+
+
+async def search(ctx: Ctx, in_: SearchIn) -> SearchOut:
+    query = in_.query.strip()
+    if not query or len(query) > 500:
+        raise ValueError("query must contain between 1 and 500 characters")
+    bound = discovery_bound(in_.limit, in_.scan_limit, in_.access_filter if in_.sort == "relevance" else "date")
+    # The upstream date hint can be ignored. Also sort the bounded result window locally.
+    params = "CAISAhAB" if in_.sort == "date" else "EgIQAfABAQ=="
+    url = "https://www.youtube.com/results?" + urlencode({"search_query": query, "sp": params})
+    info = await discovery_extract(ctx, url, bound)
+    videos, scanned, unknown = discovery_videos(info, bound, bound, in_.access_filter)
+    if in_.sort == "date":
+        videos.sort(key=lambda video: video.published_at or video.upload_date, reverse=True)
+    videos = videos[:in_.limit]
+    return SearchOut(query=query, count=len(videos), videos=videos,
+                     scanned_count=scanned, unknown_access_count=unknown)
+
+
+on_search(p, search)
 
 
 # —— 取信息 ——

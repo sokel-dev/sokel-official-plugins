@@ -56,11 +56,36 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 不包含社区文字帖子。
 
 输出 `videos` 数组，每项包含 `id`、`title`、`url`、时长、播放量、封面，以及上游提供的发布日期和直播状态。
-频道列表不总是给出日期，缺失时 `upload_date` 为空；其他缺失数值为 0，不代表实际统计值为零。
+频道列表不总是给出日期，缺失时 `upload_date` 为空；估算时间、权限和数值是否已知请看下方字段说明。
 需要完整元数据时，将该项的 `url` 交给「取视频信息」。
 
 监控示例：定时触发 → 获取账号最新发布 → 按视频 ID 与数据表中的记录去重 → 抓字幕 / 下载 → 保存 ID。
 这个操作只返回当前列表；跨次去重由工作流维护，插件不保存监控状态。cookies 和代理使用同一套可选凭证。
+
+## 列表字段与访问权限筛选
+
+频道列表与全站搜索共用 `videos` 字段：视频 ID、标题、链接、频道名称/ID/链接、摘要、封面、时长、播放量、直播状态，以及下列字段。摘要可能截断。
+
+| 字段 | 含义 |
+|---|---|
+| `availability` | `public` 公开；`subscriber_only` 频道会员专享；`premium_only` Premium；`private` 私密；`unlisted` 不公开列出；`needs_auth` 需登录；`unknown` 未知 |
+| `published_at` | 从“几天前”等相对时间估算的 ISO 8601 UTC 时间；可能有数天甚至更大的误差，缺失为空 |
+| `published_time_precision` | `approximate` 估算；`date` 仅日期；`unknown` 未知 |
+| `upload_date` | 上游提供的 YYYY-MM-DD 日期；可能是估算值，须结合精度字段，缺失为空 |
+| `release_at` | 上游提供的直播/首映时间，ISO 8601 UTC；可能在未来，与上传时间不同 |
+| `duration_known` / `view_count_known` | 为 false 时，对应数值 0 只是兼容旧版本的缺省值，不是真实统计值 |
+
+`access_filter` 支持 `all`（全部，默认）、`public`（仅明确公开）、`members_only`（仅明确会员专享）。**没有会员标记不代表明确公开**：很多频道和搜索结果不提供公开标记，因此 `public` 可能返回空列表，即使浏览器能播放。权限未知、Premium、私密、未列出和需登录的视频都不会混入“仅公开”。会员标记也不保证当前凭证有权观看。
+
+筛选时最多检查 `scan_limit` 条上游条目（默认 50，范围 1–50，不能小于 `limit`），保持原顺序后最多返回 `limit` 条。不会无限翻页来凑数量。`scanned_count` 表示已检查的有效且不重复的视频数，`unknown_access_count` 表示其中权限未知的数量，`count` 是实际返回数；都不是频道或全站总数。未出现在上游列表的会员视频无法凭空补入。
+
+例如：`{"channel":"@YouTube","access_filter":"members_only","limit":10,"scan_limit":50}`。匿名调用可能看不到会员列表；需要时选择有访问权账号的 cookies 凭证。筛选不会绕过观看权限。
+
+## 全站搜索视频
+
+使用 `search`，输入 `query` 关键词（1–500 字符），无需指定频道，例如 `{"query":"Python 入门","limit":10}`。返回跨频道的视频结果，不包含频道、播放列表或社区文字帖子，也不下载媒体。关键词中的链接只作为搜索文字，不会作为下载地址执行。cookies 和代理复用已有可选凭证。
+
+`sort=relevance` 默认保留上游相关度顺序。`sort=date` 在 `scan_limit` 范围内按可用发布时间从新到旧排列，未知时间排最后，再截取 `limit` 条。上游可能忽略日期排序参数，且列表时间可能只是估算；**本批排序不代表全站最新，也不是精确时间排序**。访问权限筛选与字段含义同上；不会为每条结果额外请求播放器详情。
 
 ## 配置可选凭证
 
@@ -91,7 +116,7 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.2
+  ghcr.io/sokel-dev/sokel-plugin-youtube:0.4.0
 ```
 
 优先在平台凭证里配置 cookies 和代理。兼容已有部署环境变量：`YTDLP_COOKIES` 必须指向可写文件，

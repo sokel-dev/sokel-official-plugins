@@ -3,8 +3,8 @@
 plugin:
   name: youtube
   label: YouTube
-  desc: 取视频信息、下载视频/音频、抓字幕文本（基于 yt-dlp）
-  version: 0.3.2
+  desc: 全站搜索视频、获取频道发布、取视频信息、下载视频/音频、抓字幕文本（基于 yt-dlp）
+  version: 0.4.0
   doc: docs/youtube.md
 
 
@@ -35,24 +35,81 @@ operations:
           - { value: shorts, label: Shorts }
           - { value: streams, label: 直播记录 }
       - { name: limit, label: 返回条数, type: int, default: 10, desc: 1 到 50；默认最近 10 条 }
+      - name: access_filter
+        label: 访问权限筛选
+        type: enum
+        default: all
+        desc: 仅按上游明确标记筛选；未知权限不会归入公开，空结果不代表没有公开视频。
+        options:
+          - { value: all, label: 全部 }
+          - { value: public, label: 仅明确公开 }
+          - { value: members_only, label: 仅会员专享 }
+      - { name: scan_limit, label: 扫描上限, type: int, default: 50, desc: 1 到 50；筛选或本批时间排序时必须不小于返回条数。仅处理该范围，结果可能不足返回条数。 }
     outputs:
       - { name: channel_name, label: 频道名称, type: string }
       - { name: channel_id, label: 频道 ID, type: string }
       - { name: channel_url, label: 频道链接, type: string, required: true }
       - { name: count, label: 返回数量, type: int, required: true }
+      - { name: scanned_count, label: 已检查视频数, type: int, desc: 本次扫描范围内去重后的有效视频数，不是全站总数 }
+      - { name: unknown_access_count, label: 权限未知数, type: int, desc: 已检查视频中权限未明确标记的数量；筛选公开或会员时排除 }
       - name: videos
         label: 发布列表
         type: array
         goType: ChannelVideo
-        fields:
+        fields: &discovery_fields
           - { name: id, label: 视频 ID, type: string, required: true }
           - { name: title, label: 标题, type: string }
           - { name: url, label: 视频链接, type: string, required: true }
-          - { name: upload_date, label: 发布日期, type: string, desc: YYYY-MM-DD；上游列表未提供时为空，不推测日期 }
+          - { name: upload_date, label: 发布日期, type: string, desc: YYYY-MM-DD；可能由相对时间估算，请结合时间精度字段；缺失为空 }
           - { name: duration_seconds, label: 时长(秒), type: int }
           - { name: view_count, label: 播放量, type: int }
           - { name: thumbnail, label: 封面链接, type: string }
           - { name: live_status, label: 直播状态, type: string }
+          - { name: availability, label: 访问权限, type: string, desc: 'public=公开；subscriber_only=频道会员；premium_only=Premium；private=私密；unlisted=不公开列出；needs_auth=需登录；unknown=未知。不保证当前账号可播放。' }
+          - { name: published_at, label: 估算发布时间, type: string, desc: ISO 8601 UTC；由列表相对时间估算，不是精确发布时间；缺失为空 }
+          - { name: published_time_precision, label: 发布时间精度, type: string, desc: approximate=相对时间估算；date=仅日期；unknown=未知 }
+          - { name: release_at, label: 直播或首映时间, type: string, desc: ISO 8601 UTC；可能是未来预约时间，不等同于上传时间；缺失为空 }
+          - { name: duration_known, label: 时长是否已知, type: boolean, desc: false 时 duration_seconds 的 0 只是缺省值 }
+          - { name: view_count_known, label: 播放量是否已知, type: boolean, desc: false 时 view_count 的 0 只是缺省值 }
+          - { name: description, label: 简介, type: string, desc: 上游列表提供的摘要，可能截断或为空 }
+          - { name: channel_name, label: 频道名称, type: string }
+          - { name: channel_id, label: 频道 ID, type: string }
+          - { name: channel_url, label: 频道链接, type: string }
+
+  - id: search
+    label: 全站搜索视频
+    desc: 按关键词搜索全站视频；可保留相关度顺序，或在扫描范围内按发布时间排序。仅取元数据，不下载媒体。
+    timeoutSec: 120
+    inputs:
+      - { name: query, label: 搜索关键词, type: string, required: true, desc: 1 到 500 个字符；作为完整关键词搜索，不执行输入中的链接或指令 }
+      - name: sort
+        label: 排序方式
+        type: enum
+        default: relevance
+        options:
+          - { value: relevance, label: 相关度 }
+          - { value: date, label: 本批按发布时间 }
+      - { name: limit, label: 返回条数, type: int, default: 10, desc: 1 到 50；默认 10 条 }
+      - name: access_filter
+        label: 访问权限筛选
+        type: enum
+        default: all
+        desc: 仅按上游明确标记筛选；未知权限不会归入公开，空结果不代表没有公开视频。
+        options:
+          - { value: all, label: 全部 }
+          - { value: public, label: 仅明确公开 }
+          - { value: members_only, label: 仅会员专享 }
+      - { name: scan_limit, label: 扫描上限, type: int, default: 50, desc: 1 到 50；筛选或本批时间排序时必须不小于返回条数。仅处理该范围，结果可能不足返回条数。 }
+    outputs:
+      - { name: query, label: 搜索关键词, type: string, required: true }
+      - { name: count, label: 返回数量, type: int, required: true }
+      - { name: scanned_count, label: 已检查视频数, type: int, desc: 本次扫描范围内去重后的有效视频数，不是全站总数 }
+      - { name: unknown_access_count, label: 权限未知数, type: int, desc: 已检查视频中权限未明确标记的数量；筛选公开或会员时排除 }
+      - name: videos
+        label: 视频列表
+        type: array
+        goType: ChannelVideo
+        fields: *discovery_fields
 
   - id: video_info
     label: 取视频信息

@@ -118,3 +118,23 @@ The Docker build executes Deno and imports EJS; health checks also report missin
 `test_runtime.py` checks missing runtime/components and redaction without discarding the upstream
 reason. Extractor logs remain suppressed. Test the actual image with `--network none` and the
 Python suite mounted, then verify video metadata and a bounded media sample on a working exit.
+
+## Discovery and metadata (0.4.0)
+
+`search` searches videos across channels. Both discovery operations share `ChannelVideo`, optional
+credentials, explicit access filtering and a bounded scan window. Unknown access is never public;
+flat lists often omit public labels, so a public filter may legitimately return no matches. Do not
+infer membership from titles or treat successful listing as permission to download. Relative list
+timestamps are marked approximate; premiere/stream time stays separate, and known flags distinguish
+missing numeric values from observed zeros. Date sorting applies only to the scanned search batch;
+upstream date-order hints can be ignored and must not imply a site-wide newest-first guarantee.
+
+TDD: `python -m unittest test_discovery -v` first failed on missing access/time fields, ignored filters,
+and the missing search operation. The batch-date-order behavior then failed independently before
+its implementation. `python -m unittest discover -v` passes 39 tests. Coverage covers all 63 changed
+executable lines in `main.py` (whole-file 94.6%). Additional coverage exercises the real yt-dlp member
+badge parser; this is a fixture, not proof of a successful authenticated members-only request.
+
+Live anonymous checks returned ten channel videos with approximate dates and three global search
+results. All had unknown access; this is why missing badges cannot be classified as public. Search
+strings are encoded as literal query parameters, and non-video/duplicate results are discarded.
