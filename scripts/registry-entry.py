@@ -195,7 +195,10 @@ def main():
             target.mkdir(parents=True, exist_ok=True)
             dest = target / locale.name
             merged = json.loads(dest.read_text(encoding="utf-8")) if dest.exists() else {}
-            merged.update(json.loads(locale.read_text(encoding="utf-8")))
+            # Catalog-owned metadata may differ from source labels/descriptions.
+            # Only import translations actually referenced by the resulting entry.
+            merged.update({key: value for key, value in json.loads(locale.read_text(encoding="utf-8")).items()
+                           if key in current_strings})
             for key in retired:
                 merged.pop(key, None)
             dest.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

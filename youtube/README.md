@@ -138,3 +138,8 @@ badge parser; this is a fixture, not proof of a successful authenticated members
 Live anonymous checks returned ten channel videos with approximate dates and three global search
 results. All had unknown access; this is why missing badges cannot be classified as public. Search
 strings are encoded as literal query parameters, and non-video/duplicate results are discarded.
+
+Version 0.4.1 fixes catalog locale admission after a source description changes. Catalog-owned
+metadata remains authoritative; import only source translations referenced by the resulting entry.
+The previous 0.4.0 image built, but its catalog publication was rejected for an orphan translation.
+The release regression fails before this fix and passes after it; source plugin behavior is unchanged.

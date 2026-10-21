@@ -4,7 +4,7 @@ plugin:
   name: youtube
   label: YouTube
   desc: 全站搜索视频、获取频道发布、取视频信息、下载视频/音频、抓字幕文本（基于 yt-dlp）
-  version: 0.4.0
+  version: 0.4.1
   doc: docs/youtube.md
 
 

@@ -20,7 +20,7 @@ class ReleaseTest(unittest.TestCase):
             (source / 'docs').mkdir(parents=True)
             (source / 'docs/youtube.md').write_text('# New usage\n')
             (source / 'locales').mkdir()
-            (source / 'locales/en.json').write_text(json.dumps({'# New usage\n': '# English usage\n', 'New health': 'New check'}))
+            (source / 'locales/en.json').write_text(json.dumps({'# New usage\n': '# English usage\n', 'New health': 'New check', 'Source-only description': 'New source summary'}))
             target = root / 'catalog/plugins/sokel/youtube'
             (target / 'locales').mkdir(parents=True)
             (target / 'README.md').write_text('# Old usage\n')
@@ -29,7 +29,7 @@ class ReleaseTest(unittest.TestCase):
             (target / 'manifest.yml').write_text(yaml.safe_dump(old))
             (target / 'locales/en.json').write_text(json.dumps({'# Old usage\n': '# Old translated usage\n', 'Old health': 'Old check', 'Catalog label': 'Preserved label'}))
             export = root / 'export.yml'
-            export.write_text(yaml.safe_dump({'plugin': {'name': 'youtube', 'doc': 'docs/youtube.md'}, 'operations': [{'id': 'health_check', 'label': 'New health'}]}))
+            export.write_text(yaml.safe_dump({'plugin': {'name': 'youtube', 'doc': 'docs/youtube.md', 'desc': 'Source-only description'}, 'operations': [{'id': 'health_check', 'label': 'New health'}]}))
             command = [sys.executable, str(ROOT / 'scripts/registry-entry.py'), '--plugin', 'youtube', '--version', 'v0.3.1',
                        '--image', 'ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.1@sha256:' + 'a' * 64,
                        '--export', str(export), '--catalog', str(root / 'catalog')]
