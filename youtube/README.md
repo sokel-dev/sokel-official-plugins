@@ -104,3 +104,8 @@ not account validity; use a real target video to verify the session after config
 playlist results rather than the single-video helper's first-entry behavior. `test_channel.py`
 covers metadata-only extraction, credentials, order, empty/unavailable entries, and invalid input.
 Publication 0.3.0 adds this operation and optional credentials without changing existing media I/O.
+
+Version 0.3.1 fixes release packaging: later releases refresh the catalog usage document and retire
+translations for removed source strings. The v0.3.0 image built successfully but catalog admission
+correctly blocked the stale documentation bundle. The public release-tool regression reproduces
+that failure before the fix, and the real catalog admission passes with the rebuilt bundle.

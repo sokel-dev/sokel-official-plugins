@@ -13,6 +13,32 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_release_refreshes_document_and_removes_obsolete_translations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'youtube'
+            (source / 'docs').mkdir(parents=True)
+            (source / 'docs/youtube.md').write_text('# New usage\n')
+            (source / 'locales').mkdir()
+            (source / 'locales/en.json').write_text(json.dumps({'# New usage\n': '# English usage\n', 'New health': 'New check'}))
+            target = root / 'catalog/plugins/sokel/youtube'
+            (target / 'locales').mkdir(parents=True)
+            (target / 'README.md').write_text('# Old usage\n')
+            old = {'plugin': {'name': 'youtube', 'org': 'sokel', 'version': 'v0.2.1', 'doc': 'README.md', 'label': 'Catalog label'},
+                   'operations': [{'id': 'health_check', 'label': 'Old health'}]}
+            (target / 'manifest.yml').write_text(yaml.safe_dump(old))
+            (target / 'locales/en.json').write_text(json.dumps({'# Old usage\n': '# Old translated usage\n', 'Old health': 'Old check', 'Catalog label': 'Preserved label'}))
+            export = root / 'export.yml'
+            export.write_text(yaml.safe_dump({'plugin': {'name': 'youtube', 'doc': 'docs/youtube.md'}, 'operations': [{'id': 'health_check', 'label': 'New health'}]}))
+            command = [sys.executable, str(ROOT / 'scripts/registry-entry.py'), '--plugin', 'youtube', '--version', 'v0.3.1',
+                       '--image', 'ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.1@sha256:' + 'a' * 64,
+                       '--export', str(export), '--catalog', str(root / 'catalog')]
+            result = subprocess.run(command, cwd=root, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((target / 'README.md').read_text(), '# New usage\n')
+            translations = json.loads((target / 'locales/en.json').read_text())
+            self.assertEqual(translations, {'Catalog label': 'Preserved label', '# New usage\n': '# English usage\n', 'New health': 'New check'})
+
     def test_images_discover_python_plugin(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/images.yml').read_text())
         command = next(s['run'] for s in workflow['jobs']['list']['steps'] if s.get('id') == 'l')

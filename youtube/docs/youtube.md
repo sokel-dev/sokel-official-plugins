@@ -91,7 +91,7 @@ YouTube 上一个视频本来就存着**多条流**：不同清晰度的视频�
 docker run -d --restart unless-stopped \
   -e SOKEL_ENDPOINT=https://sokel.example.com \
   -e SOKEL_TOKEN=skp_xxx \
-  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.0
+  ghcr.io/sokel-dev/sokel-plugin-youtube:0.3.1
 ```
 
 优先在平台凭证里配置 cookies 和代理。兼容已有部署环境变量：`YTDLP_COOKIES` 必须指向可写文件，

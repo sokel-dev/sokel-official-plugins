@@ -83,6 +83,20 @@ def dump(obj):
     return yaml.safe_dump(obj, sort_keys=False, allow_unicode=True, width=1000, default_flow_style=False)
 
 
+def display_strings(value):
+    """Collect display keys to retire translations whose declarations changed."""
+    keys = set()
+    if isinstance(value, dict):
+        for name, item in value.items():
+            if name in ("label", "desc", "help", "placeholder") and isinstance(item, str):
+                keys.add(item)
+            keys.update(display_strings(item))
+    elif isinstance(value, list):
+        for item in value:
+            keys.update(display_strings(item))
+    return keys
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True)
@@ -135,6 +149,12 @@ def main():
     plugin = dict(entry["plugin"])
     plugin["name"] = a.plugin
     plugin["version"] = a.version
+    old_strings = display_strings(entry)
+    target_root = Path(path).parent.resolve()
+    target_doc = (target_root / plugin.get("doc", "README.md")).resolve()
+    local_doc = target_doc.is_relative_to(target_root) and "://" not in plugin.get("doc", "")
+    if local_doc and target_doc.is_file():
+        old_strings.add(target_doc.read_text(encoding="utf-8"))
 
     refreshed = "implements" not in entry
     changed = contract_of(export) != contract_of(entry)
@@ -161,12 +181,23 @@ def main():
     else:
         # New translations, including usage markdown, ship with every release.
         # Keep catalog-only translations for catalog-owned descriptions and notes.
+        source_root = Path(a.plugin).resolve()
+        source_doc = (source_root / export.get("plugin", {}).get("doc", "docs/" + a.plugin + ".md")).resolve()
+        if local_doc and source_doc.is_relative_to(source_root) and source_doc.is_file():
+            target_doc.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_doc, target_doc)
+        current_strings = display_strings(yaml.safe_load(text))
+        if local_doc and target_doc.is_file():
+            current_strings.add(target_doc.read_text(encoding="utf-8"))
+        retired = old_strings - current_strings
         target = Path(path).parent / "locales"
         for locale in (Path(a.plugin) / "locales").glob("*.json"):
             target.mkdir(parents=True, exist_ok=True)
             dest = target / locale.name
             merged = json.loads(dest.read_text(encoding="utf-8")) if dest.exists() else {}
             merged.update(json.loads(locale.read_text(encoding="utf-8")))
+            for key in retired:
+                merged.pop(key, None)
             dest.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     Path(path).write_text(text, encoding="utf-8")
     print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed,
