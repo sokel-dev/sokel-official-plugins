@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+test_*.py
+.coverage*
+.env
+.venv
+.sokel-instance-id*

@@ -1,0 +1,8 @@
+services:
+  x-free:
+    build: .
+    image: sokel-plugin-x-free:0.1.0
+    restart: unless-stopped
+    environment:
+      SOKEL_ENDPOINT: ${SOKEL_ENDPOINT:?Set the platform HTTP endpoint}
+      SOKEL_TOKEN: ${SOKEL_TOKEN:?Set the plugin access-group token}

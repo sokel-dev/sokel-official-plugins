@@ -53,6 +53,7 @@ docker run -d --restart unless-stopped \
 | [`umeng`](umeng) | 友盟推送 | App 推送的友盟通道：按设备 token 单播/列播，或全量广播。与「阿里云」插件的 |
 | [`wechat-claw`](wechat-claw) | 微信 ClawBot | 接入微信官方 ClawBot（iLink Bot 接口）：你在微信里给 ClawBot 发消息即触发工作流，工作流可回复文本、图片、文件。只有扫码绑定的本人能与它对话。 |
 | [`wechat-mp`](wechat-mp) | 微信公众号 | 把文章写进草稿箱、发布、拿到永久链接。国内唯一一条「API 正经、金融内容可做、覆盖面够」的主渠道。 |
+| [`x-free`](x-free) | X（免费读写） | 使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。 |
 | [`x`](x) | X (Twitter) | 发推、发推串、传图传视频、点赞转推、搜索与时间线、私信、列表，以及被提及 / 关键词命中时触发工作流。 |
 | [`xueqiu`](xueqiu) | 雪球（非官方） | 发帖（可带图）+ 检查凭证。 |
 | [`youtube-transcript`](youtube-transcript) | YouTube 字幕 | 取任意公开 YouTube 视频的字幕，产出带时间轴的分句和拼好的全文。不需要 YouTube 账号，也不需要 API … |

@@ -59,6 +59,7 @@ README and `docs/` explain what it needs.
 | [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's |
 | [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. |
 | [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. |
+| [`x-free`](x-free) | X (Free Read/Write) | Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription. |
 | [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. |
 | [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. |
 | [`youtube-transcript`](youtube-transcript) | YouTube transcript | Fetches the transcript of any public YouTube video, producing timestamped segments and the assembled full text. No YouTube account or API … |

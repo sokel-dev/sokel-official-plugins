@@ -1,0 +1,123 @@
+# Contract source; regenerate with sokel-gen v0.7.7 generate .
+plugin:
+  name: x-free
+  org: sokel
+  label: X（免费读写）
+  desc: 使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。
+  version: 0.1.0
+  icon: brand:x
+  doc: docs/x-free.md
+
+credential:
+  fields:
+    - name: auth_token
+      label: 登录令牌
+      type: secret
+      required: true
+      help: 在已登录的 x.com 页面打开开发者工具，在 Application → Cookies 中复制 auth_token 的值。
+    - name: ct0
+      label: CSRF 令牌
+      type: secret
+      required: true
+      help: 复制同一次登录会话的 ct0 Cookie 值；不要填写整个 Cookie 请求头。
+    - name: proxy
+      label: 代理地址
+      type: secret
+      help: 可选，填写插件容器可访问的 HTTP 或 HTTPS 代理地址。
+
+operations:
+  - id: search
+    label: 搜索推文
+    desc: 按 X 搜索语法读取最新匹配推文，返回有界批次；结果可能少于请求数量。
+    timeoutSec: 120
+    inputs:
+      - { name: query, label: 搜索内容, type: string, required: true, desc: 支持 from:账号、关键词等 X 搜索语法，最多 500 个字符。 }
+      - { name: limit, label: 返回条数, type: int, default: 20, desc: 1 到 100，默认 20；不提供跨次调用的分页游标。 }
+    outputs:
+      - name: posts
+        label: 推文列表
+        type: array
+        goType: Post
+        required: true
+        fields: &post_fields
+          - { name: id, label: 推文 ID, type: string, required: true }
+          - { name: text, label: 正文, type: text, required: true }
+          - { name: url, label: 推文链接, type: string, required: true }
+          - { name: created_at, label: 发布时间, type: string, desc: 上游提供的发布时间；缺失时为空。 }
+          - { name: author_id, label: 作者 ID, type: string }
+          - { name: author_username, label: 作者账号, type: string }
+          - { name: reply_to_id, label: 回复目标 ID, type: string }
+          - { name: like_count, label: 点赞数, type: int }
+          - { name: repost_count, label: 转帖数, type: int }
+          - { name: reply_count, label: 回复数, type: int }
+      - { name: count, label: 返回数量, type: int, required: true }
+
+  - id: user_timeline
+    label: 获取用户推文
+    desc: 读取指定账号最近的推文；用于定时监控时，请按推文 ID 在工作流中去重。
+    timeoutSec: 120
+    inputs:
+      - { name: username, label: 用户账号, type: string, required: true, desc: 账号名，可带 @；不要填写个人主页链接。 }
+      - { name: limit, label: 返回条数, type: int, default: 20, desc: 1 到 100，默认 20；不提供跨次调用的分页游标。 }
+    outputs:
+      - { name: posts, label: 推文列表, type: array, goType: Post, fields: *post_fields, required: true }
+      - { name: count, label: 返回数量, type: int, required: true }
+
+  - id: get_post
+    label: 获取推文
+    desc: 按推文 ID 读取正文、作者与互动数量。
+    timeoutSec: 60
+    inputs:
+      - { name: id, label: 推文 ID, type: string, required: true }
+    outputs:
+      - { name: post, label: 推文, type: json, goType: Post, fields: *post_fields, required: true }
+
+  - id: get_user
+    label: 获取用户资料
+    inputs:
+      - { name: username, label: 用户账号, type: string, required: true, desc: 账号名，可带 @；不要填写个人主页链接。 }
+    outputs:
+      - name: user
+        label: 用户资料
+        type: json
+        goType: User
+        required: true
+        fields:
+          - { name: id, label: 用户 ID, type: string, required: true }
+          - { name: username, label: 用户账号, type: string, required: true }
+          - { name: name, label: 显示名称, type: string }
+          - { name: description, label: 简介, type: text }
+          - { name: followers_count, label: 关注者数, type: int }
+          - { name: following_count, label: 关注数, type: int }
+          - { name: url, label: 主页链接, type: string, required: true }
+
+  - id: post
+    label: 发布或回复推文
+    desc: 使用凭证对应的账号发布文本；填写回复目标时作为回复发布。写入失败不会自动重试。
+    timeoutSec: 60
+    inputs:
+      - { name: text, label: 正文, type: text, required: true, desc: 文本长度与账号发帖权限由 X 校验。 }
+      - { name: reply_to, label: 回复目标 ID, type: string, desc: 留空发布新推文；填写推文 ID 发布回复。 }
+    outputs:
+      - { name: post, label: 推文, type: json, goType: Post, fields: *post_fields, required: true }
+
+  - id: delete_post
+    label: 删除推文
+    desc: 删除当前账号有权删除的推文；操作不可撤销，失败不会自动重试。
+    timeoutSec: 60
+    inputs:
+      - { name: id, label: 推文 ID, type: string, required: true }
+    outputs:
+      - { name: deleted, label: 已删除, type: boolean, required: true }
+      - { name: id, label: 推文 ID, type: string, required: true }
+
+  - id: health_check
+    label: 凭证体检
+    desc: 通过一次只读时间线请求验证登录状态和网络连接，不发帖。
+    inputs: []
+    outputs:
+      - { name: ok, label: 可用, type: boolean, required: true }
+      - { name: message, label: 说明, type: string }
+
+codegen:
+  - { lang: python, out: sokel_gen.py }
