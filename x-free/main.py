@@ -63,7 +63,7 @@ class XRequestError(RuntimeError):
 
 
 def request_error(status=0, codes=()):
-    codes = set(codes)
+    codes = {code for code in codes if type(code) is int and 0 <= code <= 9999}
     if status == 429 or 88 in codes:
         return XRequestError("X rate limit reached; wait before trying again. No request was retried.")
     if status in (401, 403) or codes.intersection({32, 64, 89, 215, 239, 326}):
@@ -76,7 +76,13 @@ def request_error(status=0, codes=()):
         return XRequestError("X rejected the post length; shorten the text for this account.")
     if 226 in codes:
         return XRequestError("X blocked this action; check account restrictions in the browser before trying again.")
-    return XRequestError("X returned an unexpected response; check account access and update the plugin if the web API changed.")
+    details = []
+    if type(status) is int and 100 <= status <= 599:
+        details.append(f"HTTP {status}")
+    if codes:
+        details.append("X error codes: " + ", ".join(str(code) for code in sorted(codes)[:5]))
+    suffix = " (" + "; ".join(details) + ")" if details else ""
+    return XRequestError("X returned an unexpected response; check account access and update the plugin if the web API changed." + suffix)
 
 
 def _number(value):
@@ -130,21 +136,38 @@ def normalize_list_id(value):
     raise ValueError("list_id must be a numeric List ID or an HTTPS X List link")
 
 
-def timeline_page(instructions, previous_cursor):
+def timeline_page(instructions, previous_cursor, *, skip_list_recommendations=False):
     """Read explicit timeline slots, never recursively collect embedded content."""
     if not isinstance(instructions, list):
         raise request_error()
     items, next_cursor = [], ""
+    skipped_modules = set()
+
+    def recommended(module_id, content=None):
+        if not skip_list_recommendations:
+            return False
+        return (isinstance(module_id, str) and
+                (module_id.startswith("list-to-follow-module-") or module_id in skipped_modules) or
+                _at(content, "clientEventInfo", "component") == "suggest_list_to_follow")
+
+    def consume_entry(entry):
+        module_id, content = _at(entry, "entryId"), _at(entry, "content")
+        if recommended(module_id, content):
+            if isinstance(module_id, str):
+                skipped_modules.add(module_id)
+            return
+        consume(content)
 
     def consume(content):
         nonlocal next_cursor
         if not isinstance(content, dict):
             raise request_error()
-        if "promotedMetadata" in content:
+        if "promotedMetadata" in content or recommended(None, content):
             return
         entry_type = content.get("entryType")
-        if (entry_type == "TimelineTimelineItem" and "itemContent" not in content or
-                entry_type == "TimelineTimelineModule" and "items" not in content):
+        # Module items are optional; an empty UI module may omit the field.
+        # When present, modules() still requires an array and valid item slots.
+        if entry_type == "TimelineTimelineItem" and "itemContent" not in content:
             raise request_error()
         if content.get("cursorType") == "Bottom":
             value = content.get("value")
@@ -155,7 +178,7 @@ def timeline_page(instructions, previous_cursor):
             item = content["itemContent"]
             if not isinstance(item, dict):
                 raise request_error()
-            if "promotedMetadata" not in item:
+            if "promotedMetadata" not in item and not recommended(None, item):
                 if item.get("cursorType"):
                     consume(item)
                 else:
@@ -181,11 +204,12 @@ def timeline_page(instructions, previous_cursor):
             if not isinstance(entries, list):
                 raise request_error()
             for entry in entries:
-                consume(_at(entry, "content"))
+                consume_entry(entry)
         elif kind in ("TimelineReplaceEntry", "TimelinePinEntry"):
-            consume(_at(instruction, "entry", "content"))
+            consume_entry(instruction.get("entry"))
         elif kind == "TimelineAddToModule":
-            modules(instruction.get("moduleItems"))
+            if not recommended(instruction.get("moduleEntryId")):
+                modules(instruction.get("moduleItems"))
         elif kind == "TimelineTerminateTimeline" and instruction.get("direction") == "Bottom":
             next_cursor = ""
     if next_cursor and next_cursor == previous_cursor:
@@ -258,6 +282,75 @@ def list_summaries(items):
     return lists
 
 
+def _list_banner_error_has_valid_target(data, path):
+    if (not isinstance(path, list)
+            or path[:4] != ["viewer", "list_management_timeline", "timeline", "instructions"]
+            or path[-2:] != ["default_banner_media_results", "result"]):
+        return False
+
+    def resolve(parts):
+        node = data
+        for part in parts:
+            if isinstance(part, str) and isinstance(node, dict):
+                node = node.get(part)
+            elif type(part) is int and isinstance(node, list) and 0 <= part < len(node):
+                node = node[part]
+            else:
+                return None
+        return node
+
+    instruction = resolve(path[:5])
+    if not isinstance(instruction, dict):
+        return False
+    kind = instruction.get("type")
+    item = ("itemContent", "list")
+    module = ("items", None, "item", *item)
+    if kind == "TimelineAddEntries":
+        patterns = [("entries", None, "content", *tail) for tail in (item, module)]
+    elif kind in ("TimelinePinEntry", "TimelineReplaceEntry"):
+        patterns = [("entry", "content", *tail) for tail in (item, module)]
+    elif kind == "TimelineAddToModule":
+        patterns = [("moduleItems", None, "item", *item)]
+    else:
+        return False
+    relative = path[5:-2]
+    if not any(len(pattern) == len(relative) and all(
+            type(actual) is int and actual >= 0 if expected is None else actual == expected
+            for actual, expected in zip(relative, pattern)) for pattern in patterns):
+        return False
+    if kind != "TimelineAddToModule":
+        content = resolve(path[:6 + relative.index("content")])
+        expected_type = "TimelineTimelineModule" if "items" in relative else "TimelineTimelineItem"
+        if not isinstance(content, dict) or content.get("entryType") != expected_type:
+            return False
+    item_content = resolve(path[:-3])
+    value = resolve(path[:-2])
+    return (isinstance(item_content, dict) and item_content.get("itemType") == "TimelineTwitterList"
+            and isinstance(value, dict) and isinstance(value.get("id_str"), str)
+            and re.fullmatch(r"[0-9]{1,20}", value["id_str"]) is not None
+            and isinstance(value.get("name"), str))
+
+
+def _only_optional_list_banner_errors(method, operation, errors, data):
+    """Allow only the observed partial failure of an unused List cover field."""
+    if (method.upper() != "GET" or operation != "ListsManagementPageTimeline"
+            or not isinstance(errors, list) or not errors):
+        return False
+    for error in errors:
+        if not isinstance(error, dict):
+            return False
+        for details in (error, error.get("extensions")):
+            if (not isinstance(details, dict) or type(details.get("code")) is not int
+                    or details["code"] != 214 or details.get("kind") != "Validation"
+                    or details.get("name") != "BadRequestError"):
+                return False
+        if error.get("message") != "BadRequest: com.twitter.strato.serialization.DecodeException":
+            return False
+        if not _list_banner_error_has_valid_target(data, error.get("path")):
+            return False
+    return True
+
+
 class GuardedSession(requests.Session):
     def __init__(self, client, proxy, cancelled):
         super().__init__()
@@ -305,15 +398,17 @@ class GuardedSession(requests.Session):
                 raise request_error() from None
             if not isinstance(body, dict):
                 raise request_error()
-            if body.get("errors"):
-                codes = [item.get("code") for item in body["errors"] if isinstance(item, dict)]
-                raise request_error(codes=[code for code in codes if isinstance(code, int)])
+            operation = parsed.path.rsplit("/", 1)[-1]
+            errors = body.get("errors")
             data = body.get("data")
+            if errors and not _only_optional_list_banner_errors(method, operation, errors, data):
+                codes = ([item.get("code") for item in errors if isinstance(item, dict)]
+                         if isinstance(errors, list) else [])
+                raise request_error(response.status_code, codes=[code for code in codes if isinstance(code, int)])
             if not isinstance(data, dict) or not data:
                 raise request_error()
             if parsed.path.endswith("/DeleteTweet") and not isinstance(data.get("delete_tweet"), dict):
                 raise request_error()
-            operation = parsed.path.rsplit("/", 1)[-1]
             timeline_paths = {
                 "SearchTimeline": [("search_by_raw_query", "search_timeline", "timeline")],
                 "UserTweets": [("user", "result", "timeline", "timeline"),
@@ -401,7 +496,8 @@ class SessionTweetKit(TweetKit):
             params={"variables": json.dumps(variables), "features": json.dumps(LIST_FEATURES)},
             headers=self._headers("GET", endpoint), timeout=self.timeout,
         )
-        return timeline_page(_at(response.json(), "data", *path), values["cursor"])
+        return timeline_page(_at(response.json(), "data", *path), values["cursor"],
+                             skip_list_recommendations=operation == "my_lists")
 
     def _transaction(self):
         session = self._session

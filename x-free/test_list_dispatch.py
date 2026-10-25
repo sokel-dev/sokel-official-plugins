@@ -10,7 +10,7 @@ import requests
 import main
 from test_main import credential, response, tweet, user
 from test_list_timeline import cursor_entry, list_body, tweet_entry
-from test_my_lists import my_lists_body, twitter_list
+from test_my_lists import list_entry, my_lists_body, twitter_list
 
 
 class FakeHttpMixin:
@@ -197,13 +197,31 @@ class ListParserRegressionTest(FakeHttpMixin, unittest.TestCase):
                     self.assertIs(result["has_more"], True)
                     self.assertEqual(len(self.calls), 1)
 
+    def test_empty_modules_keep_surrounding_items_and_pagination(self):
+        for operation, entry, collection in (
+                ("list_timeline", tweet_entry(tweet("123")), "posts"),
+                ("my_lists", list_entry(twitter_list("123")), "lists")):
+            for fields in ({}, {"items": []}):
+                with self.subTest(operation=operation, fields=fields):
+                    self.calls.clear()
+                    result = self.call_page(operation, [{"type": "TimelineAddEntries", "entries": [
+                        {"entryId": "empty-module", "content": {
+                            "entryType": "TimelineTimelineModule", **fields,
+                        }},
+                        entry, cursor_entry("older"),
+                    ]}])
+                    self.assertEqual([row["id"] for row in result[collection]], ["123"])
+                    self.assertEqual(result["next_cursor"], "older")
+                    self.assertTrue(result["has_more"])
+                    self.assertEqual(len(self.calls), 1)
+
     def test_malformed_known_entries_fail_instead_of_returning_empty_success(self):
         broken_contents = [
             {"entryType": "TimelineTimelineItem"},
             {"entryType": "TimelineTimelineItem", "itemContent": None},
-            {"entryType": "TimelineTimelineModule"},
-            {"entryType": "TimelineTimelineModule", "items": None},
         ]
+        broken_contents += [{"entryType": "TimelineTimelineModule", "items": value}
+                            for value in (None, {}, "", 0, False, [{}], [{"item": None}])]
         for operation in ("list_timeline", "my_lists"):
             for content in broken_contents:
                 with self.subTest(operation=operation, content=content):

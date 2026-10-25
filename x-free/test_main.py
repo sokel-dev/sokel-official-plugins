@@ -195,6 +195,22 @@ class HttpTest(unittest.TestCase):
                 with self.assertRaises(main.XRequestError):
                     self.call(operation, **inputs)
 
+    def test_unclassified_errors_show_only_numeric_diagnostics(self):
+        cases = [(response({"error": "private-token private-csrf"}, 400), "HTTP 400"),
+                 (response({"errors": [{"code": 214, "message": "private-token private-csrf"}]}),
+                  "HTTP 200; X error codes: 214")]
+        for reply, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                self.replies = [reply]
+                with self.assertRaises(main.XRequestError) as caught:
+                    self.call("search", query="hello")
+                self.assertIn(diagnostic, str(caught.exception))
+                self.assertNotIn("private-", str(caught.exception))
+        message = str(main.request_error("private-token", ["private-csrf", True, 214.0, -1, 10000]))
+        self.assertNotIn("HTTP", message)
+        self.assertNotIn("codes:", message)
+        self.assertNotIn("private-", message)
+
     def test_list_operations_reject_unavailable_or_unknown_schema(self):
         for body in ({"data": {"search_by_raw_query": None}}, {"data": {"unexpected": {}}}):
             with self.subTest(body=body):
