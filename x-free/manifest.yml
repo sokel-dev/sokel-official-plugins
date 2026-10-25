@@ -4,7 +4,7 @@ plugin:
   org: sokel
   label: X（免费读写）
   desc: 使用账号 Cookie 读写 X 推文、查看用户资料、获取 Lists 与管理成员，无需官方 API 套餐。
-  version: 0.2.0
+  version: 0.2.1
   icon: brand:x
   doc: docs/x-free.md
 
@@ -65,7 +65,7 @@ operations:
 
   - id: my_lists
     label: 获取我的 Lists
-    desc: 读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。
+    desc: 读取当前登录账号创建和关注的 Lists，排除推荐列表，返回名称、ID 和链接。
     timeoutSec: 60
     inputs:
       - { name: limit, label: 每页请求条数, type: int, default: 20, desc: 1 到 100，默认 20；返回完整一页，实际数量由 X 决定。 }

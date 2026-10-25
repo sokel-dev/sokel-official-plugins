@@ -2,8 +2,9 @@
 
 Eleven operations provide bounded search and user timelines, single-page X List discovery and timelines,
 List member management, post/user lookup, text posting/replies, deletion, and a read-only credential probe.
-The v0.2.0 contract adds four List operations: `my_lists`, `list_timeline`, `add_list_member`, and
-`remove_list_member`. This plugin is a separate identity from the official OAuth `x` plugin: existing
+Version 0.2.1 retains the eleven operations and input/output fields from v0.2.0, including the four
+List operations: `my_lists`, `list_timeline`, `add_list_member`, and `remove_list_member`.
+This plugin is a separate identity from the official OAuth `x` plugin: existing
 workflows, credentials, and API-based deployments keep their existing contract.
 
 ## Upstream and compatibility
@@ -15,7 +16,13 @@ release. This is a small upstream project, not an availability guarantee. No off
 is required; requests still require a valid, authorized account session and may be limited by X.
 
 The adapter checks HTTP status and GraphQL errors before upstream parsers can turn failures into
-empty results or a successful delete. SearchTimeline uses POST and the corresponding transaction ID,
+empty results or a successful delete. For `my_lists`, HTTP 200 responses containing only the observed
+code 214 `DecodeException` errors at optional `list.default_banner_media_results.result` fields can
+still return valid List data. Authentication, rate-limit, core-field, and other GraphQL errors remain
+failures; the exception does not apply to writes. Empty timeline modules may omit `items`; malformed
+items that are present are still rejected.
+
+SearchTimeline uses POST and the corresponding transaction ID,
 matching the [authenticated search fix](https://github.com/the-convocation/twitter-scraper/pull/191).
 Transaction-ID bootstrap requests use the same per-call session so proxy and timeout configuration
 also cover homepage and JavaScript requests. The resulting anonymous transaction generator is cached
@@ -33,8 +40,9 @@ Search and user timelines expose bounded recent batches without pagination curso
 public methods consume their own cursors and may truncate a page. Scheduled workflows should
 deduplicate those results by post ID.
 
-`my_lists` reads one page of Lists shown on the authenticated account's X List management page. These
-can include created and followed Lists; the result is not restricted to Lists owned by the account.
+`my_lists` reads one page of created and followed Lists from the authenticated account's X List
+management page, excluding recommendation modules. The result is not restricted to Lists owned by
+the account.
 Select a List by name and use its returned `id` in `list_timeline`, so knowing the ID in advance is not
 required. Each List includes its name, description, visibility when available, member and subscriber
 counts, owner, and URL. Use `next_cursor` and `has_more` to browse additional pages.
@@ -111,7 +119,7 @@ The public mirror's `scripts/plugin-matrix.py` discovers this manifest, entry po
 the image context is `x-free/`. Contract edits require regeneration and matching English translations,
 including the exact usage-document key. The existing `x` catalog entry must not be replaced.
 
-For the `x-free/v0.2.0` tag, the public mirror's Release workflow builds the distributable image,
+For the `x-free/v0.2.1` tag, the public mirror's Release workflow builds the distributable image,
 records its digest, and prepares the `sokel/x-free` catalog entry through `scripts/registry-entry.py`.
 The catalog entry pins the image to that build's digest and must pass catalog admission before
 publication. Update the platform's registry pin after the catalog entry is published. The workflow's

@@ -159,6 +159,61 @@ class MyListsTest(unittest.TestCase):
         self.replies = [response(body)]
         self.assertEqual([row["id"] for row in self.call()["lists"]], ["100"])
 
+    def test_recommendation_modules_are_excluded_regardless_of_position(self):
+        owned = {"entryId": "owned-subscribed-list-module-0", "content": {
+            "entryType": "TimelineTimelineModule", "items": [
+                list_module_item(twitter_list("100")), list_module_item(twitter_list("101")),
+            ],
+        }}
+        for entry_id, metadata in (("list-to-follow-module-0", {}),
+                                   ("other-module", {"clientEventInfo": {
+                                       "component": "suggest_list_to_follow"}})):
+            recommended = {"entryId": entry_id, "content": {
+                "entryType": "TimelineTimelineModule", **metadata,
+                "items": [list_module_item(twitter_list("900"))],
+            }}
+            for entries in ([recommended, owned], [owned, recommended]):
+                with self.subTest(entry_id=entry_id, first=entries[0]["entryId"]):
+                    self.replies = [response(my_lists_body(instructions=[
+                        {"type": "TimelineAddEntries", "entries": entries + [cursor_entry("owned-next")]},
+                        {"type": "TimelineAddToModule", "moduleEntryId": entry_id,
+                         "moduleItems": [list_module_item(twitter_list("901"))]},
+                    ]))]
+                    result = self.call()
+                    self.assertEqual([row["id"] for row in result["lists"]], ["100", "101"])
+                    self.assertEqual(result["next_cursor"], "owned-next")
+
+    def test_continuation_keeps_owned_lists_and_ignores_recommended_module_cursor(self):
+        self.replies = [response(my_lists_body(instructions=[
+            {"type": "TimelineAddToModule", "moduleEntryId": "list-to-follow-module-0",
+             "moduleItems": [list_module_item(twitter_list("900")), {
+                 "item": {"itemContent": {"itemType": "TimelineTimelineCursor",
+                                           "cursorType": "Bottom", "value": "recommendation-next"}},
+             }]},
+            {"type": "TimelineAddToModule", "moduleEntryId": "owned-subscribed-list-module-0",
+             "moduleItems": [list_module_item(twitter_list("100"))]},
+        ]))]
+        result = self.call(cursor="owned-previous")
+        self.assertEqual([row["id"] for row in result["lists"]], ["100"])
+        self.assertFalse(result["has_more"])
+        self.assertEqual(result["next_cursor"], "")
+
+    def test_recommended_items_are_excluded_without_discarding_the_page_cursor(self):
+        suggested = list_module_item(twitter_list("900"))
+        suggested["item"]["clientEventInfo"] = {"component": "suggest_list_to_follow"}
+        for rows, expected in (([suggested], []),
+                               ([suggested, list_module_item(twitter_list("100"))], ["100"])):
+            with self.subTest(expected=expected):
+                self.replies = [response(my_lists_body(instructions=[
+                    {"type": "TimelineAddToModule", "moduleEntryId": "lists-module-0",
+                     "moduleItems": rows},
+                    {"type": "TimelineAddEntries", "entries": [cursor_entry("owned-next")]},
+                ]))]
+                result = self.call()
+                self.assertEqual([row["id"] for row in result["lists"]], expected)
+                self.assertTrue(result["has_more"])
+                self.assertEqual(result["next_cursor"], "owned-next")
+
     def test_id_str_is_used_instead_of_opaque_graphql_id(self):
         self.replies = [response(my_lists_body([twitter_list("2114378473250959659", id="999")]))]
         result = self.call()["lists"][0]

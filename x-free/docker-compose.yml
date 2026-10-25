@@ -1,7 +1,7 @@
 services:
   x-free:
     build: .
-    image: sokel-plugin-x-free:0.1.0
+    image: sokel-plugin-x-free:0.2.1
     restart: unless-stopped
     environment:
       SOKEL_ENDPOINT: ${SOKEL_ENDPOINT:?Set the platform HTTP endpoint}
