@@ -3,8 +3,8 @@ plugin:
   name: x-free
   org: sokel
   label: X（免费读写）
-  desc: 使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。
-  version: 0.1.0
+  desc: 使用账号 Cookie 读写 X 推文、查看用户资料、获取 Lists 与管理成员，无需官方 API 套餐。
+  version: 0.2.0
   icon: brand:x
   doc: docs/x-free.md
 
@@ -62,6 +62,68 @@ operations:
     outputs:
       - { name: posts, label: 推文列表, type: array, goType: Post, fields: *post_fields, required: true }
       - { name: count, label: 返回数量, type: int, required: true }
+
+  - id: my_lists
+    label: 获取我的 Lists
+    desc: 读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。
+    timeoutSec: 60
+    inputs:
+      - { name: limit, label: 每页请求条数, type: int, default: 20, desc: 1 到 100，默认 20；返回完整一页，实际数量由 X 决定。 }
+      - { name: cursor, label: 分页游标, type: string, desc: 首次留空；继续翻页时传入上次返回的 next_cursor。 }
+    outputs:
+      - name: lists
+        label: Lists 列表
+        type: array
+        goType: ListSummary
+        required: true
+        fields:
+          - { name: id, label: List ID, type: string, required: true }
+          - { name: name, label: List 名称, type: string, required: true }
+          - { name: description, label: 简介, type: text }
+          - { name: mode, label: 可见性, type: string, desc: public 或 private；未知时为空。 }
+          - { name: member_count, label: 成员数, type: int }
+          - { name: subscriber_count, label: 订阅者数, type: int }
+          - { name: owner_id, label: 创建者 ID, type: string }
+          - { name: owner_username, label: 创建者账号, type: string }
+          - { name: url, label: List 链接, type: string, required: true }
+      - { name: count, label: 返回数量, type: int, required: true }
+      - { name: next_cursor, label: 下一页游标, type: string, required: true }
+      - { name: has_more, label: 可继续翻页, type: boolean, required: true }
+
+  - id: list_timeline
+    label: 获取 List 推文
+    desc: 读取指定 List 的一页推文并返回分页游标，适合在定时工作流中按推文 ID 去重。
+    timeoutSec: 60
+    inputs:
+      - { name: list_id, label: List 链接或 ID, type: string, required: true, desc: 填写数字 ID 或 https://x.com/i/lists/ID 链接。 }
+      - { name: limit, label: 每页请求条数, type: int, default: 20, desc: 1 到 100，默认 20；返回完整一页，实际数量由 X 决定。 }
+      - { name: cursor, label: 分页游标, type: string, desc: 每轮定时任务首次留空；同一轮继续翻页时传入 next_cursor。 }
+    outputs:
+      - { name: list_id, label: List ID, type: string, required: true }
+      - { name: posts, label: 推文列表, type: array, goType: Post, fields: *post_fields, required: true }
+      - { name: count, label: 返回数量, type: int, required: true }
+      - { name: next_cursor, label: 下一页游标, type: string, required: true }
+      - { name: has_more, label: 可继续翻页, type: boolean, required: true }
+
+  - id: add_list_member
+    label: 添加 List 成员
+    desc: 将指定账号加入有管理权限的 List；失败不会自动重试。
+    timeoutSec: 60
+    inputs: &member_inputs
+      - { name: list_id, label: List 链接或 ID, type: string, required: true, desc: 填写数字 ID 或 https://x.com/i/lists/ID 链接。 }
+      - { name: username, label: 用户账号, type: string, required: true, desc: 账号名，可带 @；不要填写个人主页链接。 }
+    outputs: &member_outputs
+      - { name: list_id, label: List ID, type: string, required: true }
+      - { name: user_id, label: 用户 ID, type: string, required: true }
+      - { name: username, label: 用户账号, type: string, required: true }
+      - { name: changed, label: 操作成功, type: boolean, required: true, desc: X 已接受操作；不代表成员此前一定不存在或存在。 }
+
+  - id: remove_list_member
+    label: 移除 List 成员
+    desc: 将指定账号从有管理权限的 List 中移除；失败不会自动重试。
+    timeoutSec: 60
+    inputs: *member_inputs
+    outputs: *member_outputs
 
   - id: get_post
     label: 获取推文

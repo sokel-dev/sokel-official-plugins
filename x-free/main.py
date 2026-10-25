@@ -19,15 +19,20 @@ from urllib.parse import urlsplit
 import requests
 from bs4 import BeautifulSoup
 from tweetkit_x import TweetKit
+from tweetkit_x.constants import USER_TWEETS_FEATURES
 from tweetkit_x.client import ClientTransaction, get_ondemand_file_url, handle_x_migration
 
 from sokel import Ctx
+from list_members import change_member
 from sokel_gen import (
+    AddListMemberIn, AddListMemberOut, RemoveListMemberIn, RemoveListMemberOut,
+    ListTimelineIn, ListTimelineOut, MyListsIn, MyListsOut,
     Credential, DeletePostIn, DeletePostOut, GetPostIn, GetPostOut,
     GetUserIn, GetUserOut, HealthCheckIn, HealthCheckOut, PostIn, PostOut,
     SearchIn, SearchOut, UserTimelineIn, UserTimelineOut,
     credential as read_credential, new_plugin, on_delete_post, on_get_post,
     on_get_user, on_health_check, on_post, on_search, on_user_timeline,
+    on_list_timeline, on_my_lists, on_add_list_member, on_remove_list_member,
 )
 
 REQUEST_TIMEOUT = 30
@@ -35,6 +40,21 @@ TRANSACTION_CACHE_TTL = 300
 TRANSACTION_CACHE_SIZE = 8
 _TRANSACTION_CACHE = OrderedDict()
 _TRANSACTION_CACHE_LOCK = threading.Lock()
+# X web operation IDs and features from twitter-openapi, commit 252713ac4747.
+# Keep these local: changing TweetKit's global configuration leaks across calls.
+LIST_QUERIES = {
+    "list_timeline": ("RgfF9JYDXXI1F-ZrDqjUfQ", "ListLatestTweetsTimeline",
+                      ("list", "tweets_timeline", "timeline", "instructions")),
+    "my_lists": ("FMDRDwDKo_nl4kT_AKWOCg", "ListsManagementPageTimeline",
+                 ("viewer", "list_management_timeline", "timeline", "instructions")),
+}
+LIST_FEATURES = {
+    **USER_TWEETS_FEATURES,
+    "responsive_web_profile_redirect_enabled": True,
+    "rweb_sports_post_context_enabled": True,
+    "responsive_web_nested_quote_preview_enabled": True,
+    "responsive_web_enhance_cards_enabled": False,
+}
 p = new_plugin()
 
 
@@ -49,7 +69,7 @@ def request_error(status=0, codes=()):
     if status in (401, 403) or codes.intersection({32, 64, 89, 215, 239, 326}):
         return XRequestError("X rejected the login session or access; refresh auth_token and ct0 from the same logged-in account and check account restrictions.")
     if status == 404 or codes.intersection({34, 50, 63, 144}):
-        return XRequestError("The X post, user or endpoint is unavailable; check the ID, account access and plugin version.")
+        return XRequestError("The X post, user, List or endpoint is unavailable; check the ID, account access and plugin version.")
     if 187 in codes:
         return XRequestError("X rejected a duplicate post; check your profile before submitting again.")
     if 186 in codes:
@@ -82,6 +102,160 @@ def normalize_post(value):
         "like_count": _number(value.get("likes")),
         "repost_count": _number(value.get("retweets")), "reply_count": _number(value.get("replies")),
     }
+
+
+def _at(node, *path):
+    for key in path:
+        node = node.get(key) if isinstance(node, dict) else None
+    return node
+
+
+def _cursor(value):
+    return isinstance(value, str) and len(value) <= 4096 and not re.search(r"[\x00-\x1f\x7f-\x9f]", value)
+
+
+def normalize_list_id(value):
+    if not isinstance(value, str) or re.search(r"[\x00-\x1f\x7f-\x9f]", value):
+        raise ValueError("list_id must be a numeric List ID or an HTTPS X List link")
+    value = value.strip()
+    if re.fullmatch(r"[1-9][0-9]{0,19}", value):
+        return value
+    try:
+        url = urlsplit(value)
+        match = re.fullmatch(r"/i/lists/([1-9][0-9]{0,19})/?", url.path)
+        if (url.scheme == "https" and url.netloc in ("x.com", "twitter.com") and match):
+            return match[1]
+    except ValueError:
+        pass
+    raise ValueError("list_id must be a numeric List ID or an HTTPS X List link")
+
+
+def timeline_page(instructions, previous_cursor):
+    """Read explicit timeline slots, never recursively collect embedded content."""
+    if not isinstance(instructions, list):
+        raise request_error()
+    items, next_cursor = [], ""
+
+    def consume(content):
+        nonlocal next_cursor
+        if not isinstance(content, dict):
+            raise request_error()
+        if "promotedMetadata" in content:
+            return
+        entry_type = content.get("entryType")
+        if (entry_type == "TimelineTimelineItem" and "itemContent" not in content or
+                entry_type == "TimelineTimelineModule" and "items" not in content):
+            raise request_error()
+        if content.get("cursorType") == "Bottom":
+            value = content.get("value")
+            if not _cursor(value):
+                raise request_error()
+            next_cursor = value
+        elif "itemContent" in content:
+            item = content["itemContent"]
+            if not isinstance(item, dict):
+                raise request_error()
+            if "promotedMetadata" not in item:
+                if item.get("cursorType"):
+                    consume(item)
+                else:
+                    items.append(item)
+        elif "items" in content:
+            modules(content["items"])
+
+    def modules(rows):
+        if not isinstance(rows, list):
+            raise request_error()
+        for row in rows:
+            if not isinstance(row, dict):
+                raise request_error()
+            if "promotedMetadata" not in row:
+                consume(row.get("item"))
+
+    for instruction in instructions:
+        if not isinstance(instruction, dict):
+            raise request_error()
+        kind = instruction.get("type")
+        if kind == "TimelineAddEntries":
+            entries = instruction.get("entries")
+            if not isinstance(entries, list):
+                raise request_error()
+            for entry in entries:
+                consume(_at(entry, "content"))
+        elif kind in ("TimelineReplaceEntry", "TimelinePinEntry"):
+            consume(_at(instruction, "entry", "content"))
+        elif kind == "TimelineAddToModule":
+            modules(instruction.get("moduleItems"))
+        elif kind == "TimelineTerminateTimeline" and instruction.get("direction") == "Bottom":
+            next_cursor = ""
+    if next_cursor and next_cursor == previous_cursor:
+        raise XRequestError("X returned a repeated pagination cursor; stop this run and start a new run from the first page.")
+    return items, next_cursor
+
+
+def list_posts(items, session):
+    posts, seen = [], set()
+    for item in items:
+        if item.get("itemType") != "TimelineTweet" and "tweet_results" not in item:
+            continue
+        # X retains deleted tweet slots with an explicitly empty result object.
+        # Missing fields or malformed nonempty results still signal API drift.
+        if item.get("tweet_results") == {}:
+            continue
+        tweet = _at(item, "tweet_results", "result")
+        if not isinstance(tweet, dict):
+            raise request_error()
+        if tweet.get("__typename") == "TweetWithVisibilityResults":
+            tweet = tweet.get("tweet")
+        if not isinstance(tweet, dict):
+            raise request_error()
+        if tweet.get("__typename") in ("TweetUnavailable", "TweetTombstone"):
+            continue
+        post_id = str(tweet.get("rest_id") or _at(tweet, "legacy", "id_str") or "")
+        value = session.posts.get(post_id)
+        if not value:
+            raise request_error()
+        note = _at(tweet, "note_tweet", "note_tweet_results", "result", "text")
+        if isinstance(note, str):
+            value = {**value, "text": note}
+        if post_id not in seen:
+            posts.append(normalize_post(value))
+            seen.add(post_id)
+    return posts
+
+
+def list_summaries(items):
+    lists, seen = [], set()
+    for item in items:
+        if item.get("itemType") != "TimelineTwitterList" and "list" not in item:
+            continue
+        value = item.get("list")
+        if (not isinstance(value, dict) or
+                not isinstance(value.get("id_str"), str) or
+                not re.fullmatch(r"[0-9]{1,20}", value["id_str"]) or
+                not isinstance(value.get("name"), str)):
+            raise request_error()
+        list_id = value["id_str"]
+        if list_id in seen:
+            continue
+        owner = _at(value, "user_results", "result") or {}
+        owner_id = str(owner.get("rest_id") or "")
+        owner_username = _at(owner, "core", "screen_name") or _at(owner, "legacy", "screen_name") or ""
+        if owner.get("__typename") == "UserUnavailable" or not re.fullmatch(r"[0-9]{1,20}", owner_id):
+            owner_id = ""
+        if not isinstance(owner_username, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,15}", owner_username):
+            owner_username = ""
+        mode = str(value.get("mode") or "").lower()
+        lists.append({
+            "id": list_id, "name": value["name"], "description": str(value.get("description") or ""),
+            "mode": mode if mode in ("public", "private") else "",
+            "member_count": _number(value.get("member_count")),
+            "subscriber_count": _number(value.get("subscriber_count")),
+            "owner_id": owner_id, "owner_username": owner_username,
+            "url": f"https://x.com/i/lists/{list_id}",
+        })
+        seen.add(list_id)
+    return lists
 
 
 class GuardedSession(requests.Session):
@@ -214,6 +388,21 @@ def _transaction_cache_lock(session):
 
 
 class SessionTweetKit(TweetKit):
+    def list_page(self, operation, values):
+        query_id, name, path = LIST_QUERIES[operation]
+        endpoint = f"/i/api/graphql/{query_id}/{name}"
+        variables = {"count": values["limit"]}
+        if operation == "list_timeline":
+            variables["listId"] = values["list_id"]
+        if values["cursor"]:
+            variables["cursor"] = values["cursor"]
+        response = self._session.get(
+            "https://x.com" + endpoint,
+            params={"variables": json.dumps(variables), "features": json.dumps(LIST_FEATURES)},
+            headers=self._headers("GET", endpoint), timeout=self.timeout,
+        )
+        return timeline_page(_at(response.json(), "data", *path), values["cursor"])
+
     def _transaction(self):
         session = self._session
         session.remaining()
@@ -262,16 +451,24 @@ def validate(operation, inputs, credential):
         except ValueError:
             raise ValueError("proxy must be a valid HTTP or HTTPS proxy URL") from None
     values = dict(inputs)
-    if operation in ("search", "user_timeline"):
+    if operation in ("search", "user_timeline", "list_timeline", "my_lists"):
         limit = values.setdefault("limit", 20)
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
+    if operation in ("list_timeline", "my_lists"):
+        if not _cursor(values.setdefault("cursor", "")):
+            raise ValueError("cursor must be a string of at most 4096 characters without control characters")
+    if operation in ("list_timeline", "add_list_member", "remove_list_member"):
+        values["list_id"] = normalize_list_id(values.get("list_id"))
     if operation == "search":
         values["query"] = values.get("query", "").strip()
         if not 1 <= len(values["query"]) <= 500:
             raise ValueError("query must contain 1 to 500 characters")
-    if operation in ("user_timeline", "get_user"):
-        values["username"] = values.get("username", "").strip().removeprefix("@")
+    if operation in ("user_timeline", "get_user", "add_list_member", "remove_list_member"):
+        username = values.get("username", "")
+        if not isinstance(username, str):
+            raise ValueError("username must be an X account name, optionally prefixed with @")
+        values["username"] = username.strip().removeprefix("@")
         if not re.fullmatch(r"[A-Za-z0-9_]{1,15}", values["username"]):
             raise ValueError("username must be an X account name, optionally prefixed with @")
     if operation in ("get_post", "delete_post") or values.get("reply_to"):
@@ -305,6 +502,18 @@ def execute(operation, inputs, credential, cancelled=None):
                 details = client._session.posts.get(str(value.get("id")), {})
                 return normalize_post({**value, **details})
 
+            if operation == "list_timeline":
+                items, next_cursor = client.list_page(operation, values)
+                posts = list_posts(items, client._session)
+                return {"list_id": values["list_id"], "posts": posts, "count": len(posts),
+                        "next_cursor": next_cursor, "has_more": bool(next_cursor)}
+            if operation == "my_lists":
+                items, next_cursor = client.list_page(operation, values)
+                lists = list_summaries(items)
+                return {"lists": lists, "count": len(lists),
+                        "next_cursor": next_cursor, "has_more": bool(next_cursor)}
+            if operation in ("add_list_member", "remove_list_member"):
+                return change_member(client, operation, values["list_id"], values["username"], request_error)
             if operation in ("search", "user_timeline"):
                 rows = (client.search_x(values["query"], product="Latest", limit=values["limit"])
                         if operation == "search" else
@@ -343,9 +552,9 @@ def execute(operation, inputs, credential, cancelled=None):
     except XRequestError:
         raise
     except requests.Timeout:
-        raise XRequestError("X request timed out; check proxy connectivity. For writes, check your profile before submitting again.") from None
+        raise XRequestError("X request timed out; check proxy connectivity. For writes, check the result on X before submitting again.") from None
     except requests.RequestException:
-        raise XRequestError("Cannot connect to X; check the proxy, TLS certificates and outbound network. For writes, check your profile before submitting again.") from None
+        raise XRequestError("Cannot connect to X; check the proxy, TLS certificates and outbound network. For writes, check the result on X before submitting again.") from None
     except Exception:
         # Upstream errors can contain cookies, response text and proxy passwords.
         raise request_error() from None
@@ -357,7 +566,7 @@ async def invoke(operation, ctx, in_):
         async with asyncio.timeout(REQUEST_TIMEOUT):
             return await asyncio.to_thread(execute, operation, in_.model_dump(), read_credential(ctx), cancelled)
     except TimeoutError:
-        raise XRequestError("X request timed out; for writes, check your profile before submitting again.") from None
+        raise XRequestError("X request timed out; for writes, check the result on X before submitting again.") from None
     finally:
         # A blocking request may finish later; prevent any subsequent page/write.
         cancelled.set()
@@ -369,6 +578,22 @@ async def search(ctx: Ctx, in_: SearchIn) -> SearchOut:
 
 async def user_timeline(ctx: Ctx, in_: UserTimelineIn) -> UserTimelineOut:
     return UserTimelineOut(**await invoke("user_timeline", ctx, in_))
+
+
+async def list_timeline(ctx: Ctx, in_: ListTimelineIn) -> ListTimelineOut:
+    return ListTimelineOut(**await invoke("list_timeline", ctx, in_))
+
+
+async def my_lists(ctx: Ctx, in_: MyListsIn) -> MyListsOut:
+    return MyListsOut(**await invoke("my_lists", ctx, in_))
+
+
+async def add_list_member(ctx: Ctx, in_: AddListMemberIn) -> AddListMemberOut:
+    return AddListMemberOut(**await invoke("add_list_member", ctx, in_))
+
+
+async def remove_list_member(ctx: Ctx, in_: RemoveListMemberIn) -> RemoveListMemberOut:
+    return RemoveListMemberOut(**await invoke("remove_list_member", ctx, in_))
 
 
 async def get_post(ctx: Ctx, in_: GetPostIn) -> GetPostOut:
@@ -396,6 +621,10 @@ async def health_check(ctx: Ctx, in_: HealthCheckIn) -> HealthCheckOut:
 
 on_search(p, search)
 on_user_timeline(p, user_timeline)
+on_list_timeline(p, list_timeline)
+on_my_lists(p, my_lists)
+on_add_list_member(p, add_list_member)
+on_remove_list_member(p, remove_list_member)
 on_get_post(p, get_post)
 on_get_user(p, get_user)
 on_post(p, post)

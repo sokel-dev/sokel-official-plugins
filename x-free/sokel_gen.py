@@ -13,6 +13,8 @@ from pydantic import BaseModel
 from sokel import Ctx, Emitter, File, Plugin, SourceCtx
 
 __all__ = [
+    "AddListMemberIn",
+    "AddListMemberOut",
     "CONTRACT",
     "Credential",
     "DeletePostIn",
@@ -23,9 +25,16 @@ __all__ = [
     "GetUserOut",
     "HealthCheckIn",
     "HealthCheckOut",
+    "ListSummary",
+    "ListTimelineIn",
+    "ListTimelineOut",
+    "MyListsIn",
+    "MyListsOut",
     "Post",
     "PostIn",
     "PostOut",
+    "RemoveListMemberIn",
+    "RemoveListMemberOut",
     "SearchIn",
     "SearchOut",
     "User",
@@ -33,11 +42,15 @@ __all__ = [
     "UserTimelineOut",
     "credential",
     "new_plugin",
+    "on_add_list_member",
     "on_delete_post",
     "on_get_post",
     "on_get_user",
     "on_health_check",
+    "on_list_timeline",
+    "on_my_lists",
     "on_post",
+    "on_remove_list_member",
     "on_search",
     "on_user_timeline",
 ]
@@ -66,37 +79,55 @@ CONTRACT: Dict[str, Any] = {
             "type": "secret",
         },
     ],
-    "desc": "使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。",
-    "doc": "# X（免费读写）\n\n使用已登录 X 账号的 Cookie 搜索和读取推文、查看用户资料、发布文本、回复与删除推文，无需申请官方 API Key 或购买官方 API 套餐。插件基于开源 TweetKit，使用 X 网页接口；免费指不收取官方 API 调用费，自行部署仍可能产生服务器或网络费用。\n\n## 配置凭证\n\n1. 在浏览器中正常登录你有权使用的 X 账号，打开 `https://x.com`。\n2. 打开开发者工具 → Application（应用）→ Cookies → `https://x.com`。\n3. 分别复制 `auth_token` 和 `ct0` 的值，填入插件凭证的「登录令牌」和「CSRF 令牌」。两者必须来自同一次登录会话，不要粘贴整个 Cookie 请求头。\n4. 按需填写插件进程可访问的代理地址。容器内的 `127.0.0.1` 指向容器自身；Docker Desktop 访问宿主机代理通常使用 `host.docker.internal`。\n5. 点击「测试」。测试只读取时间线，不发布内容；成功说明本次只读请求通过，不代表账号拥有所有写入权限。\n\nCookie 等同于登录凭据，只保存在平台凭证中，不要写进工作流参数、日志或公开仓库。该插件不使用账号密码登录，不自动处理验证码或切换账号。\n\n## 使用\n\n- **搜索推文**：例如 `from:某账号 关键词`，按最新顺序获取匹配结果。\n- **获取用户推文**：输入账号名（可带 `@`），读取最近的推文。\n- **获取推文 / 获取用户资料**：分别按推文 ID、账号名查询。\n- **发布或回复推文**：填写正文；「回复目标 ID」留空则发布新推文，填写则回复该推文。\n- **删除推文**：填写当前账号有权删除的推文 ID，删除后无法撤销。\n\n列表默认返回 20 条，最多请求 100 条；X 可能返回更少结果。它们是有界的最近批次，不提供历史归档或跨调用分页游标。定时监控可用流程定时器触发，并在数据表中按推文 ID 去重。首版不提供媒体上传、私信或实时事件触发。\n\n## 错误与限制\n\n- **登录失效 / 账号受限**：先在浏览器中确认账号可用，再更新同一会话的两个 Cookie。\n- **请求过于频繁**：减少调用频率，等待限流解除；插件不会通过切换账号绕过限制。\n- **网络错误**：检查代理是否可被插件进程访问。\n- **网页接口发生变化**：更新插件版本；网页接口没有官方兼容性承诺，不能保证持续可用。\n- **发帖超时或连接中断**：先在 X 中检查是否已经发布，再决定是否重试。插件不会自动重试写入；工作流节点也应关闭自动重试，以免重复发帖。\n\n网页自动化可能触发验证、锁定或账号限制。建议先用获授权的测试账号低频验证。无需官方 API 套餐不等于匿名访问或无限额度。\n",
+    "desc": "使用账号 Cookie 读写 X 推文、查看用户资料、获取 Lists 与管理成员，无需官方 API 套餐。",
+    "doc": "# X（免费读写）\n\n使用已登录 X 账号的 Cookie 搜索和读取推文、获取账号的 Lists 和 List 时间线、维护 List 成员、查看用户资料、发布文本、回复与删除推文，无需申请官方 API Key 或购买官方 API 套餐。插件基于开源 TweetKit，使用 X 网页接口；免费指不收取官方 API 调用费，自行部署仍可能产生服务器或网络费用。\n\n本文对应 v0.2.0 契约的 11 项操作；本版本新增获取我的 Lists、获取 List 推文、添加 List 成员和移除 List 成员四项操作。\n\n## 配置凭证\n\n1. 在浏览器中正常登录你有权使用的 X 账号，打开 `https://x.com`。\n2. 打开开发者工具 → Application（应用）→ Cookies → `https://x.com`。\n3. 分别复制 `auth_token` 和 `ct0` 的值，填入插件凭证的「登录令牌」和「CSRF 令牌」。两者必须来自同一次登录会话，不要粘贴整个 Cookie 请求头。\n4. 按需填写插件进程可访问的代理地址。容器内的 `127.0.0.1` 指向容器自身；Docker Desktop 访问宿主机代理通常使用 `host.docker.internal`。\n5. 点击「测试」。测试只读取时间线，不发布内容；成功说明本次只读请求通过，不代表账号拥有所有写入权限。\n\nCookie 等同于登录凭据，只保存在平台凭证中，不要写进工作流参数、日志或公开仓库。该插件不使用账号密码登录，不自动处理验证码或切换账号。\n\n## 使用\n\n- **搜索推文**：例如 `from:某账号 关键词`，按最新顺序获取匹配结果。\n- **获取用户推文**：输入账号名（可带 `@`），读取最近的推文。\n- **获取我的 Lists**：读取当前凭证账号列表管理页中的 Lists，根据名称选择目标并取得 ID。\n- **获取 List 推文**：输入 List 链接或 ID，读取一页推文；通过返回的游标继续向历史翻页。\n- **添加 List 成员 / 移除 List 成员**：输入 List 链接或 ID 和用户账号，维护你有管理权限的 List 成员。\n- **获取推文 / 获取用户资料**：分别按推文 ID、账号名查询。\n- **发布或回复推文**：填写正文；「回复目标 ID」留空则发布新推文，填写则回复该推文。\n- **删除推文**：填写当前账号有权删除的推文 ID，删除后无法撤销。\n\n搜索推文和获取用户推文默认返回 20 条，最多请求 100 条；X 可能返回更少结果。这两项操作提供有界的最近批次，不提供历史归档或跨调用分页游标；定时监控时请按推文 ID 去重。获取 List 推文的分页规则见下文。凭证体检通过只读时间线请求检查登录和网络，不发帖。当前不提供媒体上传、私信或实时事件触发。\n\n## 查找我的 Lists\n\n不知道 List ID 时，先选择「获取我的 Lists」（`my_lists`）。该操作使用当前凭证账号读取 X 列表管理页中的 Lists，可能包含账号创建和关注的 Lists，不仅限于自己创建的 List。根据返回的名称（`name`）选择目标，将其 `id` 传给「获取 List 推文」即可。\n\n每次调用只请求一页。输入「每页请求条数」（`limit`，1 到 100，默认 20）和可选的「分页游标」（`cursor`）；首次留空，后续用本次返回的 `next_cursor` 继续翻页。插件返回完整一页，实际数量由 X 决定。返回的 `lists` 包含各 List 的 `id`、`name`、`description`、`mode`（`public` / `private`，未知时为空）、`member_count`、`subscriber_count`、`owner_id`、`owner_username` 和 `url`，同时返回实际数量 `count`、下一页游标 `next_cursor` 和可继续翻页标记 `has_more`。空页带有游标时仍可继续翻页。该操作不创建或修改 List。\n\n## 维护 List 成员\n\n通过「获取我的 Lists」选定目标后，可使用「添加 List 成员」（`add_list_member`）或「移除 List 成员」（`remove_list_member`）。填写「List 链接或 ID」（`list_id`，格式同下文）和「用户账号」（`username`，可带 `@`，不要填个人主页链接）。凭证对应的账号必须有该 List 的管理权限；能读取一个 List 不代表能修改其成员。\n\n这两项操作每次只处理一个账号，不自动批量添加或移除成员。它们维护 List 中的账号成员，不是关注或取关 List。成功时返回 List ID（`list_id`）、目标用户 ID（`user_id`）、用户账号（`username`）和操作成功标记（`changed`）。`changed` 表示 X 已接受操作，不代表该账号此前一定不在或已经在 List 中，也不能据此判断首次发生了成员变化。\n\n失败不会自动重试；工作流中的这些写入节点也应关闭自动重试。遇到超时或连接中断，先在 X 中检查 List 成员状态，再决定是否重试。插件不创建 List，请先在 X 中创建。\n\n## 获取 List 推文\n\n在工作流中选择「获取 List 推文」（`list_timeline`）；可以使用「获取我的 Lists」返回的 ID，也可以直接输入已有的链接或 ID。获取我的 Lists 和获取 List 推文是只读操作，不修改成员。私有 List 仅在凭证对应的账号有访问权限时可读。\n\n| 输入 | 说明 |\n| --- | --- |\n| List 链接或 ID（`list_id`） | 数字 ID，或 `https://x.com/i/lists/<id>`；也接受 `https://twitter.com/i/lists/<id>`。 |\n| 每页请求条数（`limit`） | 1 到 100，默认 20。这是请求页大小，X 可能返回更多或更少；为避免截断后跳过数据，插件返回整页，不按该值截断。 |\n| 分页游标（`cursor`） | 可选；首请求留空，后续填入本轮上一次返回的 `next_cursor`。 |\n\n每次调用只请求一页，返回以下字段：\n\n| 输出 | 说明 |\n| --- | --- |\n| 推文列表（`posts`） | 本页解析出的完整推文列表。 |\n| 返回数量（`count`） | 实际返回的推文数量，可能与每页请求条数不同。 |\n| List ID（`list_id`） | 从输入解析得到的数字 ID，按字符串返回。 |\n| 下一页游标（`next_cursor`） | 用于本轮补拉中向历史翻页的游标。 |\n| 可继续翻页（`has_more`） | 是否返回了可继续使用的下一页游标；不表示下一页一定有推文。 |\n\n空页仍可能带有下一页游标，不能仅凭 `posts` 为空或 `count` 为 0 判断已经拉完。游标不是下次定时任务的新推文检查点；每次定时任务都应从空游标重新读取最新一页。\n\n## 定时拉取 List\n\n先用「获取我的 Lists」按名称选定目标 ID，再按「流程定时器 → 获取 List 推文 → 数据表幂等写入 → 按需继续翻页」搭建工作流。以下规则用于减少重复与遗漏，不能保证零漏报或历史完整性。\n\n1. **确定首轮范围**：首次运行建议建立当前基线，或明确要追溯的时间范围；不要默认首次就遍历全部历史。\n2. **从最新页开始**：每轮定时任务将 `cursor` 留空。每 10–15 分钟可作为配置起点，但不保证不会触发限流；根据 List 活跃度、实际页数和 X 的响应调整。\n3. **幂等写表**：以返回的 `list_id` 和每条推文的 `id`（存入表中的 `post_id`）组成联合主键，重复记录执行更新或忽略。两个 ID 都按字符串保存，避免大整数精度丢失。\n4. **在本轮内补拉**：将 `next_cursor` 传给下一次调用，逐页向历史读取。遇到上次完整完成范围中的记录后，可继续保留少量重叠页，并逐条按 ID 去重；转帖和乱序结果可能包含尚未处理的旧 ID，不能只比较最大推文 ID，也不宜遇见第一条旧记录就立即结束。空页带有游标时仍按相同规则继续。\n5. **设定边界和失败通知**：设置每轮最大翻页数和失败通知。按已处理记录边界与重叠策略结束，或上游不再提供下一页游标时，才将本轮标记为完成并推进已完成检查点。若达到最大翻页数、遇到 429 限流、401 登录失效或其他错误，保留已写入的数据，但不要推进已完成检查点；修复后从最新页重新补拉并依靠联合主键去重，避免把未处理区间跳过。\n\n检查点用于记住上次完整完成的范围，不能替代数据表中的逐条 ID 去重；失败轮次中部分写入的记录也不能作为已完成边界。List 成员、推文可见性和网页接口都可能变化，接口也可能不返回全部历史；需要完整归档时不能依赖此操作作出完整性保证。\n\n## 错误与限制\n\n- **登录失效 / 账号受限**：先在浏览器中确认账号可用，再更新同一会话的两个 Cookie。\n- **请求过于频繁**：减少调用频率，等待限流解除；插件不会通过切换账号绕过限制。\n- **网络错误**：检查代理是否可被插件进程访问。\n- **无 List 管理权限**：确认凭证账号有权添加或移除该 List 的成员；可读取或关注 List 不等于可管理。\n- **网页接口发生变化**：更新插件版本；网页接口没有官方兼容性承诺，不能保证持续可用。\n- **发帖超时或连接中断**：先在 X 中检查是否已经发布，再决定是否重试。插件不会自动重试写入；工作流节点也应关闭自动重试，以免重复发帖。\n\n网页自动化可能触发验证、锁定或账号限制。建议先用获授权的测试账号低频验证。无需官方 API 套餐不等于匿名访问或无限额度。\n",
     "icon": "brand:x",
     "label": "X（免费读写）",
     "locales": {
         "en": {
-            "# X（免费读写）\n\n使用已登录 X 账号的 Cookie 搜索和读取推文、查看用户资料、发布文本、回复与删除推文，无需申请官方 API Key 或购买官方 API 套餐。插件基于开源 TweetKit，使用 X 网页接口；免费指不收取官方 API 调用费，自行部署仍可能产生服务器或网络费用。\n\n## 配置凭证\n\n1. 在浏览器中正常登录你有权使用的 X 账号，打开 `https://x.com`。\n2. 打开开发者工具 → Application（应用）→ Cookies → `https://x.com`。\n3. 分别复制 `auth_token` 和 `ct0` 的值，填入插件凭证的「登录令牌」和「CSRF 令牌」。两者必须来自同一次登录会话，不要粘贴整个 Cookie 请求头。\n4. 按需填写插件进程可访问的代理地址。容器内的 `127.0.0.1` 指向容器自身；Docker Desktop 访问宿主机代理通常使用 `host.docker.internal`。\n5. 点击「测试」。测试只读取时间线，不发布内容；成功说明本次只读请求通过，不代表账号拥有所有写入权限。\n\nCookie 等同于登录凭据，只保存在平台凭证中，不要写进工作流参数、日志或公开仓库。该插件不使用账号密码登录，不自动处理验证码或切换账号。\n\n## 使用\n\n- **搜索推文**：例如 `from:某账号 关键词`，按最新顺序获取匹配结果。\n- **获取用户推文**：输入账号名（可带 `@`），读取最近的推文。\n- **获取推文 / 获取用户资料**：分别按推文 ID、账号名查询。\n- **发布或回复推文**：填写正文；「回复目标 ID」留空则发布新推文，填写则回复该推文。\n- **删除推文**：填写当前账号有权删除的推文 ID，删除后无法撤销。\n\n列表默认返回 20 条，最多请求 100 条；X 可能返回更少结果。它们是有界的最近批次，不提供历史归档或跨调用分页游标。定时监控可用流程定时器触发，并在数据表中按推文 ID 去重。首版不提供媒体上传、私信或实时事件触发。\n\n## 错误与限制\n\n- **登录失效 / 账号受限**：先在浏览器中确认账号可用，再更新同一会话的两个 Cookie。\n- **请求过于频繁**：减少调用频率，等待限流解除；插件不会通过切换账号绕过限制。\n- **网络错误**：检查代理是否可被插件进程访问。\n- **网页接口发生变化**：更新插件版本；网页接口没有官方兼容性承诺，不能保证持续可用。\n- **发帖超时或连接中断**：先在 X 中检查是否已经发布，再决定是否重试。插件不会自动重试写入；工作流节点也应关闭自动重试，以免重复发帖。\n\n网页自动化可能触发验证、锁定或账号限制。建议先用获授权的测试账号低频验证。无需官方 API 套餐不等于匿名访问或无限额度。\n": "# X (Free Read/Write)\n\nSearch and read posts, view user profiles, post text, reply, and delete using cookies from a signed-in X account. No official API key or subscription is required. This plugin uses the open-source TweetKit library and X web endpoints. Free means no official API call fees; self-hosting may still incur server or network costs.\n\n## Configure credentials\n\n1. Sign in normally to an X account you are authorized to use and open `https://x.com`.\n2. Open developer tools → Application → Cookies → `https://x.com`.\n3. Copy the values of `auth_token` and `ct0` into Login token and CSRF token. Both must come from the same session. Do not paste the whole Cookie header.\n4. Optionally configure a proxy reachable by the plugin process. Inside a container, `127.0.0.1` is the container itself; Docker Desktop commonly uses `host.docker.internal` to reach the host.\n5. Click Test. This reads a timeline without posting; success confirms this read succeeded, not every possible write permission.\n\nCookies are login credentials. Keep them in platform credentials, not workflow parameters, logs, or public repositories. This plugin does not log in with a password, solve verification challenges, or rotate accounts.\n\n## Operations\n\n- **Search posts**: use X search syntax such as `from:username keyword` to read recent matches.\n- **Get user posts**: enter a username, optionally with `@`, to read recent posts.\n- **Get post / Get user profile**: query by post ID or username respectively.\n- **Post or reply**: enter text; leave Reply-to post ID empty for a new post, or provide a post ID for a reply.\n- **Delete post**: enter an ID the current account can delete. Deletion cannot be undone.\n\nList operations default to 20 results and accept up to 100; X may return fewer. These are bounded recent batches, without historical archives or pagination cursors across calls. For monitoring, use a workflow timer and deduplicate by post ID in a data table. This initial version does not support media uploads, direct messages, or real-time event triggers.\n\n## Errors and limits\n\n- **Expired session / restricted account**: confirm the account works in your browser, then replace both cookies from the same session.\n- **Rate limit**: reduce request frequency and wait for the limit to reset; the plugin does not rotate accounts to bypass limits.\n- **Network error**: check whether the plugin process can reach its proxy.\n- **Changed web endpoints**: update the plugin; these endpoints have no official compatibility guarantee and continuous availability is not assured.\n- **Posting timeout or dropped connection**: check X for the post before retrying. The plugin does not automatically retry writes; disable workflow-node automatic retries too to avoid duplicate posts.\n\nWeb automation can trigger verification, locking, or account restrictions. Start with an authorized test account and a low request rate. No official API subscription does not mean anonymous access or unlimited usage.\n",
+            "# X（免费读写）\n\n使用已登录 X 账号的 Cookie 搜索和读取推文、获取账号的 Lists 和 List 时间线、维护 List 成员、查看用户资料、发布文本、回复与删除推文，无需申请官方 API Key 或购买官方 API 套餐。插件基于开源 TweetKit，使用 X 网页接口；免费指不收取官方 API 调用费，自行部署仍可能产生服务器或网络费用。\n\n本文对应 v0.2.0 契约的 11 项操作；本版本新增获取我的 Lists、获取 List 推文、添加 List 成员和移除 List 成员四项操作。\n\n## 配置凭证\n\n1. 在浏览器中正常登录你有权使用的 X 账号，打开 `https://x.com`。\n2. 打开开发者工具 → Application（应用）→ Cookies → `https://x.com`。\n3. 分别复制 `auth_token` 和 `ct0` 的值，填入插件凭证的「登录令牌」和「CSRF 令牌」。两者必须来自同一次登录会话，不要粘贴整个 Cookie 请求头。\n4. 按需填写插件进程可访问的代理地址。容器内的 `127.0.0.1` 指向容器自身；Docker Desktop 访问宿主机代理通常使用 `host.docker.internal`。\n5. 点击「测试」。测试只读取时间线，不发布内容；成功说明本次只读请求通过，不代表账号拥有所有写入权限。\n\nCookie 等同于登录凭据，只保存在平台凭证中，不要写进工作流参数、日志或公开仓库。该插件不使用账号密码登录，不自动处理验证码或切换账号。\n\n## 使用\n\n- **搜索推文**：例如 `from:某账号 关键词`，按最新顺序获取匹配结果。\n- **获取用户推文**：输入账号名（可带 `@`），读取最近的推文。\n- **获取我的 Lists**：读取当前凭证账号列表管理页中的 Lists，根据名称选择目标并取得 ID。\n- **获取 List 推文**：输入 List 链接或 ID，读取一页推文；通过返回的游标继续向历史翻页。\n- **添加 List 成员 / 移除 List 成员**：输入 List 链接或 ID 和用户账号，维护你有管理权限的 List 成员。\n- **获取推文 / 获取用户资料**：分别按推文 ID、账号名查询。\n- **发布或回复推文**：填写正文；「回复目标 ID」留空则发布新推文，填写则回复该推文。\n- **删除推文**：填写当前账号有权删除的推文 ID，删除后无法撤销。\n\n搜索推文和获取用户推文默认返回 20 条，最多请求 100 条；X 可能返回更少结果。这两项操作提供有界的最近批次，不提供历史归档或跨调用分页游标；定时监控时请按推文 ID 去重。获取 List 推文的分页规则见下文。凭证体检通过只读时间线请求检查登录和网络，不发帖。当前不提供媒体上传、私信或实时事件触发。\n\n## 查找我的 Lists\n\n不知道 List ID 时，先选择「获取我的 Lists」（`my_lists`）。该操作使用当前凭证账号读取 X 列表管理页中的 Lists，可能包含账号创建和关注的 Lists，不仅限于自己创建的 List。根据返回的名称（`name`）选择目标，将其 `id` 传给「获取 List 推文」即可。\n\n每次调用只请求一页。输入「每页请求条数」（`limit`，1 到 100，默认 20）和可选的「分页游标」（`cursor`）；首次留空，后续用本次返回的 `next_cursor` 继续翻页。插件返回完整一页，实际数量由 X 决定。返回的 `lists` 包含各 List 的 `id`、`name`、`description`、`mode`（`public` / `private`，未知时为空）、`member_count`、`subscriber_count`、`owner_id`、`owner_username` 和 `url`，同时返回实际数量 `count`、下一页游标 `next_cursor` 和可继续翻页标记 `has_more`。空页带有游标时仍可继续翻页。该操作不创建或修改 List。\n\n## 维护 List 成员\n\n通过「获取我的 Lists」选定目标后，可使用「添加 List 成员」（`add_list_member`）或「移除 List 成员」（`remove_list_member`）。填写「List 链接或 ID」（`list_id`，格式同下文）和「用户账号」（`username`，可带 `@`，不要填个人主页链接）。凭证对应的账号必须有该 List 的管理权限；能读取一个 List 不代表能修改其成员。\n\n这两项操作每次只处理一个账号，不自动批量添加或移除成员。它们维护 List 中的账号成员，不是关注或取关 List。成功时返回 List ID（`list_id`）、目标用户 ID（`user_id`）、用户账号（`username`）和操作成功标记（`changed`）。`changed` 表示 X 已接受操作，不代表该账号此前一定不在或已经在 List 中，也不能据此判断首次发生了成员变化。\n\n失败不会自动重试；工作流中的这些写入节点也应关闭自动重试。遇到超时或连接中断，先在 X 中检查 List 成员状态，再决定是否重试。插件不创建 List，请先在 X 中创建。\n\n## 获取 List 推文\n\n在工作流中选择「获取 List 推文」（`list_timeline`）；可以使用「获取我的 Lists」返回的 ID，也可以直接输入已有的链接或 ID。获取我的 Lists 和获取 List 推文是只读操作，不修改成员。私有 List 仅在凭证对应的账号有访问权限时可读。\n\n| 输入 | 说明 |\n| --- | --- |\n| List 链接或 ID（`list_id`） | 数字 ID，或 `https://x.com/i/lists/<id>`；也接受 `https://twitter.com/i/lists/<id>`。 |\n| 每页请求条数（`limit`） | 1 到 100，默认 20。这是请求页大小，X 可能返回更多或更少；为避免截断后跳过数据，插件返回整页，不按该值截断。 |\n| 分页游标（`cursor`） | 可选；首请求留空，后续填入本轮上一次返回的 `next_cursor`。 |\n\n每次调用只请求一页，返回以下字段：\n\n| 输出 | 说明 |\n| --- | --- |\n| 推文列表（`posts`） | 本页解析出的完整推文列表。 |\n| 返回数量（`count`） | 实际返回的推文数量，可能与每页请求条数不同。 |\n| List ID（`list_id`） | 从输入解析得到的数字 ID，按字符串返回。 |\n| 下一页游标（`next_cursor`） | 用于本轮补拉中向历史翻页的游标。 |\n| 可继续翻页（`has_more`） | 是否返回了可继续使用的下一页游标；不表示下一页一定有推文。 |\n\n空页仍可能带有下一页游标，不能仅凭 `posts` 为空或 `count` 为 0 判断已经拉完。游标不是下次定时任务的新推文检查点；每次定时任务都应从空游标重新读取最新一页。\n\n## 定时拉取 List\n\n先用「获取我的 Lists」按名称选定目标 ID，再按「流程定时器 → 获取 List 推文 → 数据表幂等写入 → 按需继续翻页」搭建工作流。以下规则用于减少重复与遗漏，不能保证零漏报或历史完整性。\n\n1. **确定首轮范围**：首次运行建议建立当前基线，或明确要追溯的时间范围；不要默认首次就遍历全部历史。\n2. **从最新页开始**：每轮定时任务将 `cursor` 留空。每 10–15 分钟可作为配置起点，但不保证不会触发限流；根据 List 活跃度、实际页数和 X 的响应调整。\n3. **幂等写表**：以返回的 `list_id` 和每条推文的 `id`（存入表中的 `post_id`）组成联合主键，重复记录执行更新或忽略。两个 ID 都按字符串保存，避免大整数精度丢失。\n4. **在本轮内补拉**：将 `next_cursor` 传给下一次调用，逐页向历史读取。遇到上次完整完成范围中的记录后，可继续保留少量重叠页，并逐条按 ID 去重；转帖和乱序结果可能包含尚未处理的旧 ID，不能只比较最大推文 ID，也不宜遇见第一条旧记录就立即结束。空页带有游标时仍按相同规则继续。\n5. **设定边界和失败通知**：设置每轮最大翻页数和失败通知。按已处理记录边界与重叠策略结束，或上游不再提供下一页游标时，才将本轮标记为完成并推进已完成检查点。若达到最大翻页数、遇到 429 限流、401 登录失效或其他错误，保留已写入的数据，但不要推进已完成检查点；修复后从最新页重新补拉并依靠联合主键去重，避免把未处理区间跳过。\n\n检查点用于记住上次完整完成的范围，不能替代数据表中的逐条 ID 去重；失败轮次中部分写入的记录也不能作为已完成边界。List 成员、推文可见性和网页接口都可能变化，接口也可能不返回全部历史；需要完整归档时不能依赖此操作作出完整性保证。\n\n## 错误与限制\n\n- **登录失效 / 账号受限**：先在浏览器中确认账号可用，再更新同一会话的两个 Cookie。\n- **请求过于频繁**：减少调用频率，等待限流解除；插件不会通过切换账号绕过限制。\n- **网络错误**：检查代理是否可被插件进程访问。\n- **无 List 管理权限**：确认凭证账号有权添加或移除该 List 的成员；可读取或关注 List 不等于可管理。\n- **网页接口发生变化**：更新插件版本；网页接口没有官方兼容性承诺，不能保证持续可用。\n- **发帖超时或连接中断**：先在 X 中检查是否已经发布，再决定是否重试。插件不会自动重试写入；工作流节点也应关闭自动重试，以免重复发帖。\n\n网页自动化可能触发验证、锁定或账号限制。建议先用获授权的测试账号低频验证。无需官方 API 套餐不等于匿名访问或无限额度。\n": "# X (Free Read/Write)\n\nSearch and read posts, discover account Lists and read List timelines, manage List members, view user profiles, post text, reply, and delete using cookies from a signed-in X account. No official API key or subscription is required. This plugin uses the open-source TweetKit library and X web endpoints. Free means no official API call fees; self-hosting may still incur server or network costs.\n\nThis guide covers the eleven operations in the v0.2.0 contract. This version adds four operations: Get my Lists, Get List posts, Add List member, and Remove List member.\n\n## Configure credentials\n\n1. Sign in normally to an X account you are authorized to use and open `https://x.com`.\n2. Open developer tools → Application → Cookies → `https://x.com`.\n3. Copy the values of `auth_token` and `ct0` into Login token and CSRF token. Both must come from the same session. Do not paste the whole Cookie header.\n4. Optionally configure a proxy reachable by the plugin process. Inside a container, `127.0.0.1` is the container itself; Docker Desktop commonly uses `host.docker.internal` to reach the host.\n5. Click Test. This reads a timeline without posting; success confirms this read succeeded, not every possible write permission.\n\nCookies are login credentials. Keep them in platform credentials, not workflow parameters, logs, or public repositories. This plugin does not log in with a password, solve verification challenges, or rotate accounts.\n\n## Operations\n\n- **Search posts**: use X search syntax such as `from:username keyword` to read recent matches.\n- **Get user posts**: enter a username, optionally with `@`, to read recent posts.\n- **Get my Lists**: read Lists on the authenticated account's List management page, then select a List by name to obtain its ID.\n- **Get List posts**: enter a List link or ID to read one page of posts; use the returned cursor to continue backward through history.\n- **Add List member / Remove List member**: enter a List link or ID and a username to manage members of a List you have permission to manage.\n- **Get post / Get user profile**: query by post ID or username respectively.\n- **Post or reply**: enter text; leave Reply-to post ID empty for a new post, or provide a post ID for a reply.\n- **Delete post**: enter an ID the current account can delete. Deletion cannot be undone.\n\nSearch posts and Get user posts default to 20 results and accept up to 100; X may return fewer. These two operations return bounded recent batches, without historical archives or pagination cursors across calls. Deduplicate by post ID in scheduled workflows. See below for Get List posts pagination. Check credentials verifies the session and connection with a read-only timeline request, without posting. Media uploads, direct messages, and real-time event triggers are not currently supported.\n\n## Find my Lists\n\nIf you do not know the List ID, first select Get my Lists (`my_lists`). This operation uses the authenticated account to read Lists on its X List management page. These can include created and followed Lists, not just Lists the account owns. Select the target by its returned `name`, then pass its `id` to Get List posts.\n\nEach call requests only one page. Provide Requested page size (`limit`, 1 to 100, default 20) and an optional Pagination cursor (`cursor`); leave the cursor empty initially and pass the returned `next_cursor` to continue paging. The plugin returns a complete page, with the actual count determined by X. The returned `lists` includes each List's `id`, `name`, `description`, `mode` (`public` / `private`, or empty when unknown), `member_count`, `subscriber_count`, `owner_id`, `owner_username`, and `url`. The response also includes the actual `count`, `next_cursor`, and `has_more`. An empty page with a cursor can still have more pages. This operation does not create or modify Lists.\n\n## Manage List members\n\nAfter selecting a target with Get my Lists, use Add List member (`add_list_member`) or Remove List member (`remove_list_member`). Enter List link or ID (`list_id`, in the format described below) and Username (`username`, optionally prefixed with `@`; do not enter a profile URL). The authenticated account must have permission to manage that List. Being able to read a List does not mean you can change its members.\n\nEach operation handles one account at a time; it does not automatically add or remove members in bulk. These operations manage the accounts included in a List; they do not follow or unfollow the List. On success, they return List ID (`list_id`), the target User ID (`user_id`), Username (`username`), and Operation succeeded (`changed`). `changed` means X accepted the operation. It does not establish whether the account was already a member or whether membership changed for the first time.\n\nFailures are not automatically retried; disable automatic retries for these write nodes in workflows too. After a timeout or dropped connection, check the List's membership on X before deciding whether to retry. The plugin does not create Lists; create the List on X first.\n\n## Get List posts\n\nSelect Get List posts (`list_timeline`) in your workflow. Use an ID returned by Get my Lists, or enter an existing link or ID directly. Get my Lists and Get List posts are read-only operations and do not change members. Private Lists can only be read when the account associated with the credentials has access.\n\n| Input | Description |\n| --- | --- |\n| List link or ID (`list_id`) | A numeric ID or `https://x.com/i/lists/<id>`; `https://twitter.com/i/lists/<id>` is also accepted. |\n| Requested page size (`limit`) | 1 to 100, default 20. This is the requested page size; X may return more or fewer posts. To avoid skipping data after truncation, the plugin returns the whole page without truncating it to this value. |\n| Pagination cursor (`cursor`) | Optional; leave empty for the first request, then pass the previous `next_cursor` from the current run. |\n\nEach call requests only one page and returns these fields:\n\n| Output | Description |\n| --- | --- |\n| Posts (`posts`) | The complete list of posts parsed from this page. |\n| Returned count (`count`) | The number of posts actually returned, which may differ from the requested page size. |\n| List ID (`list_id`) | The numeric ID parsed from the input, returned as a string. |\n| Next page cursor (`next_cursor`) | A cursor for paging backward through history during the current collection run. |\n| Can continue paging (`has_more`) | Whether a usable next-page cursor was returned; this does not guarantee that the next page contains posts. |\n\nAn empty page can still contain a next-page cursor. Do not conclude that collection is complete just because `posts` is empty or `count` is 0. A cursor is not a checkpoint for new posts in the next scheduled run; each scheduled run should start with an empty cursor to fetch the latest page again.\n\n## Scheduled List collection\n\nFirst use Get my Lists to select the target ID by name, then build a workflow using a timer → Get List posts → idempotent data-table writes → additional pages as needed. The following rules reduce duplicates and omissions, but do not guarantee zero missed posts or complete historical coverage.\n\n1. **Choose the initial scope**: on the first run, establish a current baseline or define an explicit historical range. Do not assume the first run should traverse all history.\n2. **Start from the latest page**: leave `cursor` empty at the beginning of each scheduled run. A 10–15 minute interval is a configuration starting point, not a guarantee against rate limits; adjust it based on List activity, the number of pages fetched, and X responses.\n3. **Write idempotently**: use the returned `list_id` and each post's `id` (stored as `post_id` in the table) as a composite primary key, updating or ignoring duplicates. Store both IDs as strings to avoid losing precision with large integers.\n4. **Fetch additional pages within the run**: pass `next_cursor` to the next call to read backward through history. After reaching posts within the last fully completed range, allow a small number of overlapping pages and deduplicate each post by ID. Reposts and out-of-order results can contain unprocessed older IDs, so do not compare only the largest post ID or stop immediately at the first known post. Apply the same rules to empty pages that still have a cursor.\n5. **Set bounds and failure alerts**: configure a maximum page count per run and failure notifications. Only mark a run complete and advance its completed checkpoint after reaching the previously processed boundary with the chosen overlap, or when X no longer provides a next-page cursor. If the maximum page count is reached, or a request fails with 429 rate limiting, 401 session expiry, or another error, keep rows already written but do not advance the completed checkpoint. After resolving the issue, restart from the latest page and deduplicate with the composite key so that unprocessed ranges are not skipped.\n\nThe checkpoint records the scope of the last fully completed run; it cannot replace per-post ID deduplication in the data table. Partial writes from a failed run must not be treated as a completed boundary. List membership, post visibility, and web endpoints can change, and the endpoint may not expose all historical posts. Do not rely on this operation to guarantee a complete archive.\n\n## Errors and limits\n\n- **Expired session / restricted account**: confirm the account works in your browser, then replace both cookies from the same session.\n- **Rate limit**: reduce request frequency and wait for the limit to reset; the plugin does not rotate accounts to bypass limits.\n- **Network error**: check whether the plugin process can reach its proxy.\n- **No List management permission**: confirm the authenticated account can add or remove members of that List; reading or following a List does not grant management permission.\n- **Changed web endpoints**: update the plugin; these endpoints have no official compatibility guarantee and continuous availability is not assured.\n- **Posting timeout or dropped connection**: check X for the post before retrying. The plugin does not automatically retry writes; disable workflow-node automatic retries too to avoid duplicate posts.\n\nWeb automation can trigger verification, locking, or account restrictions. Start with an authorized test account and a low request rate. No official API subscription does not mean anonymous access or unlimited usage.\n",
             "1 到 100，默认 20；不提供跨次调用的分页游标。": "1 to 100, default 20; no pagination cursor across calls.",
+            "1 到 100，默认 20；返回完整一页，实际数量由 X 决定。": "1 to 100, default 20; returns a complete page, with the actual count determined by X.",
             "CSRF 令牌": "CSRF token",
+            "List ID": "List ID",
+            "List 名称": "List name",
+            "List 链接": "List URL",
+            "List 链接或 ID": "List link or ID",
+            "Lists 列表": "Lists",
+            "X 已接受操作；不代表成员此前一定不存在或存在。": "X accepted the operation; this does not establish whether the account was already a member.",
             "X（免费读写）": "X (Free Read/Write)",
+            "public 或 private；未知时为空。": "public or private; empty when unknown.",
             "上游提供的发布时间；缺失时为空。": "Publication time supplied by X; empty when unavailable.",
+            "下一页游标": "Next page cursor",
             "主页链接": "Profile URL",
             "代理地址": "Proxy URL",
             "作者 ID": "Author ID",
             "作者账号": "Author username",
             "使用凭证对应的账号发布文本；填写回复目标时作为回复发布。写入失败不会自动重试。": "Post text as the authenticated account; provide a reply target to reply. Failed writes are not automatically retried.",
-            "使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。": "Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription.",
+            "使用账号 Cookie 读写 X 推文、查看用户资料、获取 Lists 与管理成员，无需官方 API 套餐。": "Read and write X posts, view profiles, discover Lists, and manage List members using account cookies, without an official API subscription.",
             "关注数": "Following",
             "关注者数": "Followers",
             "凭证体检": "Check credentials",
+            "分页游标": "Pagination cursor",
+            "创建者 ID": "Owner ID",
+            "创建者账号": "Owner username",
             "删除当前账号有权删除的推文；操作不可撤销，失败不会自动重试。": "Delete a post the authenticated account can delete; this cannot be undone and failures are not automatically retried.",
             "删除推文": "Delete post",
             "发布或回复推文": "Post or reply",
             "发布时间": "Posted at",
             "可用": "Available",
+            "可继续翻页": "Can continue paging",
+            "可见性": "Visibility",
             "可选，填写插件容器可访问的 HTTP 或 HTTPS 代理地址。": "Optional HTTP or HTTPS proxy URL reachable from the plugin container.",
             "回复数": "Replies",
             "回复目标 ID": "Reply-to post ID",
             "在已登录的 x.com 页面打开开发者工具，在 Application → Cookies 中复制 auth_token 的值。": "Open developer tools on a signed-in x.com page and copy auth_token from Application → Cookies.",
+            "填写数字 ID 或 https://x.com/i/lists/ID 链接。": "Enter a numeric ID or a https://x.com/i/lists/ID link.",
             "复制同一次登录会话的 ct0 Cookie 值；不要填写整个 Cookie 请求头。": "Copy ct0 from the same signed-in session; do not paste the entire Cookie header.",
+            "将指定账号从有管理权限的 List 中移除；失败不会自动重试。": "Remove an account from a List you can manage; failures are not automatically retried.",
+            "将指定账号加入有管理权限的 List；失败不会自动重试。": "Add an account to a List you can manage; failures are not automatically retried.",
             "已删除": "Deleted",
+            "成员数": "Members",
             "按 X 搜索语法读取最新匹配推文，返回有界批次；结果可能少于请求数量。": "Read a bounded batch of the latest matches using X search syntax; fewer results may be returned than requested.",
             "按推文 ID 读取正文、作者与互动数量。": "Read a post, its author, and engagement counts by post ID.",
             "推文": "Post",
@@ -105,27 +136,38 @@ CONTRACT: Dict[str, Any] = {
             "推文链接": "Post URL",
             "搜索内容": "Search query",
             "搜索推文": "Search posts",
+            "操作成功": "Operation succeeded",
             "支持 from:账号、关键词等 X 搜索语法，最多 500 个字符。": "X search syntax such as from:username and keywords, up to 500 characters.",
             "文本长度与账号发帖权限由 X 校验。": "X validates text length and account posting permissions.",
             "显示名称": "Display name",
             "正文": "Text",
+            "每轮定时任务首次留空；同一轮继续翻页时传入 next_cursor。": "Leave empty at the start of each scheduled run; pass next_cursor to continue paging within that run.",
+            "每页请求条数": "Requested page size",
+            "添加 List 成员": "Add List member",
             "点赞数": "Likes",
             "用户 ID": "User ID",
             "用户账号": "Username",
             "用户资料": "User profile",
             "留空发布新推文；填写推文 ID 发布回复。": "Leave empty for a new post, or provide a post ID to reply.",
             "登录令牌": "Login token",
+            "移除 List 成员": "Remove List member",
             "简介": "Description",
+            "获取 List 推文": "Get List posts",
+            "获取我的 Lists": "Get my Lists",
             "获取推文": "Get post",
             "获取用户推文": "Get user posts",
             "获取用户资料": "Get user profile",
+            "订阅者数": "Subscribers",
             "说明": "Details",
+            "读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。": "Read the signed-in account's List management page, returning List names, IDs, and links to help select a monitoring target.",
+            "读取指定 List 的一页推文并返回分页游标，适合在定时工作流中按推文 ID 去重。": "Read one page of posts from a List and return its pagination cursor; deduplicate by post ID in scheduled workflows.",
             "读取指定账号最近的推文；用于定时监控时，请按推文 ID 在工作流中去重。": "Read recent posts from a user; deduplicate by post ID in scheduled workflows.",
             "账号名，可带 @；不要填写个人主页链接。": "Username, optionally prefixed with @; do not enter a profile URL.",
             "转帖数": "Reposts",
             "返回数量": "Returned count",
             "返回条数": "Result limit",
             "通过一次只读时间线请求验证登录状态和网络连接，不发帖。": "Verify the session and connection with a read-only timeline request; does not post.",
+            "首次留空；继续翻页时传入上次返回的 next_cursor。": "Leave empty initially; pass the previous next_cursor to continue paging.",
         },
     },
     "name": "x-free",
@@ -325,6 +367,329 @@ CONTRACT: Dict[str, Any] = {
                 },
             ],
             "timeoutSec": 120,
+        },
+        {
+            "desc": "读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。",
+            "id": "my_lists",
+            "inputs": [
+                {
+                    "default": 20,
+                    "desc": "1 到 100，默认 20；返回完整一页，实际数量由 X 决定。",
+                    "goType": "int",
+                    "label": "每页请求条数",
+                    "name": "limit",
+                    "type": "number",
+                },
+                {
+                    "desc": "首次留空；继续翻页时传入上次返回的 next_cursor。",
+                    "label": "分页游标",
+                    "name": "cursor",
+                    "type": "string",
+                },
+            ],
+            "label": "获取我的 Lists",
+            "outputs": [
+                {
+                    "fields": [
+                        {
+                            "label": "List ID",
+                            "name": "id",
+                            "required": True,
+                            "type": "string",
+                        },
+                        {
+                            "label": "List 名称",
+                            "name": "name",
+                            "required": True,
+                            "type": "string",
+                        },
+                        {
+                            "label": "简介",
+                            "name": "description",
+                            "type": "text",
+                        },
+                        {
+                            "desc": "public 或 private；未知时为空。",
+                            "label": "可见性",
+                            "name": "mode",
+                            "type": "string",
+                        },
+                        {
+                            "goType": "int",
+                            "label": "成员数",
+                            "name": "member_count",
+                            "type": "number",
+                        },
+                        {
+                            "goType": "int",
+                            "label": "订阅者数",
+                            "name": "subscriber_count",
+                            "type": "number",
+                        },
+                        {
+                            "label": "创建者 ID",
+                            "name": "owner_id",
+                            "type": "string",
+                        },
+                        {
+                            "label": "创建者账号",
+                            "name": "owner_username",
+                            "type": "string",
+                        },
+                        {
+                            "label": "List 链接",
+                            "name": "url",
+                            "required": True,
+                            "type": "string",
+                        },
+                    ],
+                    "goType": "ListSummary",
+                    "label": "Lists 列表",
+                    "name": "lists",
+                    "required": True,
+                    "type": "array",
+                },
+                {
+                    "goType": "int",
+                    "label": "返回数量",
+                    "name": "count",
+                    "required": True,
+                    "type": "number",
+                },
+                {
+                    "label": "下一页游标",
+                    "name": "next_cursor",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "可继续翻页",
+                    "name": "has_more",
+                    "required": True,
+                    "type": "boolean",
+                },
+            ],
+            "timeoutSec": 60,
+        },
+        {
+            "desc": "读取指定 List 的一页推文并返回分页游标，适合在定时工作流中按推文 ID 去重。",
+            "id": "list_timeline",
+            "inputs": [
+                {
+                    "desc": "填写数字 ID 或 https://x.com/i/lists/ID 链接。",
+                    "label": "List 链接或 ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "default": 20,
+                    "desc": "1 到 100，默认 20；返回完整一页，实际数量由 X 决定。",
+                    "goType": "int",
+                    "label": "每页请求条数",
+                    "name": "limit",
+                    "type": "number",
+                },
+                {
+                    "desc": "每轮定时任务首次留空；同一轮继续翻页时传入 next_cursor。",
+                    "label": "分页游标",
+                    "name": "cursor",
+                    "type": "string",
+                },
+            ],
+            "label": "获取 List 推文",
+            "outputs": [
+                {
+                    "label": "List ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "fields": [
+                        {
+                            "label": "推文 ID",
+                            "name": "id",
+                            "required": True,
+                            "type": "string",
+                        },
+                        {
+                            "label": "正文",
+                            "name": "text",
+                            "required": True,
+                            "type": "text",
+                        },
+                        {
+                            "label": "推文链接",
+                            "name": "url",
+                            "required": True,
+                            "type": "string",
+                        },
+                        {
+                            "desc": "上游提供的发布时间；缺失时为空。",
+                            "label": "发布时间",
+                            "name": "created_at",
+                            "type": "string",
+                        },
+                        {
+                            "label": "作者 ID",
+                            "name": "author_id",
+                            "type": "string",
+                        },
+                        {
+                            "label": "作者账号",
+                            "name": "author_username",
+                            "type": "string",
+                        },
+                        {
+                            "label": "回复目标 ID",
+                            "name": "reply_to_id",
+                            "type": "string",
+                        },
+                        {
+                            "goType": "int",
+                            "label": "点赞数",
+                            "name": "like_count",
+                            "type": "number",
+                        },
+                        {
+                            "goType": "int",
+                            "label": "转帖数",
+                            "name": "repost_count",
+                            "type": "number",
+                        },
+                        {
+                            "goType": "int",
+                            "label": "回复数",
+                            "name": "reply_count",
+                            "type": "number",
+                        },
+                    ],
+                    "goType": "Post",
+                    "label": "推文列表",
+                    "name": "posts",
+                    "required": True,
+                    "type": "array",
+                },
+                {
+                    "goType": "int",
+                    "label": "返回数量",
+                    "name": "count",
+                    "required": True,
+                    "type": "number",
+                },
+                {
+                    "label": "下一页游标",
+                    "name": "next_cursor",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "可继续翻页",
+                    "name": "has_more",
+                    "required": True,
+                    "type": "boolean",
+                },
+            ],
+            "timeoutSec": 60,
+        },
+        {
+            "desc": "将指定账号加入有管理权限的 List；失败不会自动重试。",
+            "id": "add_list_member",
+            "inputs": [
+                {
+                    "desc": "填写数字 ID 或 https://x.com/i/lists/ID 链接。",
+                    "label": "List 链接或 ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "desc": "账号名，可带 @；不要填写个人主页链接。",
+                    "label": "用户账号",
+                    "name": "username",
+                    "required": True,
+                    "type": "string",
+                },
+            ],
+            "label": "添加 List 成员",
+            "outputs": [
+                {
+                    "label": "List ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "用户 ID",
+                    "name": "user_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "用户账号",
+                    "name": "username",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "desc": "X 已接受操作；不代表成员此前一定不存在或存在。",
+                    "label": "操作成功",
+                    "name": "changed",
+                    "required": True,
+                    "type": "boolean",
+                },
+            ],
+            "timeoutSec": 60,
+        },
+        {
+            "desc": "将指定账号从有管理权限的 List 中移除；失败不会自动重试。",
+            "id": "remove_list_member",
+            "inputs": [
+                {
+                    "desc": "填写数字 ID 或 https://x.com/i/lists/ID 链接。",
+                    "label": "List 链接或 ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "desc": "账号名，可带 @；不要填写个人主页链接。",
+                    "label": "用户账号",
+                    "name": "username",
+                    "required": True,
+                    "type": "string",
+                },
+            ],
+            "label": "移除 List 成员",
+            "outputs": [
+                {
+                    "label": "List ID",
+                    "name": "list_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "用户 ID",
+                    "name": "user_id",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "label": "用户账号",
+                    "name": "username",
+                    "required": True,
+                    "type": "string",
+                },
+                {
+                    "desc": "X 已接受操作；不代表成员此前一定不存在或存在。",
+                    "label": "操作成功",
+                    "name": "changed",
+                    "required": True,
+                    "type": "boolean",
+                },
+            ],
+            "timeoutSec": 60,
         },
         {
             "desc": "按推文 ID 读取正文、作者与互动数量。",
@@ -610,7 +975,7 @@ CONTRACT: Dict[str, Any] = {
         },
     ],
     "org": "sokel",
-    "version": "0.1.0",
+    "version": "0.2.0",
 }
 
 
@@ -654,6 +1019,27 @@ class User(BaseModel):
     url: str
 
 
+class ListSummary(BaseModel):
+    # List ID
+    id: str
+    # List 名称
+    name: str
+    # 简介
+    description: str = ""
+    # 可见性 public 或 private；未知时为空。
+    mode: str = ""
+    # 成员数
+    member_count: int = 0
+    # 订阅者数
+    subscriber_count: int = 0
+    # 创建者 ID
+    owner_id: str = ""
+    # 创建者账号
+    owner_username: str = ""
+    # List 链接
+    url: str
+
+
 class Credential(BaseModel):
     """Credential fields (the platform injects them with every call; a plugin never stores them).
 
@@ -670,6 +1056,48 @@ class Credential(BaseModel):
 def credential(ctx: Any) -> Credential:
     """Read this call's credential into a typed object (works for both operation and source ctx)."""
     return ctx.credential_as(Credential)
+
+
+class AddListMemberIn(BaseModel):
+    """Inputs of "添加 List 成员".
+
+    将指定账号加入有管理权限的 List；失败不会自动重试。"""
+
+    # List 链接或 ID 填写数字 ID 或 https://x.com/i/lists/ID 链接。
+    list_id: str
+    # 用户账号 账号名，可带 @；不要填写个人主页链接。
+    username: str
+
+
+class AddListMemberOut(BaseModel):
+    """Outputs of "添加 List 成员".
+
+    将指定账号加入有管理权限的 List；失败不会自动重试。"""
+
+    # List ID
+    list_id: str
+    # 用户 ID
+    user_id: str
+    # 用户账号
+    username: str
+    # 操作成功 X 已接受操作；不代表成员此前一定不存在或存在。
+    changed: bool
+
+
+AddListMemberHandler = Callable[[Ctx, AddListMemberIn], Union[AddListMemberOut, Awaitable[Optional[AddListMemberOut]], None]]
+
+
+def on_add_list_member(p: Plugin, fn: AddListMemberHandler) -> None:
+    """Register the implementation of "添加 List 成员". The handler may be an async def or a plain function."""
+
+    async def _invoke(ctx: Ctx, raw: Dict[str, Any], out: Emitter) -> None:
+        res = fn(ctx, AddListMemberIn.model_validate(raw))
+        if inspect.isawaitable(res):
+            res = await res
+        if res is not None:
+            out.vars(res)
+
+    p.register("add_list_member", _invoke)
 
 
 class DeletePostIn(BaseModel):
@@ -807,6 +1235,94 @@ def on_health_check(p: Plugin, fn: HealthCheckHandler) -> None:
     p.register("health_check", _invoke)
 
 
+class ListTimelineIn(BaseModel):
+    """Inputs of "获取 List 推文".
+
+    读取指定 List 的一页推文并返回分页游标，适合在定时工作流中按推文 ID 去重。"""
+
+    # List 链接或 ID 填写数字 ID 或 https://x.com/i/lists/ID 链接。
+    list_id: str
+    # 每页请求条数 1 到 100，默认 20；返回完整一页，实际数量由 X 决定。
+    limit: int = 20
+    # 分页游标 每轮定时任务首次留空；同一轮继续翻页时传入 next_cursor。
+    cursor: str = ""
+
+
+class ListTimelineOut(BaseModel):
+    """Outputs of "获取 List 推文".
+
+    读取指定 List 的一页推文并返回分页游标，适合在定时工作流中按推文 ID 去重。"""
+
+    # List ID
+    list_id: str
+    # 推文列表
+    posts: List[Post]
+    # 返回数量
+    count: int
+    # 下一页游标
+    next_cursor: str
+    # 可继续翻页
+    has_more: bool
+
+
+ListTimelineHandler = Callable[[Ctx, ListTimelineIn], Union[ListTimelineOut, Awaitable[Optional[ListTimelineOut]], None]]
+
+
+def on_list_timeline(p: Plugin, fn: ListTimelineHandler) -> None:
+    """Register the implementation of "获取 List 推文". The handler may be an async def or a plain function."""
+
+    async def _invoke(ctx: Ctx, raw: Dict[str, Any], out: Emitter) -> None:
+        res = fn(ctx, ListTimelineIn.model_validate(raw))
+        if inspect.isawaitable(res):
+            res = await res
+        if res is not None:
+            out.vars(res)
+
+    p.register("list_timeline", _invoke)
+
+
+class MyListsIn(BaseModel):
+    """Inputs of "获取我的 Lists".
+
+    读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。"""
+
+    # 每页请求条数 1 到 100，默认 20；返回完整一页，实际数量由 X 决定。
+    limit: int = 20
+    # 分页游标 首次留空；继续翻页时传入上次返回的 next_cursor。
+    cursor: str = ""
+
+
+class MyListsOut(BaseModel):
+    """Outputs of "获取我的 Lists".
+
+    读取当前登录账号的 Lists 管理页，返回列表名称、ID 和链接，便于选择监控目标。"""
+
+    # Lists 列表
+    lists: List[ListSummary]
+    # 返回数量
+    count: int
+    # 下一页游标
+    next_cursor: str
+    # 可继续翻页
+    has_more: bool
+
+
+MyListsHandler = Callable[[Ctx, MyListsIn], Union[MyListsOut, Awaitable[Optional[MyListsOut]], None]]
+
+
+def on_my_lists(p: Plugin, fn: MyListsHandler) -> None:
+    """Register the implementation of "获取我的 Lists". The handler may be an async def or a plain function."""
+
+    async def _invoke(ctx: Ctx, raw: Dict[str, Any], out: Emitter) -> None:
+        res = fn(ctx, MyListsIn.model_validate(raw))
+        if inspect.isawaitable(res):
+            res = await res
+        if res is not None:
+            out.vars(res)
+
+    p.register("my_lists", _invoke)
+
+
 class PostIn(BaseModel):
     """Inputs of "发布或回复推文".
 
@@ -841,6 +1357,48 @@ def on_post(p: Plugin, fn: PostHandler) -> None:
             out.vars(res)
 
     p.register("post", _invoke)
+
+
+class RemoveListMemberIn(BaseModel):
+    """Inputs of "移除 List 成员".
+
+    将指定账号从有管理权限的 List 中移除；失败不会自动重试。"""
+
+    # List 链接或 ID 填写数字 ID 或 https://x.com/i/lists/ID 链接。
+    list_id: str
+    # 用户账号 账号名，可带 @；不要填写个人主页链接。
+    username: str
+
+
+class RemoveListMemberOut(BaseModel):
+    """Outputs of "移除 List 成员".
+
+    将指定账号从有管理权限的 List 中移除；失败不会自动重试。"""
+
+    # List ID
+    list_id: str
+    # 用户 ID
+    user_id: str
+    # 用户账号
+    username: str
+    # 操作成功 X 已接受操作；不代表成员此前一定不存在或存在。
+    changed: bool
+
+
+RemoveListMemberHandler = Callable[[Ctx, RemoveListMemberIn], Union[RemoveListMemberOut, Awaitable[Optional[RemoveListMemberOut]], None]]
+
+
+def on_remove_list_member(p: Plugin, fn: RemoveListMemberHandler) -> None:
+    """Register the implementation of "移除 List 成员". The handler may be an async def or a plain function."""
+
+    async def _invoke(ctx: Ctx, raw: Dict[str, Any], out: Emitter) -> None:
+        res = fn(ctx, RemoveListMemberIn.model_validate(raw))
+        if inspect.isawaitable(res):
+            res = await res
+        if res is not None:
+            out.vars(res)
+
+    p.register("remove_list_member", _invoke)
 
 
 class SearchIn(BaseModel):
