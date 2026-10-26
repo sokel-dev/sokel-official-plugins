@@ -57,6 +57,7 @@ README and `docs/` explain what it needs.
 | [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. |
 | [`tushare`](tushare) | Tushare Pro | Brokerage research report updates (incremental) + 221 Tushare catalog endpoints. Only responsible for fetching data — no persistence, no deduplication, no processing. |
 | [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's |
+| [`wecom`](wecom) | WeCom | Application messages, configurable H5 buttons, native cards, encrypted callbacks, menus, identity and approvals. |
 | [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. |
 | [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. |
 | [`x-free`](x-free) | X (Free Read/Write) | Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription. |

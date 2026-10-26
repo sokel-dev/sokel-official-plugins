@@ -13,6 +13,118 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseTest(unittest.TestCase):
+    def release_entry(self, export, entry=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'demo'
+            (source / 'docs').mkdir(parents=True)
+            (source / 'docs/demo.md').write_text('# Demo usage\n')
+            (source / 'locales').mkdir()
+            (source / 'locales/en.json').write_text('{}\n')
+            target = root / 'catalog/plugins/sokel/demo/manifest.yml'
+            if entry is not None:
+                target.parent.mkdir(parents=True)
+                target.write_text(yaml.safe_dump(entry, sort_keys=False))
+            export_file = root / 'export.yml'
+            export_file.write_text(export)
+            image = 'ghcr.io/sokel-dev/sokel-plugin-demo:0.3.0@sha256:' + 'a' * 64
+            result = subprocess.run([
+                sys.executable, str(ROOT / 'scripts/registry-entry.py'),
+                '--plugin', 'demo', '--version', 'v0.3.0', '--image', image,
+                '--export', str(export_file), '--catalog', str(root / 'catalog'),
+            ], cwd=root, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            text = target.read_text()
+            return yaml.safe_load(text), text, image
+
+    def test_first_release_preserves_export_deployment(self):
+        deployment = {
+            'targets': [
+                {'kind': 'binary', 'ref': 'https://example.com/demo/{os}/{arch}'},
+                {'kind': 'container', 'ref': 'ghcr.io/example/demo:0.3.0'},
+                {'kind': 'container', 'ref': 'ghcr.io/example/demo-alternate:0.3.0'},
+            ],
+            'env': [{'name': 'SOKEL_DATA_DIR', 'default': '/data/demo', 'required': True,
+                     'desc': 'Writable persistent data directory'}],
+            'note': 'Use a persistent volume and one replica.\ndeployment: keep this literal note line.',
+        }
+        before = {
+            'plugin': {'name': 'demo', 'label': 'Demo', 'doc': 'docs/demo.md'},
+            'credential': {'fields': [{'name': 'secret', 'type': 'secret'}]},
+        }
+        after = {
+            'operations': [{'id': 'send', 'label': 'Send'}],
+            'events_common': [],
+            'events': [{'id': 'action', 'fields': [{'name': 'event_id', 'type': 'string'}]}],
+        }
+        for style in ('block', 'flow', 'root_flow'):
+            with self.subTest(style=style):
+                if style == 'root_flow':
+                    export = yaml.safe_dump({**before, 'deployment': deployment, **after},
+                                            sort_keys=False, default_flow_style=True)
+                else:
+                    if style == 'flow':
+                        block = 'deployment: ' + yaml.safe_dump(deployment, default_flow_style=True).strip() + '\n'
+                    else:
+                        block = yaml.safe_dump({'deployment': deployment}, sort_keys=False)
+                    export = (yaml.safe_dump(before, sort_keys=False) + block
+                              + yaml.safe_dump(after, sort_keys=False))
+                entry, text, image = self.release_entry(export)
+                expected = json.loads(json.dumps(deployment))
+                expected['targets'][1]['ref'] = image
+                self.assertEqual(entry['deployment'], expected,
+                                 'first release must keep env, note and other deployment targets')
+                self.assertEqual(entry['plugin']['org'], 'sokel')
+                self.assertEqual(entry['plugin']['version'], 'v0.3.0')
+                self.assertEqual(entry['credential'], before['credential'])
+                for key, value in after.items():
+                    self.assertEqual(entry[key], value, f'{key} was lost while rewriting deployment')
+                keys = [key.value for key, _ in yaml.compose(text).value]
+                self.assertEqual(keys.count('deployment'), 1, 'duplicate YAML keys hide deployment settings')
+                self.assertEqual(keys.count('plugin'), 1)
+
+    def test_release_keeps_catalog_deployment_and_removes_export_block(self):
+        deployment = {
+            'targets': [{'kind': 'binary', 'ref': 'https://example.com/catalog-demo'},
+                        {'kind': 'container', 'ref': 'ghcr.io/example/old:0.2.0'}],
+            'env': [{'name': 'SOKEL_DATA_DIR', 'default': '/catalog/data', 'required': True}],
+            'note': 'Catalog-maintained placement constraint',
+        }
+        old = {
+            'plugin': {'name': 'demo', 'org': 'sokel', 'version': 'v0.2.0', 'doc': 'README.md'},
+            'deployment': deployment,
+            'operations': [],
+        }
+        export = {
+            'plugin': {'name': 'demo', 'doc': 'docs/demo.md'},
+            'deployment': {'targets': [{'kind': 'container', 'ref': 'source-image:0.3.0'}],
+                           'env': [{'name': 'SOURCE_ONLY'}], 'note': 'Source note'},
+            'operations': [{'id': 'send', 'label': 'New send'}],
+            'events': [{'id': 'action'}],
+        }
+        for flow in (False, True):
+            with self.subTest(flow=flow):
+                entry, text, image = self.release_entry(
+                    yaml.safe_dump(export, sort_keys=False, default_flow_style=flow), old)
+                expected = json.loads(json.dumps(deployment))
+                expected['targets'][1]['ref'] = image
+                self.assertEqual(entry['deployment'], expected)
+                self.assertEqual(entry['operations'], export['operations'])
+                self.assertEqual(entry['events'], export['events'])
+                keys = [key.value for key, _ in yaml.compose(text).value]
+                self.assertEqual(keys.count('deployment'), 1, 'export and catalog deployment must not coexist')
+
+    def test_first_release_adds_container_without_dropping_binary(self):
+        deployment = {'targets': [{'kind': 'binary', 'ref': 'https://example.com/demo'}],
+                      'env': [{'name': 'SOKEL_DATA_DIR', 'default': '/data'}], 'note': 'One replica'}
+        export = {'plugin': {'name': 'demo', 'doc': 'docs/demo.md'},
+                  'deployment': deployment, 'operations': []}
+        entry, _, image = self.release_entry(yaml.safe_dump(export, sort_keys=False))
+        self.assertEqual(entry['deployment']['targets'], deployment['targets'] + [
+            {'kind': 'container', 'ref': image}])
+        self.assertEqual(entry['deployment']['env'], deployment['env'])
+        self.assertEqual(entry['deployment']['note'], deployment['note'])
+
     def test_release_refreshes_document_and_removes_obsolete_translations(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

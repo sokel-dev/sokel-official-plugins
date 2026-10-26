@@ -1,0 +1,14 @@
+services:
+  wecom:
+    image: ghcr.io/sokel-dev/sokel-plugin-wecom:0.3.0
+    hostname: wecom
+    restart: unless-stopped
+    environment:
+      SOKEL_ENDPOINT: ${SOKEL_ENDPOINT:?Set the Sokel platform endpoint}
+      SOKEL_TOKEN: ${SOKEL_TOKEN:?Set the access-group token}
+      SOKEL_DATA_DIR: /var/lib/sokel/wecom
+      SOKEL_INSTANCE_ID: wecom-1
+    volumes:
+      - wecom-data:/var/lib/sokel
+volumes:
+  wecom-data:

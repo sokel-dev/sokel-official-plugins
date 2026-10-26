@@ -5,7 +5,9 @@
         --image ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1@sha256:... \
         --export export.yml --catalog <checkout of sokel-dev/sokel-registry>
 
-A first release creates its entry from the export, <plugin>/docs and <plugin>/locales.
+A first release creates its entry from the export, including its deployment settings, <plugin>/docs and
+<plugin>/locales. The released image replaces the first container target; other targets, environment variables
+and placement notes are retained.
 An existing entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
 emits it from the plugin's code (credential, operations, events...), the entry's own plugin section (org, label,
 desc, doc, icon) with the new version, and its deployment section with the container target pointing at the
@@ -127,7 +129,7 @@ def main():
         if not (locales / "en.json").is_file():
             sys.exit("a first release requires locales/en.json")
         plugin["doc"] = "README.md"
-        entry = {"plugin": plugin}
+        entry = {"plugin": plugin, "deployment": export.get("deployment")}
         entry_text = ""
     else:
         entry_text = Path(path).read_text(encoding="utf-8")
@@ -159,13 +161,13 @@ def main():
     refreshed = "implements" not in entry
     changed = contract_of(export) != contract_of(entry)
     if refreshed:
-        # The export text as sokel-gen wrote it (minus its header comment), with the plugin block replaced and the
-        # deployment block appended: the entry's formatting then follows the exporter, release after release.
-        body = re.sub(r"\A(?:#.*\n|\n)*", "", export_text)
-        body, n = re.subn(r"(?m)^plugin:\n(?:[ \t]+.*\n)*", dump({"plugin": plugin}), body, count=1)
-        if n != 1:
-            sys.exit("export has no plugin block")
-        text = body.rstrip("\n") + "\n" + dump({"deployment": deployment})
+        # Replace parsed top-level keys instead of appending YAML blocks: an exported deployment would otherwise
+        # coexist with the catalog's block, and regex slicing cannot safely handle flow mappings or literal text.
+        # The contract stays source-owned; an existing entry's deployment settings stay catalog-owned.
+        document = dict(export)
+        document["plugin"] = plugin
+        document["deployment"] = deployment
+        text = dump(document)
         unlisted = []
     else:
         unlisted = refresh_listed(entry, export)

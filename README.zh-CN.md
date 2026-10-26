@@ -51,6 +51,7 @@ docker run -d --restart unless-stopped \
 | [`threads`](threads) | Threads | 发帖、发帖串。免费、无按次计费；受众规模是这批海外渠道里最大的之一。 |
 | [`tushare`](tushare) | Tushare Pro | 券商研报增量 + 221 个 TuShare 目录接口。只负责取数——不落库、不去重、不加工。 |
 | [`umeng`](umeng) | 友盟推送 | App 推送的友盟通道：按设备 token 单播/列播，或全量广播。与「阿里云」插件的 |
+| [`wecom`](wecom) | 企业微信 | 应用消息、自定义 H5 按钮、原生卡片、加密回调、菜单、身份与审批。 |
 | [`wechat-claw`](wechat-claw) | 微信 ClawBot | 接入微信官方 ClawBot（iLink Bot 接口）：你在微信里给 ClawBot 发消息即触发工作流，工作流可回复文本、图片、文件。只有扫码绑定的本人能与它对话。 |
 | [`wechat-mp`](wechat-mp) | 微信公众号 | 把文章写进草稿箱、发布、拿到永久链接。国内唯一一条「API 正经、金融内容可做、覆盖面够」的主渠道。 |
 | [`x-free`](x-free) | X（免费读写） | 使用账号 Cookie 搜索和读取 X 推文、查看用户资料、发帖、回复与删除，无需官方 API 套餐。 |

@@ -1,0 +1,71 @@
+# Create Secret wecom-plugin-access with key access.json from this plugin's
+# Sokel access-group offline bundle. Set your namespace and platform endpoint.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wecom-plugin-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wecom-plugin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wecom-plugin
+  template:
+    metadata:
+      labels:
+        app: wecom-plugin
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: wecom
+          image: ghcr.io/sokel-dev/sokel-plugin-wecom:0.3.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: SOKEL_ACCESS
+              valueFrom:
+                secretKeyRef:
+                  name: wecom-plugin-access
+                  key: access.json
+            - name: SOKEL_ENDPOINT
+              value: https://sokel.example.com
+            - name: SOKEL_INSTANCE_ID
+              value: wecom-k8s-1
+            - name: SOKEL_DATA_DIR
+              value: /var/lib/sokel/wecom
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/sokel
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wecom-plugin-data

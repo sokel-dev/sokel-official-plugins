@@ -1,0 +1,9 @@
+.git
+.sokel-instance-id*
+wecom
+*.test
+coverage*
+web/*.test.cjs
+.env*
+
+data/

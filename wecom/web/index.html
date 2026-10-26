@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>查看消息</title>
+  <style nonce="{{NONCE}}">
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#17253c;background:#f3f5f8;font-synthesis:none;line-height:1.6;-webkit-text-size-adjust:100%}
+    *{box-sizing:border-box}body{margin:0}button{font:inherit}button,a{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}button:focus-visible{outline:3px solid #73a9ff;outline-offset:4px}[hidden]{display:none!important}
+    .shell{width:min(100%,560px);margin:auto;padding:28px 18px max(28px,env(safe-area-inset-bottom))}.brand{display:flex;align-items:center;gap:10px;margin:0 2px 26px;font-size:14px;font-weight:650;color:#526078}.brand-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#e3ecfb;color:#3265ad;font-size:18px;font-weight:750}.eyebrow{margin:0 0 8px;font-size:12px;letter-spacing:.1em;color:#68758b}.card{background:#fff;border:1px solid #e5e9f0;border-radius:20px;padding:26px 22px;box-shadow:0 8px 32px #20334d06}h1{margin:0;font-size:26px;line-height:1.4;letter-spacing:-.03em;overflow-wrap:anywhere}p{margin:0}.intro{margin-top:12px;color:#647188;font-size:14px}.auth-icon{display:grid;place-items:center;width:52px;height:52px;margin-bottom:22px;border-radius:17px;background:#eaf1fc;color:#3168b4;font-size:25px;font-weight:650}.auth-actions{display:grid;margin-top:26px}.button{min-height:48px;padding:11px 16px;border:1px solid transparent;border-radius:12px;font-size:15px;font-weight:650;cursor:pointer;transition:background .15s,box-shadow .15s}.button:disabled{cursor:default;opacity:.45}.primary{background:#2862bc;color:#fff}.primary:not(:disabled):hover{background:#2054a5}.secondary{background:#edf3fc;color:#275da8;border-color:#dce7f8}.secondary:not(:disabled):hover{background:#e3edfc}.quiet{background:#fff;color:#647188;border-color:#dce2eb}.quiet:not(:disabled):hover{background:#f6f8fb}.badges{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:7px;font-size:12px;font-weight:650;background:#edf3fc;color:#3b67a4}.badge::before{content:"";width:6px;height:6px;flex-shrink:0;border-radius:50%;background:currentColor}.description{margin-top:17px;font-size:15px;line-height:1.85;color:#4c5b70;white-space:pre-wrap;overflow-wrap:anywhere}.divider{height:1px;background:#edf0f5;margin:25px 0 19px}dl{margin:0;display:grid;grid-template-columns:80px minmax(0,1fr);column-gap:14px;row-gap:11px;font-size:13px}dt{color:#8590a1}dd{margin:0;color:#425168;overflow-wrap:anywhere}.identity{display:flex;align-items:center;gap:10px;margin:20px 2px 0;color:#6d7a8f;font-size:12px}.identity-dot{width:7px;height:7px;flex-shrink:0;border-radius:50%;background:#629a83}.identity strong{font-weight:600;color:#425168;overflow-wrap:anywhere}.actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:21px}.actions .button{overflow-wrap:anywhere}.actions .button:last-child:nth-child(odd){grid-column:1/-1}.hint{margin:13px 3px 0;color:#748198;font-size:12px;line-height:1.75}.notice{margin-top:18px;padding:14px 16px;border:1px solid #dce8f8;border-radius:12px;background:#edf4ff;color:#315d99;font-size:13px;overflow-wrap:anywhere}#notice-text{white-space:pre-wrap}.notice[data-kind="error"]{background:#fff3ef;border-color:#f7e1d8;color:#9a4d35}.notice[data-kind="success"]{background:#eef7f1;border-color:#dcecdf;color:#376d4e}.notice-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.notice-actions .button{min-height:41px;padding:8px 13px;font-size:13px}.footer{margin:28px 0 0;text-align:center;color:#96a0af;font-size:11px}.busy-dot{display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:currentColor;animation:pulse 1.2s ease-in-out infinite}.loading{margin-top:18px;color:#647188;font-size:13px}@keyframes pulse{50%{opacity:.25}}@media(prefers-reduced-motion:reduce){.busy-dot{animation:none}.button{transition:none}}@media(max-width:360px){.shell{padding-left:12px;padding-right:12px}.card{padding:22px 18px}h1{font-size:23px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span>企业消息</div>
+    <section id="auth-panel" class="card" aria-labelledby="auth-title">
+      <div class="auth-icon" aria-hidden="true">✓</div>
+      <p class="eyebrow">身份验证</p>
+      <h1 id="auth-title">安全查看消息</h1>
+      <p id="auth-description" class="intro">验证企业成员身份后，即可查看消息内容并提交操作。</p>
+      <div id="auth-loading" class="loading" hidden><span class="busy-dot" aria-hidden="true"></span><span id="auth-loading-text">正在验证身份…</span></div>
+      <div class="auth-actions"><button id="login-button" class="button primary" type="button">验证身份并查看</button></div>
+    </section>
+
+    <section id="interaction-panel" hidden aria-labelledby="interaction-title">
+      <div class="card">
+        <div class="badges"><span class="badge">交互消息</span></div>
+        <h1 id="interaction-title"></h1>
+        <p id="content" class="description"></p>
+        <div class="divider" role="presentation"></div>
+        <dl>
+          <dt>发送时间</dt><dd id="created-at"></dd>
+          <dt>有效期</dt><dd id="expires-at"></dd>
+          <dt id="last-action-label" hidden>最近操作</dt><dd id="last-action" hidden></dd>
+          <dt id="actor-label" hidden>操作人</dt><dd id="actor" hidden></dd>
+          <dt id="updated-label" hidden>更新时间</dt><dd id="updated-at" hidden></dd>
+        </dl>
+      </div>
+      <p class="identity"><span class="identity-dot" aria-hidden="true"></span><span>当前身份 · <strong id="current-user"></strong></span></p>
+      <div id="actions" class="actions" aria-label="提交操作"></div>
+      <p id="action-hint" class="hint"></p>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <p id="notice-text"></p>
+      <div id="notice-actions" class="notice-actions" hidden>
+        <button id="retry-button" class="button secondary" type="button" hidden>重试本次操作</button>
+        <button id="reauth-button" class="button quiet" type="button" hidden>重新验证身份</button>
+      </div>
+    </div>
+    <p class="footer">请核对消息内容后操作</p>
+  </main>
+  <script nonce="{{NONCE}}">
+    (() => {
+      'use strict';
+
+      const $ = (id) => document.getElementById(id);
+      const params = new URLSearchParams(location.search);
+      const interactionId = params.get('interaction') || '';
+      const callbackKeys = ['code', 'state', 'error', 'error_description', 'error_uri', 'errcode', 'errmsg'];
+      const hasCallback = callbackKeys.some((key) => params.has(key));
+      const hasCallbackError = callbackKeys.slice(2).some((key) => params.has(key));
+      const inWeChat = /MicroMessenger|wxwork/i.test(navigator.userAgent);
+      const sessionKey = 'wecom-interaction-oauth:' + location.pathname + ':' + interactionId;
+      const endpoint = new URL(location.pathname, location.origin);
+      const buttons = new Map();
+      let currentInteraction = null;
+      let currentUser = '';
+      let ticket = '';
+      let busy = false;
+      let retryAttempt = null;
+      let authorizationRequired = false;
+
+      class RequestError extends Error {
+        constructor(message, status) { super(message); this.status = status; }
+      }
+
+      const setText = (id, value) => { $(id).textContent = value == null ? '' : String(value); };
+
+      function notice(message, kind = 'info', options = {}) {
+        $('notice').hidden = !message;
+        $('notice').dataset.kind = kind;
+        setText('notice-text', message);
+        $('retry-button').hidden = !options.retry;
+        $('reauth-button').hidden = !options.reauth;
+        $('notice-actions').hidden = !options.retry && !options.reauth;
+        $('retry-button').disabled = busy;
+        $('reauth-button').disabled = busy;
+      }
+
+      function cleanCallbackURL() {
+        const clean = new URL(location.href);
+        callbackKeys.forEach((key) => clean.searchParams.delete(key));
+        history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
+      }
+
+      function dateText(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('zh-CN', { hour12: false });
+      }
+
+      function expired() {
+        if (!currentInteraction || !currentInteraction.expires_at) return false;
+        const timestamp = new Date(currentInteraction.expires_at).getTime();
+        return Number.isFinite(timestamp) && timestamp <= Date.now();
+      }
+
+      function updateButtons() {
+        const unavailable = busy || !currentInteraction || !ticket || expired() || retryAttempt || authorizationRequired;
+        buttons.forEach(({ element, text }) => {
+          element.disabled = Boolean(unavailable);
+          element.textContent = text;
+        });
+        $('login-button').disabled = busy || !interactionId;
+        $('retry-button').disabled = busy;
+        $('reauth-button').disabled = busy;
+        $('interaction-panel').setAttribute('aria-busy', busy ? 'true' : 'false');
+        if (!currentInteraction) return;
+        let hint = '选择操作后，将交由业务系统或工作流继续处理。';
+        if (!buttons.size) hint = '此消息没有可用操作，仅供查看。';
+        else if (expired()) hint = '此消息已超过有效期，无法继续操作。';
+        if (retryAttempt) hint = '上次操作结果尚未确认，请使用“重试本次操作”，避免重复提交。';
+        if (authorizationRequired) hint = '请重新验证身份，获取最新的消息内容。';
+        setText('action-hint', hint);
+      }
+
+      function setBusy(value) {
+        busy = value;
+        $('auth-panel').setAttribute('aria-busy', value ? 'true' : 'false');
+        updateButtons();
+      }
+
+      async function request(operation, body) {
+        const url = new URL(endpoint);
+        url.searchParams.set('op', operation);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 20000);
+        try {
+          const response = await fetch(url.href, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(body), credentials: 'omit', cache: 'no-store', redirect: 'error',
+            referrerPolicy: 'no-referrer', signal: controller.signal
+          });
+          let result;
+          try { result = await response.json(); }
+          catch (_) { throw new RequestError('暂时无法获取处理结果，请稍后重试。', response.ok ? 0 : response.status); }
+          if (!response.ok || (result && typeof result.error === 'string')) {
+            const message = result && typeof result.error === 'string' ? result.error : '请求未完成，请稍后重试。';
+            throw new RequestError(message, response.status);
+          }
+          if (!result || typeof result !== 'object' || Array.isArray(result)) throw new RequestError('暂时无法获取处理结果，请稍后重试。', 0);
+          return result;
+        } catch (error) {
+          if (error instanceof RequestError) throw error;
+          throw new RequestError('网络连接中断或请求超时，请检查网络后重试。', 0);
+        } finally { clearTimeout(timer); }
+      }
+
+      function applyResult(result) {
+        const data = result.interaction;
+        if (!data || typeof data !== 'object' || Array.isArray(data) || data.id !== interactionId || typeof result.user_id !== 'string' || !result.user_id) {
+          throw new RequestError('暂时无法获取消息内容，请重试。', 0);
+        }
+        // Historical snapshots may have no actions. They remain readable, never actionable.
+        const actions = data.buttons == null ? [] : data.buttons;
+        const ids = new Set();
+        if (!Array.isArray(actions) || actions.length > 8 || actions.some((button) => {
+          if (!button || typeof button.id !== 'string' || !button.id.trim() || typeof button.text !== 'string' || !button.text.trim() || ids.has(button.id)) return true;
+          ids.add(button.id);
+          return false;
+        })) throw new RequestError('消息操作配置无效，请联系管理员。', 0);
+        if (actions.length && (typeof result.ticket !== 'string' || !result.ticket)) {
+          throw new RequestError('身份验证已失效，请重新验证。', 403);
+        }
+        currentInteraction = data;
+        currentUser = result.user_id;
+        ticket = typeof result.ticket === 'string' ? result.ticket : '';
+        authorizationRequired = false;
+        buttons.clear();
+        $('actions').replaceChildren();
+        actions.forEach((action, index) => {
+          const element = document.createElement('button');
+          element.type = 'button';
+          element.className = 'button ' + (index === 0 ? 'primary' : 'secondary');
+          element.textContent = action.text;
+          element.addEventListener('click', () => act(action.id));
+          buttons.set(action.id, { element, text: action.text });
+          $('actions').appendChild(element);
+        });
+        $('actions').hidden = !actions.length;
+        setText('interaction-title', data.title || '企业消息');
+        setText('content', data.content || '暂无补充说明');
+        setText('created-at', dateText(data.created_at));
+        setText('expires-at', data.expires_at ? dateText(data.expires_at) : '未设置');
+        setText('last-action', buttons.get(data.last_action_id)?.text || data.last_action_id);
+        $('last-action-label').hidden = $('last-action').hidden = !data.last_action_id;
+        setText('actor', data.actor_user_id);
+        $('actor-label').hidden = $('actor').hidden = !data.actor_user_id;
+        setText('updated-at', dateText(data.updated_at));
+        $('updated-label').hidden = $('updated-at').hidden = !data.updated_at;
+        setText('current-user', currentUser);
+        $('auth-panel').hidden = true;
+        $('interaction-panel').hidden = false;
+        document.title = '企业消息 · ' + (data.title || '查看消息');
+      }
+
+      async function login() {
+        if (busy || !interactionId) return;
+        ticket = '';
+        retryAttempt = null;
+        currentInteraction = null;
+        currentUser = '';
+        authorizationRequired = false;
+        $('interaction-panel').hidden = true;
+        $('auth-panel').hidden = false;
+        $('auth-loading').hidden = false;
+        $('login-button').hidden = true;
+        setText('auth-title', '正在识别微信身份');
+        setText('auth-description', '正在验证企业成员身份，完成后将自动显示消息内容。');
+        setText('auth-loading-text', '正在验证身份…');
+        notice('');
+        setBusy(true);
+        try {
+          const bytes = new Uint8Array(32);
+          crypto.getRandomValues(bytes);
+          const state = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+          try { sessionStorage.setItem(sessionKey, state); }
+          catch (_) { throw new RequestError('无法保存身份验证信息，请在微信中重新打开此链接。', 0); }
+          const result = await request('login', { interaction_id: interactionId, state });
+          let target;
+          try { target = new URL(result.authorize_url); }
+          catch (_) { throw new RequestError('暂时无法发起微信授权，请稍后重试。', 0); }
+          if (target.protocol !== 'https:' || target.hostname !== 'open.weixin.qq.com' || target.username || target.password) {
+            throw new RequestError('微信授权地址无效，请联系管理员。', 0);
+          }
+          setText('auth-loading-text', '正在连接微信身份服务…');
+          location.assign(target.href);
+        } catch (error) {
+          try { sessionStorage.removeItem(sessionKey); } catch (_) { /* Storage can be unavailable in private mode. */ }
+          $('auth-loading').hidden = true;
+          $('login-button').hidden = false;
+          setText('auth-title', '暂时无法验证身份');
+          setText('auth-description', error.message || '请稍后重新尝试。');
+          setText('login-button', '重新验证身份');
+          setBusy(false);
+        }
+      }
+
+      async function exchange(code, state) {
+        $('auth-loading').hidden = false;
+        $('login-button').hidden = true;
+        setText('auth-title', '正在验证身份');
+        setText('auth-description', '验证完成后，将为你显示消息内容。');
+        setBusy(true);
+        try {
+          const result = await request('exchange', { interaction_id: interactionId, state, code });
+          applyResult(result);
+          notice('');
+        } catch (error) {
+          ticket = '';
+          setText('auth-title', '未能完成身份验证');
+          setText('auth-description', error.message || '请重新验证身份后查看消息。');
+          setText('login-button', '重新验证身份');
+        } finally {
+          $('auth-loading').hidden = true;
+          $('login-button').hidden = false;
+          setBusy(false);
+        }
+      }
+
+      async function act(actionId, retry = false) {
+        if (busy) return;
+        if (retry) {
+          if (!retryAttempt) return;
+          actionId = retryAttempt.actionId;
+        } else {
+          updateButtons();
+          if (!buttons.has(actionId) || buttons.get(actionId).element.disabled || !ticket) return;
+        }
+        const attempt = retry ? retryAttempt : { actionId, ticket };
+        setBusy(true);
+        if (buttons.has(actionId)) buttons.get(actionId).element.textContent = '正在提交…';
+        notice('正在提交操作，请稍候…');
+        try {
+          const result = await request('action', { interaction_id: interactionId, ticket: attempt.ticket, action_id: attempt.actionId });
+          applyResult(result);
+          retryAttempt = null;
+          const message = result.event_status === 'pending'
+            ? '操作已提交，通知待同步。后续处理以业务系统或工作流通知为准。'
+            : '操作已提交。后续处理以业务系统或工作流通知为准。';
+          notice(message, 'success');
+        } catch (error) {
+          if ([403, 409, 410].includes(error.status)) {
+            ticket = '';
+            retryAttempt = null;
+            authorizationRequired = true;
+            notice(error.message, 'error', { reauth: true });
+          } else {
+            retryAttempt = attempt;
+            notice(error.message + '\n操作可能已提交，请重试本次操作以确认结果。', 'error', { retry: true });
+          }
+        } finally { setBusy(false); }
+      }
+
+      $('login-button').addEventListener('click', login);
+      $('reauth-button').addEventListener('click', login);
+      $('retry-button').addEventListener('click', () => act('', true));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) updateButtons(); });
+      window.addEventListener('pageshow', (event) => {
+        if (!event.persisted) return;
+        ticket = '';
+        retryAttempt = null;
+        currentInteraction = null;
+        currentUser = '';
+        $('interaction-panel').hidden = true;
+        $('auth-panel').hidden = false;
+        $('auth-loading').hidden = true;
+        $('login-button').hidden = false;
+        setText('auth-title', '请重新验证身份');
+        setText('auth-description', '返回此页面后，请重新验证身份以获取最新消息内容。');
+        setText('login-button', '重新验证身份');
+        notice('');
+        setBusy(false);
+      });
+
+      if (!interactionId || interactionId.length > 512 || params.getAll('interaction').length !== 1) {
+        if (hasCallback) cleanCallbackURL();
+        setText('auth-title', '消息链接不完整');
+        setText('auth-description', '请从收到的企业消息中重新打开链接。');
+        $('login-button').hidden = true;
+        return;
+      }
+
+      const code = params.get('code');
+      const state = params.get('state');
+      if (hasCallback) {
+        let expected = null;
+        try { expected = sessionStorage.getItem(sessionKey); } catch (_) { /* Verification fails closed. */ }
+        cleanCallbackURL();
+        if (hasCallbackError || !code || !state || !/^[a-f0-9]{64}$/.test(state) || !expected || state !== expected || params.getAll('code').length !== 1 || params.getAll('state').length !== 1) {
+          setText('auth-title', '请重新验证身份');
+          setText('auth-description', '本次授权与当前页面不匹配或已失效，请在此页面重新发起验证。');
+          setText('login-button', '重新验证身份');
+          return;
+        }
+        try { sessionStorage.removeItem(sessionKey); }
+        catch (_) {
+          setText('auth-title', '请重新打开链接');
+          setText('auth-description', '无法更新身份验证信息，请在微信中重新打开消息链接。');
+          return;
+        }
+        exchange(code, state);
+      } else if (inWeChat) {
+        // A restored history entry must not immediately send the user back to OAuth.
+        // BFCache restores are handled by pageshow above; this covers full reloads on Back.
+        const returning = performance.getEntriesByType('navigation').some((entry) => entry.type === 'back_forward');
+        if (returning) {
+          setText('auth-title', '请重新验证身份');
+          setText('auth-description', '返回此页面后，请重新验证身份以获取最新消息内容。');
+          setText('login-button', '重新验证身份');
+        } else {
+          login();
+        }
+      } else {
+        setText('auth-description', '请在微信或企业微信中打开此链接，验证企业成员身份后即可查看并提交操作。');
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/sokel-dev/sokel-plugin-sdk/main/docs/sokel.schema.json
+plugin:
+  org: sokel
+  name: wecom
+  label: 企业微信
+  desc: 自建应用消息、自定义交互按钮、原生卡片、接收回调、菜单、工作台、身份与审批集成
+  version: 0.3.0
+  doc: docs/wecom.md
+credential:
+  fields:
+    - {name: corp_id, label: 企业 ID, type: text, required: true, help: 企业微信管理后台 → 我的企业 → 企业信息 → 企业 ID}
+    - {name: agent_id, label: 应用 AgentId, type: text, required: true, help: 应用管理 → 自建应用 → AgentId；接收成员须在应用可见范围内}
+    - {name: secret, label: 应用 Secret, type: secret, required: true, help: 同一自建应用的 Secret；请配置插件服务器的企业可信 IP}
+    - {name: callback_token, label: 接收消息 Token, type: secret, help: 应用管理 → 接收消息 → 设置 API 接收；仅接收回调和自动回复需要}
+    - {name: callback_aes_key, label: 接收消息 EncodingAESKey, type: secret, help: 与企业微信 API 接收配置一致的 43 位密钥；仅接收回调和自动回复需要}
+operations:
+  - id: send_text
+    label: 发送文本消息
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 接收成员 UserID, type: strings, required: true}
+      - {name: text, label: 消息内容, type: text, required: true}
+    outputs: &delivery_outputs
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: invalid_user, label: 无效成员, type: string}
+      - {name: unlicensed_user, label: 无接口许可成员, type: string}
+      - {name: all_accepted, label: 全部收件人已被接口接受, type: boolean, required: true}
+  - id: send_card
+    label: 发送链接卡片
+    desc: 点击卡片进入网页，不是微信消息内的原生交互卡片
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 接收成员 UserID, type: strings, required: true}
+      - {name: title, label: 标题, type: string, required: true}
+      - {name: description, label: 说明文字, type: text, required: true}
+      - {name: url, label: 网页地址, type: string, required: true}
+      - {name: button, label: 入口文字, type: string, default: 查看详情}
+    outputs: *delivery_outputs
+  - id: send_interactive_message
+    label: 发送交互消息
+    desc: 普通微信通过链接打开网页并点击自定义按钮；动作和回传值由工作流定义，不内置业务状态机
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 接收成员 UserID, type: strings, required: true}
+      - {name: title, label: 消息标题, type: string, required: true, desc: 1 至 128 个字符}
+      - {name: content, label: 消息正文, type: text, required: true, desc: 纯文字，1 至 16384 字节；消息摘要会截短，网页保留全文}
+      - name: buttons
+        label: 交互按钮
+        type: array
+        goType: MessageButton
+        required: true
+        desc: 1 至 8 个按钮；只声明展示文字、动作标识与回传对象，业务处理由工作流完成
+        fields: &interaction_buttons
+          - {name: id, label: 动作标识, type: string, required: true, desc: 同一消息内唯一，1 至 64 位字母、数字、下划线或连字符；例如 approve、reject}
+          - {name: text, label: 按钮文字, type: string, required: true, desc: 1 至 40 个字符；例如同意发布、退回修改}
+          - {name: value, label: 回传值, type: json, opaque: true, desc: 自定义 JSON 对象，原样进入 interaction_action.action_value；不得放入密码或 Secret}
+      - {name: context, label: 业务上下文, type: json, opaque: true, desc: 所有按钮共用的 JSON 对象，原样进入事件 context；与所有按钮 value 合计不超过 16 KiB}
+      - {name: request_id, label: 幂等键, type: string, desc: 可选，最长 256 字节；同应用重复键和相同内容返回已有消息，不填则每次创建新消息，与业务编号无关}
+      - {name: portal_url, label: 本凭证的 Webhook URL, type: string, required: true, desc: 复制本插件凭证的完整 HTTPS Webhook 地址，用于网页与身份授权回调}
+      - {name: button, label: 链接入口文字, type: string, default: 查看消息, desc: 1 至 4 个字符；网页中的按钮由 buttons 单独定义}
+      - {name: expires_hours, label: 交互有效期（小时）, type: int, default: 72, desc: 1 至 720 小时；到期后不可再操作}
+    outputs:
+      - {name: interaction_id, label: 交互消息 ID, type: string, required: true}
+      - {name: interaction_url, label: 交互网页地址, type: string, required: true}
+      - {name: reused, label: 复用已有消息, type: boolean, required: true}
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: invalid_user, label: 无效成员, type: string}
+      - {name: unlicensed_user, label: 无接口许可成员, type: string}
+      - {name: all_accepted, label: 全部收件人已被接口接受, type: boolean, required: true}
+  - id: get_interactive_message
+    label: 查询交互消息
+    desc: 查询消息内容、最近动作和动作序号；不推断内部系统的业务处理结果
+    inputs:
+      - {name: interaction_id, label: 交互消息 ID, type: string, required: true}
+    outputs:
+      - {name: interaction_id, label: 交互消息 ID, type: string, required: true}
+      - {name: request_id, label: 幂等键, type: string}
+      - {name: title, label: 消息标题, type: string, required: true}
+      - {name: content, label: 消息正文, type: text, required: true}
+      - {name: buttons, label: 交互按钮, type: array, goType: MessageButton, fields: *interaction_buttons, required: true}
+      - {name: context, label: 业务上下文, type: json, opaque: true, desc: 发送时保存的自定义 JSON 对象}
+      - {name: last_action_id, label: 最近动作标识, type: string}
+      - {name: actor_user_id, label: 最近操作成员 UserID, type: string}
+      - {name: revision, label: 动作序号, type: int, required: true}
+      - {name: created_at, label: 创建时间, type: string, required: true}
+      - {name: updated_at, label: 更新时间, type: string, required: true}
+      - {name: expires_at, label: 交互到期时间, type: string, required: true}
+      - {name: sent, label: 发送接口已接受, type: boolean, required: true}
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+  - id: health_check
+    label: 检查凭证
+    desc: 核验凭证对应应用和本地存储，不发送消息；不代表成员可见范围和微信插件已配置
+    timeoutSec: 15
+    inputs: []
+    outputs:
+      - {name: ok, label: 凭证可用, type: boolean, required: true}
+      - {name: message, label: 检查结果, type: string, required: true}
+  - id: send_message
+    label: 发送应用消息
+    desc: 普通微信不支持 markdown、小程序通知或模板卡片；body 不得覆盖收件人和应用身份
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 接收成员 UserID, type: strings, required: true}
+      - {name: message_type, label: 消息类型, type: enum, required: true, options: [text, image, voice, video, file, textcard, news, mpnews, markdown, miniprogram_notice, template_card]}
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: msg_id, label: 消息 ID, type: string}
+      - {name: response_code, label: 模板卡片更新凭证, type: string}
+      - {name: invalid_user, label: 无效成员, type: string}
+      - {name: unlicensed_user, label: 无接口许可成员, type: string}
+      - {name: all_accepted, label: 全部收件人已被接口接受, type: boolean, required: true}
+  - id: send_template_card
+    label: 发送原生交互卡片
+    desc: 仅企业微信客户端支持；按钮点击通过 application_event 回调，普通微信请用发送交互消息
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 接收成员 UserID, type: strings, required: true}
+      - {name: card, label: 原生卡片, type: json, required: true, opaque: true, desc: 企业微信 template_card 对象本身，无需再包 template_card；包含 card_type、task_id、button_list 等官方字段}
+    outputs:
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: response_code, label: 卡片更新凭证, type: string}
+      - {name: invalid_user, label: 无效成员, type: string}
+      - {name: unlicensed_user, label: 无接口许可成员, type: string}
+      - {name: all_accepted, label: 全部收件人已被接口接受, type: boolean, required: true}
+  - id: update_template_card
+    label: 更新交互模板卡片
+    desc: 仅企业微信；response_code 有效 72 小时且一次有效，请保存返回的部分失败成员
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 待更新成员 UserID, type: strings, required: true}
+      - {name: response_code, label: 卡片更新凭证, type: string, required: true}
+      - {name: body, label: 更新内容, type: json, required: true, opaque: true, desc: 原生 button 或 template_card 二选一；不同卡片类型拥有不同字段}
+    outputs:
+      - {name: invalid_users, label: 更新失败成员, type: strings, required: true}
+      - {name: all_updated, label: 全部更新成功, type: boolean, required: true}
+  - id: recall_message
+    label: 撤回应用消息
+    desc: 仅撤回 24 小时内的企业微信消息；普通微信不支持撤回
+    timeoutSec: 30
+    inputs:
+      - {name: msg_id, label: 消息 ID, type: string, required: true}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: upload_media
+    label: 上传临时素材
+    desc: media_id 有效期 3 天；图片或视频≤10MB，AMR 语音≤2MB且≤60秒，文件≤20MB
+    timeoutSec: 60
+    inputs:
+      - {name: media_type, label: 素材类型, type: enum, required: true, options: [image, voice, video, file]}
+      - {name: file, label: 素材文件, type: file, required: true}
+    outputs:
+      - {name: media_id, label: 临时素材 ID, type: string, required: true}
+      - {name: media_type, label: 素材类型, type: string, required: true}
+      - {name: created_at, label: 创建时间 Unix 秒, type: int, required: true}
+  - id: get_application
+    label: 获取应用配置
+    timeoutSec: 30
+    inputs: []
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: set_application
+    label: 修改应用配置
+    desc: 只支持官方应用设置字段；应用身份取自凭证
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: get_menu
+    label: 获取自定义菜单
+    timeoutSec: 30
+    inputs: []
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: set_menu
+    label: 设置自定义菜单
+    desc: 覆盖当前应用菜单，最多 3 个一级菜单，每项最多 5 个子菜单
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 菜单 JSON, type: json, required: true, opaque: true, desc: 原生 button 数组；菜单层级和 click、view、小程序等按钮字段不同}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: delete_menu
+    label: 删除自定义菜单
+    timeoutSec: 30
+    inputs: []
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: get_workbench_template
+    label: 获取工作台模板
+    timeoutSec: 30
+    inputs: []
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: set_workbench_template
+    label: 设置工作台模板
+    desc: 需先在管理后台启用工作台自定义展示，仅企业微信客户端生效
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: get_workbench_data
+    label: 获取成员工作台数据
+    timeoutSec: 30
+    inputs:
+      - {name: user_id, label: 成员 UserID, type: string, required: true}
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: set_workbench_data
+    label: 设置成员工作台数据
+    timeoutSec: 30
+    inputs:
+      - {name: user_id, label: 成员 UserID, type: string, required: true}
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: batch_set_workbench_data
+    label: 批量设置成员工作台数据
+    desc: 显式成员列表与原生 type、对应类型内容；仅企业微信客户端生效
+    timeoutSec: 30
+    inputs:
+      - {name: users, label: 成员 UserID 列表, type: strings, required: true}
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: js_sdk_config
+    label: 生成网页 JS-SDK 签名
+    desc: 用于业务页面接入 JS-SDK；仅在已认证的业务服务中调用，前端不接触 Secret
+    timeoutSec: 30
+    inputs:
+      - {name: page_url, label: 当前网页完整 URL, type: string, required: true}
+    outputs:
+      - {name: corp_id, label: 企业 ID, type: string, required: true}
+      - {name: agent_id, label: 应用 ID, type: int, required: true}
+      - {name: nonce_str, label: 签名随机串, type: string, required: true}
+      - {name: timestamp, label: 签名时间 Unix 秒, type: int, required: true}
+      - {name: signature, label: 企业签名, type: string, required: true}
+      - {name: agent_signature, label: 应用签名, type: string, required: true}
+      - {name: signed_url, label: 参与签名的 URL, type: string, required: true}
+  - id: build_web_login_url
+    label: 构造企业微信网页登录地址
+    desc: 业务系统保存随机 state，并在接收 code 时核对后再交换身份
+    timeoutSec: 30
+    inputs:
+      - {name: redirect_url, label: 登录回调 HTTPS 地址, type: string, required: true}
+      - {name: state, label: 防伪随机 state, type: string, required: true}
+      - {name: language, label: 语言, type: enum, options: [zh, en], default: zh}
+    outputs:
+      - {name: url, label: 网页登录地址, type: string, required: true}
+  - id: exchange_login_code
+    label: 用授权 code 获取成员身份
+    desc: code 一次有效；业务系统必须先验证登录回调 state
+    timeoutSec: 30
+    inputs:
+      - {name: code, label: 网页授权或登录 code, type: string, required: true}
+    outputs:
+      - {name: user_id, label: 成员 UserID, type: string, required: true}
+  - id: approval_template_get
+    label: 获取审批应用模板
+    timeoutSec: 30
+    inputs:
+      - {name: template_id, label: 审批模板 ID, type: string, required: true}
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: approval_template_create
+    label: 创建审批应用模板
+    desc: 需在审批应用的可调用接口应用中授权本自建应用
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 审批模板 JSON, type: json, required: true, opaque: true, desc: 审批模板控件和多语言字段因表单而异，按官方原生结构传入}
+    outputs:
+      - {name: template_id, label: 审批模板 ID, type: string, required: true}
+  - id: approval_template_update
+    label: 更新审批应用模板
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 原生 JSON 内容, type: json, required: true, opaque: true, desc: 企业微信原生对象；多种消息或模板类型拥有不同嵌套字段，详见插件文档}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: approval_apply
+    label: 发起审批应用申请
+    desc: 会实际提交审批；需审批应用授权和对应模板权限
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 审批申请 JSON, type: json, required: true, opaque: true, desc: 原生 creator_userid、template_id、审批人规则与各类型控件 apply_data}
+    outputs:
+      - {name: sp_no, label: 审批单号, type: string, required: true}
+  - id: approval_get
+    label: 查询审批应用详情
+    timeoutSec: 30
+    inputs:
+      - {name: sp_no, label: 审批单号, type: string, required: true}
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: approval_list
+    label: 分页查询审批应用单号
+    desc: 时间跨度不超过 31 天，最多 100 条；下一页传 body.new_cursor
+    timeoutSec: 30
+    inputs:
+      - {name: body, label: 查询条件 JSON, type: json, required: true, opaque: true, desc: 原生 starttime、endtime、size、new_cursor、可选 filters}
+    outputs:
+      - {name: sp_no_list, label: 审批单号, type: strings, required: true}
+      - {name: next_cursor, label: 下一页游标, type: string}
+  - id: open_approval_get
+    label: 查询自建应用流程引擎审批
+    desc: 自建应用审批引擎接口；发起审批需企业微信 JS-SDK thirdPartyOpenPage
+    timeoutSec: 30
+    inputs:
+      - {name: third_no, label: 业务审批单号, type: string, required: true}
+    outputs:
+      - {name: result, label: 接口结果, type: json, required: true, opaque: true, desc: 企业微信原生响应；字段随应用设置、菜单及工作台模板类型变化}
+  - id: auto_reply_set
+    label: 保存自动回复规则
+    desc: 需要配置 API 接收；数值较大的优先级优先，命中第一条即停止，回复≤2048字节
+    timeoutSec: 30
+    inputs:
+      - {name: rule_id, label: 规则 ID, type: string, required: true}
+      - {name: enabled, label: 启用, type: boolean, required: true}
+      - {name: match_type, label: 匹配方式, type: enum, required: true, options: [text_exact, text_contains, menu_click]}
+      - {name: keyword, label: 文本或菜单事件键, type: string, required: true}
+      - {name: reply, label: 回复文字, type: text, required: true}
+      - {name: priority, label: 优先级, type: int, default: 0}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: auto_reply_list
+    label: 查询自动回复规则
+    timeoutSec: 30
+    inputs: []
+    outputs:
+      - name: rules
+        label: 自动回复规则
+        type: array
+        goType: ReplyRuleView
+        fields:
+          - {name: rule_id, label: 规则 ID, type: string, required: true}
+          - {name: enabled, label: 启用, type: boolean, required: true}
+          - {name: match_type, label: 匹配方式, type: enum, required: true, options: [text_exact, text_contains, menu_click]}
+          - {name: keyword, label: 文本或菜单事件键, type: string, required: true}
+          - {name: reply, label: 回复文字, type: text, required: true}
+          - {name: priority, label: 优先级, type: int, default: 0}
+  - id: auto_reply_delete
+    label: 删除自动回复规则
+    timeoutSec: 30
+    inputs:
+      - {name: rule_id, label: 规则 ID, type: string, required: true}
+    outputs:
+      - {name: ok, label: 操作成功, type: boolean, required: true}
+  - id: list_received
+    label: 查看最近接收的消息和事件
+    desc: 最多 100 条；包括菜单和审批状态事件，原生 XML 保留扩展字段
+    timeoutSec: 30
+    inputs:
+      - {name: limit, label: 记录数, type: int, default: 20}
+    outputs:
+      - name: messages
+        label: 接收记录
+        type: array
+        goType: ReceivedMessageView
+        fields:
+          - {name: event_id, label: 接收事件 ID, type: string, required: true}
+          - {name: msg_id, label: 企业微信消息 ID, type: string}
+          - {name: from_user, label: 发送成员, type: string}
+          - {name: to_user, label: 接收企业, type: string}
+          - {name: agent_id, label: 应用 ID, type: string}
+          - {name: message_type, label: 消息类型, type: string, required: true}
+          - {name: content, label: 文字内容, type: string}
+          - {name: event_type, label: 事件类型, type: string}
+          - {name: event_key, label: 菜单事件键, type: string}
+          - {name: change_type, label: 变更类型, type: string}
+          - {name: created_at, label: 上游时间 Unix 秒, type: int, required: true}
+          - {name: received_at, label: 接收时间, type: string, required: true}
+          - {name: media_id, label: 媒体素材 ID, type: string}
+          - {name: pic_url, label: 图片地址, type: string}
+          - {name: task_id, label: 模板卡片任务 ID, type: string}
+          - {name: card_type, label: 模板卡片类型, type: string}
+          - {name: response_code, label: 交互回调卡片更新凭证, type: string}
+          - {name: raw_xml, label: 原生明文 XML, type: text, required: true}
+events_common: []
+events:
+  - id: interaction_action
+    label: 交互消息按钮点击
+    desc: 成员在网页点击自定义按钮；回传值和上下文取自服务器保存的消息，以 event_id 幂等处理
+    fields:
+      - {name: event_id, label: 动作事件 ID, type: string, required: true}
+      - {name: interaction_id, label: 交互消息 ID, type: string, required: true}
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: request_id, label: 发送幂等键, type: string}
+      - {name: action_id, label: 动作标识, type: string, required: true}
+      - {name: action_text, label: 按钮文字, type: string}
+      - {name: action_value, label: 按钮回传值, type: json, opaque: true, desc: 发送消息时为该按钮配置的自定义 JSON 对象}
+      - {name: context, label: 业务上下文, type: json, opaque: true, desc: 发送消息时保存的自定义 JSON 对象}
+      - {name: revision, label: 动作序号, type: int, required: true, desc: 同一消息递增，下游可据此识别乱序；不代表业务状态}
+      - {name: actor_user_id, label: 操作成员 UserID, type: string, required: true}
+      - {name: occurred_at, label: 操作时间, type: string, required: true}
+  - id: message_received
+    label: 收到应用消息
+    desc: 企业微信 API 接收的普通消息，event_id 去重；原生 XML 保留图片和位置等字段
+    fields:
+      - {name: event_id, label: 接收事件 ID, type: string, required: true}
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: from_user, label: 发送成员, type: string}
+      - {name: to_user, label: 接收企业, type: string}
+      - {name: agent_id, label: 应用 ID, type: string}
+      - {name: message_type, label: 消息类型, type: string, required: true}
+      - {name: content, label: 文字内容, type: string}
+      - {name: event_type, label: 事件类型, type: string}
+      - {name: event_key, label: 菜单事件键, type: string}
+      - {name: change_type, label: 变更类型, type: string}
+      - {name: created_at, label: 上游时间 Unix 秒, type: int, required: true}
+      - {name: received_at, label: 接收时间, type: string, required: true}
+      - {name: media_id, label: 媒体素材 ID, type: string}
+      - {name: pic_url, label: 图片地址, type: string}
+      - {name: task_id, label: 模板卡片任务 ID, type: string}
+      - {name: card_type, label: 模板卡片类型, type: string}
+      - {name: response_code, label: 交互回调卡片更新凭证, type: string}
+      - {name: raw_xml, label: 原生明文 XML, type: text, required: true}
+  - id: application_event
+    label: 收到应用事件
+    desc: 包括菜单点击、进入应用、审批状态等；按 event_type 和 change_type 筛选
+    fields:
+      - {name: event_id, label: 接收事件 ID, type: string, required: true}
+      - {name: msg_id, label: 企业微信消息 ID, type: string}
+      - {name: from_user, label: 发送成员, type: string}
+      - {name: to_user, label: 接收企业, type: string}
+      - {name: agent_id, label: 应用 ID, type: string}
+      - {name: message_type, label: 消息类型, type: string, required: true}
+      - {name: content, label: 文字内容, type: string}
+      - {name: event_type, label: 事件类型, type: string}
+      - {name: event_key, label: 菜单事件键, type: string}
+      - {name: change_type, label: 变更类型, type: string}
+      - {name: created_at, label: 上游时间 Unix 秒, type: int, required: true}
+      - {name: received_at, label: 接收时间, type: string, required: true}
+      - {name: media_id, label: 媒体素材 ID, type: string}
+      - {name: pic_url, label: 图片地址, type: string}
+      - {name: task_id, label: 模板卡片任务 ID, type: string}
+      - {name: card_type, label: 模板卡片类型, type: string}
+      - {name: response_code, label: 交互回调卡片更新凭证, type: string}
+      - {name: raw_xml, label: 原生明文 XML, type: text, required: true}
+codegen:
+  - {lang: go}
+
+deployment:
+  targets:
+    - kind: container
+      ref: ghcr.io/sokel-dev/sokel-plugin-wecom:0.3.0
+  env:
+    - name: SOKEL_DATA_DIR
+      default: /var/lib/sokel/wecom
+      required: true
+      desc: Writable data directory on a persistent volume
+  note: Run one replica and mount a persistent volume at /var/lib/sokel. Use the persistent Docker, Compose or Kubernetes examples in the plugin documentation.
