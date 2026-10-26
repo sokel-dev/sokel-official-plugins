@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseTest(unittest.TestCase):
-    def release_entry(self, export, entry=None):
+    def release_entry(self, export, entry=None, source_manifest=None, manifest_name='manifest.yml',
+                      manifest_symlink=False, expected_error=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / 'demo'
@@ -21,6 +22,14 @@ class ReleaseTest(unittest.TestCase):
             (source / 'docs/demo.md').write_text('# Demo usage\n')
             (source / 'locales').mkdir()
             (source / 'locales/en.json').write_text('{}\n')
+            if source_manifest is not None:
+                manifest = source / manifest_name
+                if manifest_symlink:
+                    outside = root / 'outside.yml'
+                    outside.write_text(yaml.safe_dump(source_manifest, sort_keys=False))
+                    manifest.symlink_to(outside)
+                else:
+                    manifest.write_text(yaml.safe_dump(source_manifest, sort_keys=False))
             target = root / 'catalog/plugins/sokel/demo/manifest.yml'
             if entry is not None:
                 target.parent.mkdir(parents=True)
@@ -33,9 +42,68 @@ class ReleaseTest(unittest.TestCase):
                 '--plugin', 'demo', '--version', 'v0.3.0', '--image', image,
                 '--export', str(export_file), '--catalog', str(root / 'catalog'),
             ], cwd=root, text=True, capture_output=True)
+            if expected_error is not None:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected_error, result.stderr)
+                self.assertFalse(target.exists(), 'invalid source must not create a catalog entry')
+                return
             self.assertEqual(result.returncode, 0, result.stderr)
             text = target.read_text()
             return yaml.safe_load(text), text, image
+
+    def test_first_release_uses_local_deployment_when_export_omits_it(self):
+        deployment = {
+            'targets': [{'kind': 'binary', 'ref': 'https://example.com/demo'},
+                        {'kind': 'container', 'ref': 'source-image:0.3.0'}],
+            'env': [{'name': 'SOKEL_DATA_DIR', 'default': '/data/demo', 'required': True}],
+            'note': 'Persistent volume; one replica',
+        }
+        export = {'plugin': {'name': 'demo', 'doc': 'docs/demo.md'},
+                  'operations': [{'id': 'send', 'label': 'Exported operation'}]}
+        local = {'plugin': {'name': 'demo', 'org': 'sokel'}, 'deployment': deployment,
+                 'operations': [{'id': 'local_only', 'label': 'Do not import this contract'}]}
+        for filename in ('manifest.yml', 'sokel.yaml'):
+            with self.subTest(filename=filename):
+                entry, _, image = self.release_entry(yaml.safe_dump(export), source_manifest=local,
+                                                     manifest_name=filename)
+                expected = json.loads(json.dumps(deployment))
+                expected['targets'][1]['ref'] = image
+                self.assertEqual(entry['deployment'], expected)
+                self.assertEqual(entry['operations'], export['operations'])
+
+    def test_first_release_prefers_export_deployment_to_local_manifest(self):
+        deployment = {'targets': [{'kind': 'container', 'ref': 'export-image:0.3.0'}],
+                      'env': [{'name': 'EXPORTED_ENV'}], 'note': 'Exported deployment'}
+        export = {'plugin': {'name': 'demo', 'doc': 'docs/demo.md'}, 'deployment': deployment}
+        local = {'plugin': {'name': 'demo'},
+                 'deployment': {'env': [{'name': 'LOCAL_ENV'}], 'note': 'Local deployment'}}
+        entry, _, image = self.release_entry(yaml.safe_dump(export), source_manifest=local)
+        expected = json.loads(json.dumps(deployment))
+        expected['targets'][0]['ref'] = image
+        self.assertEqual(entry['deployment'], expected)
+
+    def test_first_release_rejects_unrelated_or_external_local_manifest(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'doc': 'docs/demo.md'}})
+        for name, symlink, error in (
+            ('another-plugin', False, 'local manifest is for'),
+            ('demo', True, 'local manifest must be inside the plugin directory'),
+        ):
+            with self.subTest(name=name, symlink=symlink):
+                local = {'plugin': {'name': name}, 'deployment': {'note': 'Do not import'}}
+                self.release_entry(export, source_manifest=local, manifest_symlink=symlink,
+                                   expected_error=error)
+
+    def test_existing_entry_keeps_deployment_when_export_omits_it(self):
+        deployment = {'targets': [{'kind': 'container', 'ref': 'catalog-image:0.2.0'}],
+                      'env': [{'name': 'CATALOG_ENV'}], 'note': 'Catalog deployment'}
+        old = {'plugin': {'name': 'demo', 'version': 'v0.2.0'}, 'deployment': deployment}
+        export = {'plugin': {'name': 'demo', 'doc': 'docs/demo.md'}, 'operations': []}
+        local = {'plugin': {'name': 'demo'},
+                 'deployment': {'env': [{'name': 'LOCAL_ENV'}], 'note': 'Local deployment'}}
+        entry, _, image = self.release_entry(yaml.safe_dump(export), old, source_manifest=local)
+        expected = json.loads(json.dumps(deployment))
+        expected['targets'][0]['ref'] = image
+        self.assertEqual(entry['deployment'], expected)
 
     def test_first_release_preserves_export_deployment(self):
         deployment = {

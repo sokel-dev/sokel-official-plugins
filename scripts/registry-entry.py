@@ -5,9 +5,10 @@
         --image ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1@sha256:... \
         --export export.yml --catalog <checkout of sokel-dev/sokel-registry>
 
-A first release creates its entry from the export, including its deployment settings, <plugin>/docs and
-<plugin>/locales. The released image replaces the first container target; other targets, environment variables
-and placement notes are retained.
+A first release creates its entry from the export, <plugin>/docs and <plugin>/locales. Deployment settings come
+from the export when present, otherwise from the local manifest.yml or sokel.yaml (Go exports may omit them).
+The released image replaces the first container target; other targets, environment variables and placement
+notes are retained.
 An existing entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
 emits it from the plugin's code (credential, operations, events...), the entry's own plugin section (org, label,
 desc, doc, icon) with the new version, and its deployment section with the container target pointing at the
@@ -99,6 +100,28 @@ def display_strings(value):
     return keys
 
 
+def local_deployment(source, plugin_name):
+    """Read only deployment metadata from a plugin-local manifest when its code export omits it."""
+    for filename in ("manifest.yml", "sokel.yaml"):
+        candidate = source / filename
+        if not candidate.exists() and not candidate.is_symlink():
+            continue
+        manifest = candidate.resolve()
+        if not manifest.is_relative_to(source) or not manifest.is_file():
+            sys.exit("local manifest must be inside the plugin directory and be a file")
+        document = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+        if not isinstance(document, dict) or not isinstance(document.get("plugin"), dict):
+            sys.exit("local manifest requires a plugin declaration")
+        name = document["plugin"].get("name")
+        if name != plugin_name:
+            sys.exit(f"local manifest is for {name!r}, not {plugin_name}")
+        deployment = document.get("deployment")
+        if deployment is not None and not isinstance(deployment, dict):
+            sys.exit("local manifest deployment must be a mapping")
+        return deployment
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True)
@@ -129,7 +152,10 @@ def main():
         if not (locales / "en.json").is_file():
             sys.exit("a first release requires locales/en.json")
         plugin["doc"] = "README.md"
-        entry = {"plugin": plugin, "deployment": export.get("deployment")}
+        deployment = export.get("deployment")
+        if deployment is None:
+            deployment = local_deployment(source, a.plugin)
+        entry = {"plugin": plugin, "deployment": deployment}
         entry_text = ""
     else:
         entry_text = Path(path).read_text(encoding="utf-8")
