@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Paperless-ngx",
     "desc": "Search, upload and manage documents, ingestion tasks and tags on a self-hosted Paperless-ngx instance.",
-    "version": "0.1.0",
-    "doc": "docs/paperless-ngx.md"
+    "version": "0.1.1",
+    "doc": "docs/paperless-ngx.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -661,7 +662,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-paperless-ngx:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-paperless-ngx:0.1.1"
       }
     ],
     "env": [

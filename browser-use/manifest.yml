@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Browser Use Cloud",
     "desc": "Run and inspect asynchronous Browser Use V4 agents",
-    "version": "0.1.0",
-    "doc": "docs/browser-use.md"
+    "version": "0.1.1",
+    "doc": "docs/browser-use.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

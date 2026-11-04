@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: twilio
   label: Twilio
   desc: Send SMS and MMS, inspect delivery state, phone numbers and media metadata
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/twilio.md
 credential:
   fields:
@@ -536,4 +537,4 @@ operations:
 deployment:
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-twilio:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-twilio:0.1.1

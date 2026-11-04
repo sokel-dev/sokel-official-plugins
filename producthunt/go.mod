@@ -3,7 +3,7 @@ module github.com/sokel-dev/sokel-official-plugins/producthunt
 go 1.25.0
 
 require (
-	github.com/sokel-dev/sokel-plugin-sdk v0.7.5
+	github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 	github.com/vektah/gqlparser/v2 v2.5.60
 )
 

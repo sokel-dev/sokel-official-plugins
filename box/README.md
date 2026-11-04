@@ -1,6 +1,6 @@
 # Box plugin development
 
-The Go module is independent and pins the public Sokel Plugin SDK v0.7.7. The authoritative operation and credential contract is `schema/schema.go`; `manifest.yml` is its exported distribution form with plugin metadata. Runtime and manifest versions are `0.1.0`. Generated `zz_*.go` files must never be edited manually.
+The Go module is independent and pins the public Sokel Plugin SDK v0.7.8. The authoritative operation and credential contract is `schema/schema.go`; `manifest.yml` is its exported distribution form with plugin metadata. Runtime and manifest versions are `0.1.1`. Generated `zz_*.go` files must never be edited manually.
 
 User setup, supported operations, upstream limits and official source links are documented in [the user guide](docs/box.md). Default strings and documentation are English. `locales/zh-CN.json` translates every source label/description and the full guide using its exact English content as the key.
 

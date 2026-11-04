@@ -9,7 +9,7 @@ import (
 
 func clientFor(ctx plugin.Ctx) *client { return newClient(sokel.CredentialAs[Cred](ctx)) }
 func register(p *sokel.Plugin) {
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	RegisterDoc(p)
 	registerOperations(p)

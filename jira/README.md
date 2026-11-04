@@ -9,7 +9,7 @@ English is the source language. `locales/zh-CN.json` contains every interface st
 
 ## Develop and validate
 
-This is an independent Go module pinned to the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.7`, with no local replacements or private dependencies. Use Go 1.25 or later. From this directory:
+This is an independent Go module pinned to the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.8`, with no local replacements or private dependencies. Use Go 1.25 or later. From this directory:
 
 ```sh
 go generate ./...

@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: dropbox
   label: Dropbox
   desc: Read, search and transfer Dropbox files with explicit cursors
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/dropbox.md
 credential:
   fields:

@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: typeform
   label: Typeform
   desc: Read Typeform workspaces, forms and completed responses with explicit pagination
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/typeform.md
 credential:
   fields:

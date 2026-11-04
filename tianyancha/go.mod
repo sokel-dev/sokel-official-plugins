@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/tianyancha
 
 go 1.23.0
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.7
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 
 require (
 	github.com/klauspost/compress v1.18.4 // indirect

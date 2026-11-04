@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: ntfy
   label: ntfy
   desc: Publish and poll notifications through your own ntfy server
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/ntfy.md
 credential:
   fields:
@@ -224,7 +225,7 @@ operations:
 deployment:
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-ntfy:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-ntfy:0.1.1
   env:
   - name: SOKEL_NTFY_URL
     desc: HTTP(S) URL of your ntfy service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.

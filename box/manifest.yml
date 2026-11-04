@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: box
   label: Box
   desc: Read, search and transfer Box files with explicit pagination
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/box.md
 credential:
   fields:

@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Microsoft SharePoint",
     "desc": "Discover sites and lists, inspect columns and read or write list item fields",
-    "version": "0.1.0",
-    "doc": "docs/microsoft-sharepoint.md"
+    "version": "0.1.1",
+    "doc": "docs/microsoft-sharepoint.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

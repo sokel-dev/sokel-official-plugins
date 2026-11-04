@@ -1,8 +1,9 @@
-# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+# Exported from schema/ with sokel-gen v0.7.8; distribution metadata is maintained here.
 plugin:
+  icon: icon.svg
   name: figma
   org: sokel
-  version: 0.1.0
+  version: 0.1.1
   label: Figma
   desc: Read design metadata, render images and manage comments
   doc: docs/figma.md

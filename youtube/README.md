@@ -143,3 +143,7 @@ Version 0.4.1 fixes catalog locale admission after a source description changes.
 metadata remains authoritative; import only source translations referenced by the resulting entry.
 The previous 0.4.0 image built, but its catalog publication was rejected for an orphan translation.
 The release regression fails before this fix and passes after it; source plugin behavior is unchanged.
+
+## SDK update (0.4.2)
+
+The runtime SDK and contract generator use v0.7.8. The seven operation contracts are unchanged.

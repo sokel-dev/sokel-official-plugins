@@ -10,15 +10,15 @@ The contract targets API behavior available in Miniflux 2.3.2+, with actual isol
 
 Entry pagination uses ascending ID and exclusive `after_entry_id`, not offset. A full page reports only that more entries may exist. Explicit `starred=false` is preserved both in filters and updates. Single-feed refresh is synchronous HTTP 204, while the receipt does not assert that fresh entries were found. Requests use the configured origin, support reverse-proxy prefixes, reject redirects, avoid body replay for writes, enforce size limits and suppress raw upstream error bodies. Writes are never automatically retried.
 
-`schema/schema.go` is the source for real SDK-generated `zz_*.go` files. SDK `v0.7.7` is pinned without local replacements. `manifest.yml` is an actual export with version `0.1.0` and deployment metadata. Its image reference is an intended release target, not proof of publication.
+`schema/schema.go` is the source for real SDK-generated `zz_*.go` files. SDK `v0.7.8` is pinned without local replacements. `manifest.yml` is an actual export with version `0.1.1` and deployment metadata. Its image reference is an intended release target, not proof of publication.
 
 ## Verification
 
 Run generation, check and export sequentially within this plugin:
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-miniflux .

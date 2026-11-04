@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
@@ -11,7 +11,7 @@ func clientFor(ctx plugin.Ctx) *client {
 	return newClient(sokel.EnvOr("API_BASE_URL", "https://docs.qq.com"), sokel.CredentialAs[Cred](ctx))
 }
 func register(p *sokel.Plugin) {
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	RegisterDoc(p)
 	OnFilesList(p, func(ctx plugin.Ctx, in *FilesListIn) (*FilesListOut, error) { return clientFor(ctx).FilesList(ctx, in) })

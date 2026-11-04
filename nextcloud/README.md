@@ -12,15 +12,15 @@ XML parsing checks DAV namespaces, per-property status and resource type. It acc
 
 Native platform file transfer is limited to 32 MiB. Upload requires an explicit overwrite flag to replace a destination, with optional strong ETag protection. Moves always prohibit overwrite. Downloads check metadata and use an available strong ETag to avoid racing an edit. Root writes, path traversal, percent-escaped paths, redirect following and automatic write retries are excluded. Runtime errors omit credentials and raw upstream bodies. Timeout outcomes for writes remain uncertain until server state is checked.
 
-`schema/schema.go` defines the contract; `zz_*.go` files are generated with pinned public SDK `v0.7.7`. There are no local replacements. `manifest.yml` is a real export with version `0.1.0` and release/deployment metadata. Image references describe future release targets, not published artifacts.
+`schema/schema.go` defines the contract; `zz_*.go` files are generated with pinned public SDK `v0.7.8`. There are no local replacements. `manifest.yml` is a real export with version `0.1.1` and release/deployment metadata. Image references describe future release targets, not published artifacts.
 
 ## Verification
 
 Run generation, check and export sequentially within this plugin:
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-nextcloud .

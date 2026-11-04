@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Microsoft Excel 365",
     "desc": "Read and edit business workbooks with explicit sessions, ranges and table rows",
-    "version": "0.1.0",
-    "doc": "docs/microsoft-excel.md"
+    "version": "0.1.1",
+    "doc": "docs/microsoft-excel.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

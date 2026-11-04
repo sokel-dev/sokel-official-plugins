@@ -14,6 +14,6 @@ GOWORK=off go build -o /tmp/sokel-plugin-mailchimp .
 sokel-gen check .
 ```
 
-Use the generator from the module-pinned SDK v0.7.7, for example `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .`. Runtime and manifest version are 0.1.0. The module uses only the public SDK and has no local replacements.
+Use the generator from the module-pinned SDK v0.7.8, for example `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .`. Runtime and manifest version are 0.1.1. The module uses only the public SDK and has no local replacements.
 
 Tests began with a generated, compilable implementation stub: authenticated ping, upsert wire, and official tags all failed with `not implemented` before the client was implemented. Tests now verify generated handler binding, actual request bytes, false/zero omission, hashing, exact IDs, pagination, errors, redirects, and no write replay. See [fixture provenance](testdata/README.md). Official examples and synthetic variants are distinct; no live acceptance, contact write or email send is claimed.

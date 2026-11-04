@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 import (
 	"embed"
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
@@ -12,7 +12,7 @@ import (
 var docs embed.FS
 
 func register(p *sokel.Plugin) {
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	b, _ := docs.ReadFile("docs/trello.md")
 	p.SetDoc(string(b), "")

@@ -8,6 +8,11 @@ This repository requirement overrides the older Chinese-default convention in sh
 plugin development guides. Do not rewrite unrelated existing plugins solely to migrate
 their language.
 
+New integrations must declare `plugin.icon` and ship a recognizable product icon as a local
+SVG or PNG. Keep its source, modification notes and applicable license in `<icon>.license`.
+Validate the asset with the pinned SDK and verify it renders at plugin-card size. Do not
+depend on platform name inference or a remote image URL for the plugin's identity.
+
 Declare contracts before implementation and regenerate them with the SDK version pinned
 by the module. Never hand-edit `zz_*.go`. New integrations must build independently
 against the public SDK, with no local `replace` directives or private dependencies.

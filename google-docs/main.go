@@ -17,7 +17,7 @@ func registerOperations(h plugin.Host, getAPI func(plugin.Ctx) *api) {
 }
 func main() {
 	p := sokel.New(sokel.Config{Endpoint: sokel.EnvOr("ENDPOINT", "http://localhost:8088"), Token: sokel.Env("TOKEN"), Name: "google-docs"})
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	p.SetDoc(usageDoc, "")
 	RegisterCredential(p)
 	RegisterAuth(p)

@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Crawl4AI",
     "desc": "Crawl pages and extract Markdown with a self-hosted Crawl4AI server",
-    "version": "0.1.0",
-    "doc": "docs/crawl4ai.md"
+    "version": "0.1.1",
+    "doc": "docs/crawl4ai.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -316,7 +317,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-crawl4ai:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-crawl4ai:0.1.1"
       }
     ],
     "env": [

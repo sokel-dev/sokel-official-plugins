@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+	github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 )
 
 require (

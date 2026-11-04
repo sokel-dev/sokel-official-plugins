@@ -1,10 +1,11 @@
-# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+# Exported from schema/ with sokel-gen v0.7.8; distribution metadata is maintained here.
 plugin:
+  icon: icon.svg
   org: sokel
   name: jina-reader
   label: Jina Reader
   desc: Convert pages into content and structured metadata
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/jina-reader.md
 credential:
   fields:

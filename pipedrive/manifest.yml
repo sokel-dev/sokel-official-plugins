@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: pipedrive
   label: Pipedrive
   desc: Manage CRM persons, organizations and deals with Pipedrive API v2
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/pipedrive.md
 credential:
   fields:

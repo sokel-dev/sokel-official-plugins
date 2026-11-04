@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Mailchimp",
     "desc": "Read audiences, members, tags and campaigns; explicitly upsert contacts",
-    "version": "0.1.0",
-    "doc": "docs/mailchimp.md"
+    "version": "0.1.1",
+    "doc": "docs/mailchimp.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

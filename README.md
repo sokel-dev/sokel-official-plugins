@@ -32,114 +32,114 @@ README and `docs/` explain what it needs.
 
 ## Plugins
 
-The eight expansion batches have released **68 integrations at v0.1.0, with 491 operations and 9 events**, in the [plugin registry](https://plugins.sokel.dev/). The table lists all 104 integration sources; the new entries are marked **Published v0.1.0**. Use each registry entry for its released container image, configuration and usage guide.
+The repository contains **104 integrations**. The eight expansion batches added **68 integrations with 491 operations and 9 events**. All Go and Python plugins use SDK **v0.7.8**. Find each released version, container image, configuration and usage guide in the [plugin registry](https://plugins.sokel.dev/).
 
 | Directory | Name | What it does | Release status |
 |---|---|---|---|
-| [`airtable`](airtable) | Airtable tables | Base schemas, record operations and change polling | Published v0.1.0 |
+| [`airtable`](airtable) | Airtable tables | Base schemas, record operations and change polling | Published |
 | [`aliyun`](aliyun) | Alibaba Cloud | Bring the Alibaba Cloud control plane into workflows: query SLS logs, check RDS status and slow SQL, update DNS records, manage ACK clusters, and query CloudMonitor metrics. | Existing integration |
-| [`amap`](amap) | AMap | Geocoding, place search, routes, weather and administrative districts. | Published v0.1.0 |
-| [`apache-tika`](apache-tika) | Apache Tika | Extract document text, metadata and embedded content with a self-hosted Apache Tika 4.2 service | Published v0.1.0 |
-| [`apify`](apify) | Apify | Asynchronous Actor runs and paginated dataset access | Published v0.1.0 |
-| [`asana`](asana) | Asana | Browse projects and manage tasks and comments. | Published v0.1.0 |
-| [`baserow`](baserow) | Baserow | Discover tables and manage dynamic rows on a self-hosted Baserow service | Published v0.1.0 |
+| [`amap`](amap) | AMap | Geocoding, place search, routes, weather and administrative districts. | Published |
+| [`apache-tika`](apache-tika) | Apache Tika | Extract document text, metadata and embedded content with a self-hosted Apache Tika 4.2 service | Published |
+| [`apify`](apify) | Apify | Asynchronous Actor runs and paginated dataset access | Published |
+| [`asana`](asana) | Asana | Browse projects and manage tasks and comments. | Published |
+| [`baserow`](baserow) | Baserow | Discover tables and manage dynamic rows on a self-hosted Baserow service | Published |
 | [`bluesky`](bluesky) | Bluesky | Post, thread, and delete posts. Free, no approval needed, no per-call charges — one of the lowest-cost public social platforms to integrate with. | Existing integration |
-| [`bocha-search`](bocha-search) | Bocha Search | Search the web with freshness filters and optional summaries. | Published v0.1.0 |
-| [`bookstack`](bookstack) | BookStack | Read, search and maintain knowledge pages on a self-hosted BookStack instance. | Published v0.1.0 |
-| [`box`](box) | Box | Read, search and transfer Box files with explicit pagination | Published v0.1.0 |
-| [`brevo`](brevo) | Brevo | Manage contacts and lists and explicitly send transactional email | Published v0.1.0 |
-| [`browser-use`](browser-use) | Browser Use Cloud | Run and inspect asynchronous Browser Use V4 agents | Published v0.1.0 |
-| [`calendly`](calendly) | Calendly | Read Calendly events and availability and create single-use scheduling links | Published v0.1.0 |
+| [`bocha-search`](bocha-search) | Bocha Search | Search the web with freshness filters and optional summaries. | Published |
+| [`bookstack`](bookstack) | BookStack | Read, search and maintain knowledge pages on a self-hosted BookStack instance. | Published |
+| [`box`](box) | Box | Read, search and transfer Box files with explicit pagination | Published |
+| [`brevo`](brevo) | Brevo | Manage contacts and lists and explicitly send transactional email | Published |
+| [`browser-use`](browser-use) | Browser Use Cloud | Run and inspect asynchronous Browser Use V4 agents | Published |
+| [`calendly`](calendly) | Calendly | Read Calendly events and availability and create single-use scheduling links | Published |
 | [`claude-code`](claude-code) | Claude Code | Wires the locally installed Claude Code into the workflow: give it a GitLab project and a task, | Existing integration |
-| [`clickup`](clickup) | ClickUp | Discover workspaces and manage tasks and comments. | Published v0.1.0 |
-| [`confluence`](confluence) | Confluence Cloud | Read spaces and publish version-checked Confluence Cloud pages | Published v0.1.0 |
-| [`crawl4ai`](crawl4ai) | Crawl4AI | Crawl pages and extract Markdown with a self-hosted Crawl4AI server | Published v0.1.0 |
-| [`dingtalk`](dingtalk) | DingTalk | DingTalk | Published v0.1.0 |
+| [`clickup`](clickup) | ClickUp | Discover workspaces and manage tasks and comments. | Published |
+| [`confluence`](confluence) | Confluence Cloud | Read spaces and publish version-checked Confluence Cloud pages | Published |
+| [`crawl4ai`](crawl4ai) | Crawl4AI | Crawl pages and extract Markdown with a self-hosted Crawl4AI server | Published |
+| [`dingtalk`](dingtalk) | DingTalk | DingTalk | Published |
 | [`discord`](discord) | Discord | Sends messages to a channel. Free, no approval needed — a channel admin can create a webhook in a few clicks. | Existing integration |
-| [`dropbox`](dropbox) | Dropbox | Read, search and transfer Dropbox files with explicit cursors | Published v0.1.0 |
+| [`dropbox`](dropbox) | Dropbox | Read, search and transfer Dropbox files with explicit cursors | Published |
 | [`elasticsearch`](elasticsearch) | Elasticsearch | Brings Elasticsearch into workflows: query logs and documents, load data, manage indices. Supports ES 7/8/9 and OpenSearch — | Existing integration |
-| [`exa`](exa) | Exa | Web search, cited answers and asynchronous research | Published v0.1.0 |
+| [`exa`](exa) | Exa | Web search, cited answers and asynchronous research | Published |
 | [`feed`](feed) | Feed subscription | Pulls new entries from a source, producing uniformly shaped JSON. Switching sources requires no change to downstream nodes. | Existing integration |
 | [`feishu-webhook`](feishu-webhook) | Feishu group bot | The shortest path to sending a message to a Feishu group: no app to create, no admin to ask — set up in 30 seconds. | Existing integration |
 | [`feishu`](feishu) | Feishu | Bring Feishu into workflows: send messages/cards, trigger on incoming messages, write documents, and read/write Base records. | Existing integration |
-| [`figma`](figma) | Figma | Read design metadata, render images and manage comments | Published v0.1.0 |
-| [`firecrawl`](firecrawl) | Firecrawl | Web scraping, crawling and structured extraction | Published v0.1.0 |
-| [`gitea`](gitea) | Gitea | Work with repositories, issues, comments and pull requests on a self-hosted Gitea instance. | Published v0.1.0 |
+| [`figma`](figma) | Figma | Read design metadata, render images and manage comments | Published |
+| [`firecrawl`](firecrawl) | Firecrawl | Web scraping, crawling and structured extraction | Published |
+| [`gitea`](gitea) | Gitea | Work with repositories, issues, comments and pull requests on a self-hosted Gitea instance. | Published |
 | [`github`](github) | GitHub | GitHub project maintenance automation (github.com / GitHub Enterprise Server): the full issue and PR workflow, repo read/write and branch creation, Actions triggering and failure logs, releases, Projects V2 board transitions, plus a bot-reply surface (writing back commit statuses/check runs/reactions) — auto-triage, stale cleanup, PR review, and ChatOps can all be built from these. Events support both webhook (zero latency) and polling. **Requires self-hosting the plugin process**: after installing, copy the connection command from this page's access group. | Existing integration |
 | [`gitlab`](gitlab) | GitLab | Brings GitLab into workflows: read and write repository files, create/comment on/merge MRs, open issues, check pipelines and failure logs, and trigger builds. | Existing integration |
 | [`gmail`](gmail) | Gmail | Read and write your Gmail: list emails / read emails / send emails, and it can also act as an event source — triggering a workflow when a new email arrives. | Existing integration |
-| [`google-calendar`](google-calendar) | Google Calendar | Manage calendar events, query availability and watch changes | Published v0.1.0 |
-| [`google-docs`](google-docs) | Google Docs | Read document tabs and automate text edits | Published v0.1.0 |
-| [`google-drive`](google-drive) | Google Drive | Search, transfer and watch Google Drive files | Published v0.1.0 |
-| [`google-sheets`](google-sheets) | Google Sheets | Read, write and watch spreadsheet rows | Published v0.1.0 |
-| [`gotenberg`](gotenberg) | Gotenberg | Convert HTML and office documents to PDF and merge platform PDF files with a self-hosted Gotenberg service | Published v0.1.0 |
-| [`grafana`](grafana) | Grafana | Inspect dashboards and safe data source summaries, and read or create annotations on self-hosted Grafana. | Published v0.1.0 |
+| [`google-calendar`](google-calendar) | Google Calendar | Manage calendar events, query availability and watch changes | Published |
+| [`google-docs`](google-docs) | Google Docs | Read document tabs and automate text edits | Published |
+| [`google-drive`](google-drive) | Google Drive | Search, transfer and watch Google Drive files | Published |
+| [`google-sheets`](google-sheets) | Google Sheets | Read, write and watch spreadsheet rows | Published |
+| [`gotenberg`](gotenberg) | Gotenberg | Convert HTML and office documents to PDF and merge platform PDF files with a self-hosted Gotenberg service | Published |
+| [`grafana`](grafana) | Grafana | Inspect dashboards and safe data source summaries, and read or create annotations on self-hosted Grafana. | Published |
 | [`hackernews`](hackernews) | Hacker News | Read lists, stories and comments, and search by keyword; trigger a workflow when someone comments on your story or replies to your comment. | Existing integration |
-| [`hubspot`](hubspot) | HubSpot CRM | Read and manage contacts, companies and deals with a private-app token | Published v0.1.0 |
-| [`intercom`](intercom) | Intercom | Manage contacts and conversations with regional Intercom API access | Published v0.1.0 |
-| [`jina-reader`](jina-reader) | Jina Reader | Convert pages into content and structured metadata | Published v0.1.0 |
-| [`jira`](jira) | Jira Cloud | Search and manage Jira Cloud issues, transitions and comments | Published v0.1.0 |
+| [`hubspot`](hubspot) | HubSpot CRM | Read and manage contacts, companies and deals with a private-app token | Published |
+| [`intercom`](intercom) | Intercom | Manage contacts and conversations with regional Intercom API access | Published |
+| [`jina-reader`](jina-reader) | Jina Reader | Convert pages into content and structured metadata | Published |
+| [`jira`](jira) | Jira Cloud | Search and manage Jira Cloud issues, transitions and comments | Published |
 | [`kbstore-es`](kbstore-es) | Knowledge base store (Elasticsearch) | Storage and retrieval backend for knowledge bases: write chunks, vector search, BM25 and hybrid search (RRF fusion). | Existing integration |
 | [`kbstore-pgvector`](kbstore-pgvector) | Knowledge base store (pgvector) | Knowledge base storage engine on Postgres + pgvector; implements the same storage contract as kbstore-es. | Existing integration |
 | [`kubernetes`](kubernetes) | Kubernetes | Operate a Kubernetes cluster from the canvas: inspect pods, view container logs, do rolling restarts, scale replicas, and check events and node health. | Existing integration |
-| [`linear`](linear) | Linear | Query Linear issues and projects and create or update issues | Published v0.1.0 |
-| [`linkding`](linkding) | linkding | Search, save and organize bookmarks on a self-hosted linkding service | Published v0.1.0 |
+| [`linear`](linear) | Linear | Query Linear issues and projects and create or update issues | Published |
+| [`linkding`](linkding) | linkding | Search, save and organize bookmarks on a self-hosted linkding service | Published |
 | [`linkedin`](linkedin) | LinkedIn | Post updates as the authorized account's personal profile. Self-service setup with no partner approval needed — good for reaching a professional audience with research commentary. | Existing integration |
-| [`mailchimp`](mailchimp) | Mailchimp | Read audiences, members, tags and campaigns; explicitly upsert contacts | Published v0.1.0 |
+| [`mailchimp`](mailchimp) | Mailchimp | Read audiences, members, tags and campaigns; explicitly upsert contacts | Published |
 | [`mastodon`](mastodon) | Mastodon | Post, post threads, and delete posts. Free, no approval needed, no per-call charge, and because it is a federated network, | Existing integration |
-| [`meilisearch`](meilisearch) | Meilisearch | Index and search documents and inspect asynchronous tasks on a self-hosted Meilisearch service | Published v0.1.0 |
-| [`microsoft-excel`](microsoft-excel) | Microsoft Excel 365 | Read and edit business workbooks with explicit sessions, ranges and table rows | Published v0.1.0 |
-| [`microsoft-onedrive`](microsoft-onedrive) | Microsoft OneDrive | Browse, search, upload small files and explicitly track drive changes | Published v0.1.0 |
-| [`microsoft-outlook`](microsoft-outlook) | Microsoft Outlook | Read and send mail, download attachments and manage calendar events | Published v0.1.0 |
-| [`microsoft-sharepoint`](microsoft-sharepoint) | Microsoft SharePoint | Discover sites and lists, inspect columns and read or write list item fields | Published v0.1.0 |
-| [`microsoft-teams`](microsoft-teams) | Microsoft Teams | Browse teams and chats and read or send delegated messages | Published v0.1.0 |
-| [`mineru`](mineru) | MinerU | Asynchronous document parsing, batches and structured result links | Published v0.1.0 |
-| [`miniflux`](miniflux) | Miniflux | Manage subscriptions, stored articles and reading state on a self-hosted Miniflux service | Published v0.1.0 |
-| [`monday`](monday) | Monday | Discover Monday boards and manage items, column values and updates with versioned GraphQL | Published v0.1.0 |
-| [`nextcloud`](nextcloud) | Nextcloud | Read, upload, download and organize files on a self-hosted Nextcloud service | Published v0.1.0 |
+| [`meilisearch`](meilisearch) | Meilisearch | Index and search documents and inspect asynchronous tasks on a self-hosted Meilisearch service | Published |
+| [`microsoft-excel`](microsoft-excel) | Microsoft Excel 365 | Read and edit business workbooks with explicit sessions, ranges and table rows | Published |
+| [`microsoft-onedrive`](microsoft-onedrive) | Microsoft OneDrive | Browse, search, upload small files and explicitly track drive changes | Published |
+| [`microsoft-outlook`](microsoft-outlook) | Microsoft Outlook | Read and send mail, download attachments and manage calendar events | Published |
+| [`microsoft-sharepoint`](microsoft-sharepoint) | Microsoft SharePoint | Discover sites and lists, inspect columns and read or write list item fields | Published |
+| [`microsoft-teams`](microsoft-teams) | Microsoft Teams | Browse teams and chats and read or send delegated messages | Published |
+| [`mineru`](mineru) | MinerU | Asynchronous document parsing, batches and structured result links | Published |
+| [`miniflux`](miniflux) | Miniflux | Manage subscriptions, stored articles and reading state on a self-hosted Miniflux service | Published |
+| [`monday`](monday) | Monday | Discover Monday boards and manage items, column values and updates with versioned GraphQL | Published |
+| [`nextcloud`](nextcloud) | Nextcloud | Read, upload, download and organize files on a self-hosted Nextcloud service | Published |
 | [`notion`](notion) | Notion | Reads and writes Notion: search, query tables, create pages, edit content (markdown), comments, files, and can act as an event source — | Existing integration |
-| [`ntfy`](ntfy) | ntfy | Publish and poll notifications through your own ntfy server | Published v0.1.0 |
-| [`paperless-ngx`](paperless-ngx) | Paperless-ngx | Search, upload and manage documents, ingestion tasks and tags on a self-hosted Paperless-ngx instance. | Published v0.1.0 |
-| [`pipedrive`](pipedrive) | Pipedrive | Manage CRM persons, organizations and deals with Pipedrive API v2 | Published v0.1.0 |
-| [`pocketbase`](pocketbase) | PocketBase | Read and manage records in a self-hosted PocketBase service | Published v0.1.0 |
+| [`ntfy`](ntfy) | ntfy | Publish and poll notifications through your own ntfy server | Published |
+| [`paperless-ngx`](paperless-ngx) | Paperless-ngx | Search, upload and manage documents, ingestion tasks and tags on a self-hosted Paperless-ngx instance. | Published |
+| [`pipedrive`](pipedrive) | Pipedrive | Manage CRM persons, organizations and deals with Pipedrive API v2 | Published |
+| [`pocketbase`](pocketbase) | PocketBase | Read and manage records in a self-hosted PocketBase service | Published |
 | [`producthunt`](producthunt) | Product Hunt | Reads products, comments and the daily leaderboard; fires a workflow when your product gets a new comment or reply. Launching and replying happen on the site. | Existing integration |
-| [`prometheus`](prometheus) | Prometheus | Query metrics, inspect label metadata and read active alerts from a self-hosted Prometheus server. | Published v0.1.0 |
-| [`qdrant`](qdrant) | Qdrant | Manage dense-vector collections, points and similarity queries on a self-hosted Qdrant service | Published v0.1.0 |
+| [`prometheus`](prometheus) | Prometheus | Query metrics, inspect label metadata and read active alerts from a self-hosted Prometheus server. | Published |
+| [`qdrant`](qdrant) | Qdrant | Manage dense-vector collections, points and similarity queries on a self-hosted Qdrant service | Published |
 | [`reddit`](reddit) | Reddit | Search posts, read subreddit and user posts and comments; fires a workflow on new comments under your posts or on a keyword hit. Uses public feeds, no API key; cannot post or reply. | Existing integration |
 | [`redis`](redis) | Redis | Use Redis as shared memory for your workflow: cross-run counters, dedup sets, status flags, queues, leaderboards, | Existing integration |
-| [`resend`](resend) | Resend | Send and inspect transactional email, received mail and domain configuration | Published v0.1.0 |
-| [`salesforce`](salesforce) | Salesforce | Query Salesforce metadata and records and create, update or upsert records | Published v0.1.0 |
-| [`searxng`](searxng) | SearXNG | Search the web through a self-hosted SearXNG instance | Published v0.1.0 |
-| [`shopify`](shopify) | Shopify | Read shop, products, orders and inventory items and update product details | Published v0.1.0 |
-| [`slack`](slack) | Slack collaboration | Channel messages, threads, files and new-message polling | Published v0.1.0 |
-| [`stripe`](stripe) | Stripe | Read customers, subscriptions and payment intents; verify signed webhook events | Published v0.1.0 |
+| [`resend`](resend) | Resend | Send and inspect transactional email, received mail and domain configuration | Published |
+| [`salesforce`](salesforce) | Salesforce | Query Salesforce metadata and records and create, update or upsert records | Published |
+| [`searxng`](searxng) | SearXNG | Search the web through a self-hosted SearXNG instance | Published |
+| [`shopify`](shopify) | Shopify | Read shop, products, orders and inventory items and update product details | Published |
+| [`slack`](slack) | Slack collaboration | Channel messages, threads, files and new-message polling | Published |
+| [`stripe`](stripe) | Stripe | Read customers, subscriptions and payment intents; verify signed webhook events | Published |
 | [`submail`](submail) | SUBMAIL SMS | Send domestic and international SMS through SUBMAIL: alert notifications, verification codes, and marketing outreach. | Existing integration |
-| [`supabase`](supabase) | Supabase | Query database records, call functions and access storage | Published v0.1.0 |
+| [`supabase`](supabase) | Supabase | Query database records, call functions and access storage | Published |
 | [`synology-upload`](synology-upload) | Synology Upload | Upload files from a workflow into a Synology NAS folder through DSM's FileStation API, so Synology Drive / Cloud Sync sync them as usual. **You deploy the plugin process yourself**, on any machine that can reach DSM. | Existing integration |
 | [`synology`](synology) | Synology NAS | Watches a NAS directory for file changes and triggers a workflow (settle detection is built in). **You must deploy the plugin process yourself**, on a machine that can access this NAS. | Existing integration |
 | [`telegram-bot`](telegram-bot) | Telegram Bot | Connects a Telegram bot into your workflow: trigger on incoming messages, send messages/images/files, download attachments users send, or call any Bot API method directly. | Existing integration |
-| [`tencent-docs`](tencent-docs) | Tencent Docs | Tencent Docs | Published v0.1.0 |
+| [`tencent-docs`](tencent-docs) | Tencent Docs | Tencent Docs | Published |
 | [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. | Existing integration |
-| [`tianyancha`](tianyancha) | Tianyancha | Commercial company information and registration change queries. | Published v0.1.0 |
-| [`todoist`](todoist) | Sokel for Todoist | Manage Todoist projects and tasks; not created by, affiliated with, or supported by Todoist | Published v0.1.0 |
-| [`trello`](trello) | Trello | Discover Trello boards and manage cards and comments with header authentication | Published v0.1.0 |
+| [`tianyancha`](tianyancha) | Tianyancha | Commercial company information and registration change queries. | Published |
+| [`todoist`](todoist) | Sokel for Todoist | Manage Todoist projects and tasks; not created by, affiliated with, or supported by Todoist | Published |
+| [`trello`](trello) | Trello | Discover Trello boards and manage cards and comments with header authentication | Published |
 | [`tushare`](tushare) | Tushare Pro | Brokerage research report updates (incremental) + 221 Tushare catalog endpoints. Only responsible for fetching data — no persistence, no deduplication, no processing. | Existing integration |
-| [`twilio`](twilio) | Twilio | Send SMS and MMS, inspect delivery state, phone numbers and media metadata | Published v0.1.0 |
-| [`typeform`](typeform) | Typeform | Read Typeform workspaces, forms and completed responses with explicit pagination | Published v0.1.0 |
+| [`twilio`](twilio) | Twilio | Send SMS and MMS, inspect delivery state, phone numbers and media metadata | Published |
+| [`typeform`](typeform) | Typeform | Read Typeform workspaces, forms and completed responses with explicit pagination | Published |
 | [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's | Existing integration |
-| [`vikunja`](vikunja) | Vikunja | Manage projects, tasks and comments on a self-hosted Vikunja API v2 service | Published v0.1.0 |
+| [`vikunja`](vikunja) | Vikunja | Manage projects, tasks and comments on a self-hosted Vikunja API v2 service | Published |
 | [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. | Existing integration |
 | [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. | Existing integration |
 | [`wecom`](wecom) | WeCom | Custom app messages, configurable action buttons, native cards, incoming callbacks, menus, workbench, identity, and approval integrations | Existing integration |
-| [`wordpress`](wordpress) | WordPress | Read posts and categories, create drafts, update content and upload media | Published v0.1.0 |
-| [`wps`](wps) | WPS365 Cloud Documents | Manage WPS365 cloud file metadata and folders | Published v0.1.0 |
+| [`wordpress`](wordpress) | WordPress | Read posts and categories, create drafts, update content and upload media | Published |
+| [`wps`](wps) | WPS365 Cloud Documents | Manage WPS365 cloud file metadata and folders | Published |
 | [`x-free`](x-free) | X (Free Read/Write) | Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription. | Existing integration |
 | [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. | Existing integration |
 | [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. | Existing integration |
 | [`youtube-transcript`](youtube-transcript) | YouTube transcript | Fetches the transcript of any public YouTube video, producing timestamped segments and the assembled full text. No YouTube account or API … | Existing integration |
 | [`youtube`](youtube) | YouTube | Fetch video information, download video or audio, and extract subtitle text with yt-dlp | Existing integration |
-| [`zendesk`](zendesk) | Zendesk | Read, search and manage Zendesk Support tickets and comments | Published v0.1.0 |
-| [`zoom`](zoom) | Zoom | Read users and schedule or update Zoom meetings | Published v0.1.0 |
+| [`zendesk`](zendesk) | Zendesk | Read, search and manage Zendesk Support tickets and comments | Published |
+| [`zoom`](zoom) | Zoom | Read users and schedule or update Zoom meetings | Published |
 
 ## Build
 

@@ -41,4 +41,4 @@ Tests use synthetic, reduced fixtures adapted from official documentation; no re
 - [Meeting endpoints](https://developers.zoom.us/docs/api/meetings/)
 - [User endpoints](https://developers.zoom.us/docs/api/users/)
 
-References were checked on 2026-11-04. Standalone Go runtime registration uploads the English guide via `SetDoc`, but does not upload locale dictionaries in SDK v0.7.7. The full Chinese translation is packaged in `locales/zh-CN.json` for registry installation; the separate Chinese guide is also readable in this repository.
+References were checked on 2026-11-04. Standalone Go runtime registration uploads the English guide via `SetDoc`, but does not upload locale dictionaries in SDK v0.7.8. The full Chinese translation is packaged in `locales/zh-CN.json` for registry installation; the separate Chinese guide is also readable in this repository.

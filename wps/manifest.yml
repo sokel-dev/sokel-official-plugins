@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "WPS365 Cloud Documents",
     "desc": "Manage WPS365 cloud file metadata and folders",
-    "version": "0.1.0",
-    "doc": "docs/wps.md"
+    "version": "0.1.1",
+    "doc": "docs/wps.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

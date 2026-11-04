@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/aliyun
 
 go 1.25.0
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.2.4

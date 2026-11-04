@@ -1,10 +1,11 @@
-# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+# Exported from schema/ with sokel-gen v0.7.8; distribution metadata is maintained here.
 plugin:
+  icon: icon.svg
   org: sokel
   name: google-sheets
   label: Google Sheets
   desc: Read, write and watch spreadsheet rows
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/google-sheets.md
 credential:
   auth:

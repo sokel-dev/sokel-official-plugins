@@ -22,7 +22,7 @@ H5 buttons have caller-defined IDs, labels and optional object values, plus shar
 
 ## Develop and verify
 
-Go 1.25+, SDK pinned to v0.7.7:
+Go 1.25+, SDK pinned to v0.7.8:
 
 ```sh
 go generate ./...
@@ -48,10 +48,10 @@ The upstream success fixtures come from official documentation. Before 0.3.0, a 
 ## Build and run
 
 ```sh
-docker build --build-arg PLUGIN=wecom -t sokel-plugin-wecom:0.3.0 ..
+docker build --build-arg PLUGIN=wecom -t sokel-plugin-wecom:0.3.2 ..
 ```
 
-The official image is `ghcr.io/sokel-dev/sokel-plugin-wecom:0.3.0` (linux/amd64 and linux/arm64). From the public repository, the command above builds it with the shared Dockerfile. The example Compose file uses the released image and mounts a named volume at `/var/lib/sokel`, with `SOKEL_DATA_DIR=/var/lib/sokel/wecom`. Fill the platform endpoint/token using your deployment's secret mechanism; configure WeCom credentials in Sokel, not Compose. Use the persistent Docker, Compose or Kubernetes examples: the platform's generic launch command does not add a volume automatically.
+The official image is `ghcr.io/sokel-dev/sokel-plugin-wecom:0.3.2` (linux/amd64 and linux/arm64). From the public repository, the command above builds it with the shared Dockerfile. The example Compose file uses the released image and mounts a named volume at `/var/lib/sokel`, with `SOKEL_DATA_DIR=/var/lib/sokel/wecom`. Fill the platform endpoint/token using your deployment's secret mechanism; configure WeCom credentials in Sokel, not Compose. Use the persistent Docker, Compose or Kubernetes examples: the platform's generic launch command does not add a volume automatically.
 
 Snapshot storage is bounded and optimized for modest interaction volume, not a high-throughput queue. Expired messages are eligible for cleanup after 24 hours when they have no pending events; dispatched events are eligible after 24 hours. A directory fsync failure after rename is reported as uncertain durability and makes the current Store unavailable until restart, preventing stale memory from overwriting the visible committed file.
 

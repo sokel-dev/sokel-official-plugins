@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Prometheus",
     "desc": "Query metrics, inspect label metadata and read active alerts from a self-hosted Prometheus server.",
-    "version": "0.1.0",
-    "doc": "docs/prometheus.md"
+    "version": "0.1.1",
+    "doc": "docs/prometheus.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -442,7 +443,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-prometheus:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-prometheus:0.1.1"
       }
     ],
     "env": [

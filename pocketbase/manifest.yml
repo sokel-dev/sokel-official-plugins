@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "PocketBase",
     "desc": "Read and manage records in a self-hosted PocketBase service",
-    "version": "0.1.0",
-    "doc": "docs/pocketbase.md"
+    "version": "0.1.1",
+    "doc": "docs/pocketbase.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -415,7 +416,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-pocketbase:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-pocketbase:0.1.1"
       }
     ],
     "env": [

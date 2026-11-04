@@ -38,7 +38,7 @@ There is no event source in this version. CRM v3 is deliberately pinned; newer d
 
 ## Development and validation
 
-The module uses the public Sokel Plugin SDK v0.7.7. Run `go generate ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, and `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .` from this directory.
+The module uses the public Sokel Plugin SDK v0.7.8. Run `go generate ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, and `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .` from this directory.
 
 Tests use synthetic HTTP fixtures based on official API contracts. They verify request bytes, auth, pagination, generated input/output binding, invalid receipts, bounded responses, 429 handling and rejected redirects. They are not live HubSpot acceptance. No plugin image or registry entry is published by these checks.
 

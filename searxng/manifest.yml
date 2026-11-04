@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: searxng
   label: SearXNG
   desc: Search the web through a self-hosted SearXNG instance
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/searxng.md
 credential:
   fields:
@@ -194,7 +195,7 @@ operations:
 deployment:
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-searxng:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-searxng:0.1.1
   env:
   - name: SOKEL_SEARXNG_URL
     desc: HTTP(S) URL of your SearXNG service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.

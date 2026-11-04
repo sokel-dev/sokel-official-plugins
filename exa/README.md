@@ -12,7 +12,7 @@ The official Agent budget is effort-dependent: maxCostDollars $1-100 for auto/ul
 
 `schema/schema.go` is authoritative. `manifest.yml` is its real SDK YAML export plus plugin identity, version, label, description and document metadata. Keep those metadata fields when exporting: the Go exporter alone emits only plugin.name. Optional input numerics/booleans use pointers in named option structs. Generated binding uses `contract.BindInput`; handwritten nested types carry `sokel` tags. Never edit `zz_*.go`.
 
-This standalone Go module pins public `github.com/sokel-dev/sokel-plugin-sdk v0.7.7` and has no private dependency or local replace. English is the default interface and documentation language; `locales/zh-CN.json` contains exact English-source keys and the complete usage document. Source-only runtime labels are not catalog locale keys.
+This standalone Go module pins public `github.com/sokel-dev/sokel-plugin-sdk v0.7.8` and has no private dependency or local replace. English is the default interface and documentation language; `locales/zh-CN.json` contains exact English-source keys and the complete usage document. Source-only runtime labels are not catalog locale keys.
 
 ```sh
 go mod tidy
@@ -27,7 +27,7 @@ Export with the pinned generator, preserve distribution metadata, and validate f
 
 ## Transport and deployment
 
-Set the deployment base with `SOKEL_EXA_BASE_URL`; credentials remain in the platform credential form. Runtime uses SDK ENDPOINT/TOKEN or its supported DEPLOY_KEY flow, and registers version 0.1.0. HTTPS is required except loopback fixtures. All redirects are rejected. Request and response bodies are bounded to 1 MiB and 16 MiB. Context cancellation and HTTP deadlines stop requests. Errors expose neither raw upstream bodies nor credentials. Mutation submissions have no automatic retries; a connection failure after upstream acceptance is ambiguous.
+Set the deployment base with `SOKEL_EXA_BASE_URL`; credentials remain in the platform credential form. Runtime uses SDK ENDPOINT/TOKEN or its supported DEPLOY_KEY flow, and registers version 0.1.1. HTTPS is required except loopback fixtures. All redirects are rejected. Request and response bodies are bounded to 1 MiB and 16 MiB. Context cancellation and HTTP deadlines stop requests. Errors expose neither raw upstream bodies nor credentials. Mutation submissions have no automatic retries; a connection failure after upstream acceptance is ambiguous.
 
 ## Test evidence and release limits
 

@@ -4,7 +4,7 @@ Seven typed operations cover SMS/MMS sends, account and message reads, account p
 
 ## Implementation
 
-The `schema/` package declares the contract before implementation. `manifest.yml` stores an exported contract with release metadata; `zz_*.go` is generated with public SDK v0.7.7. The module has no local replacements or private dependencies. This first version uses account SID/Auth Token Basic authentication against fixed US1 `api.twilio.com` endpoints.
+The `schema/` package declares the contract before implementation. `manifest.yml` stores an exported contract with release metadata; `zz_*.go` is generated with public SDK v0.7.8. The module has no local replacements or private dependencies. This first version uses account SID/Auth Token Basic authentication against fixed US1 `api.twilio.com` endpoints.
 
 The account endpoint returns an Auth Token, so its wire response is decoded directly into a restrictive output type that excludes that field. Message SIDs accept both `SM` and `MM`, as demonstrated by Twilio's official history examples. Prices and numeric-looking strings remain strings, optional values remain pointers, and explicitly false Smart Encoding is sent as `SmartEncoded=false`.
 
@@ -13,8 +13,8 @@ Twilio accepts form data, not JSON: repeated `MediaUrl` values are preserved. PO
 ## Validation
 
 ```sh
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 generate .
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 check .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 go test -race ./...
 go vet ./...
 go build -o /tmp/sokel-plugin-twilio .

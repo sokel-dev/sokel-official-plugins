@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/feishu
 
 go 1.25.0
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 
 require (
 	github.com/gogo/protobuf v1.3.2 // indirect

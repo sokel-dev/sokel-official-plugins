@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -14,7 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ReleaseTest(unittest.TestCase):
     def release_entry(self, export, entry=None, source_manifest=None, manifest_name='manifest.yml',
-                      manifest_symlink=False, expected_error=None, locale_files=None, source_doc="docs/demo.md"):
+                      manifest_symlink=False, expected_error=None, locale_files=None, source_doc="docs/demo.md",
+                      source_assets=None, catalog_assets=None, setup_assets=None, check_assets=None, version='v0.3.0'):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / 'demo'
@@ -35,18 +37,32 @@ class ReleaseTest(unittest.TestCase):
             if entry is not None:
                 target.parent.mkdir(parents=True)
                 target.write_text(yaml.safe_dump(entry, sort_keys=False))
+            original_entry = target.read_bytes() if target.exists() else None
+            for directory, assets in ((source, source_assets), (target.parent, catalog_assets)):
+                for name, content in (assets or {}).items():
+                    asset = directory / name
+                    asset.parent.mkdir(parents=True, exist_ok=True)
+                    asset.write_bytes(content)
+            if setup_assets:
+                setup_assets(source, target.parent)
             export_file = root / 'export.yml'
             export_file.write_text(export)
             image = 'ghcr.io/sokel-dev/sokel-plugin-demo:0.3.0@sha256:' + 'a' * 64
             result = subprocess.run([
                 sys.executable, str(ROOT / 'scripts/registry-entry.py'),
-                '--plugin', 'demo', '--version', 'v0.3.0', '--image', image,
+                '--plugin', 'demo', '--version', version, '--image', image,
                 '--export', str(export_file), '--catalog', str(root / 'catalog'),
             ], cwd=root, text=True, capture_output=True)
+            if check_assets:
+                check_assets(source, target.parent)
             if expected_error is not None:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(expected_error, result.stderr)
-                self.assertFalse(target.exists(), 'invalid source must not create a catalog entry')
+                if original_entry is None:
+                    self.assertFalse(target.exists(), 'invalid source must not create a catalog entry')
+                else:
+                    self.assertEqual(target.read_bytes(), original_entry,
+                                     'invalid source must not change a catalog entry')
                 return
             self.assertEqual(result.returncode, 0, result.stderr)
             if entry is None:
@@ -55,6 +71,178 @@ class ReleaseTest(unittest.TestCase):
                     self.assertEqual(json.loads(copied.read_text()), json.loads(content))
             text = target.read_text()
             return yaml.safe_load(text), text, image
+
+    def test_release_advances_existing_prerelease_version(self):
+        old = {'plugin': {'name': 'demo', 'version': 'v0.3.1-docs.1'}}
+        entry, _, _ = self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old, version='v0.3.2')
+        self.assertEqual(entry['plugin']['version'], 'v0.3.2')
+        self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old,
+                           version='v0.3.1-docs.1+build.2', expected_error='does not go up')
+
+    def test_semver_ordering_and_validation(self):
+        semver = runpy.run_path(str(ROOT / 'scripts/registry-entry.py'))['semver']
+        ordered = ['1.0.0-alpha', '1.0.0-alpha.1', '1.0.0-alpha.beta', '1.0.0-beta',
+                   '1.0.0-beta.2', '1.0.0-beta.11', '1.0.0-rc.1', '1.0.0', '1.0.1']
+        for older, newer in zip(ordered, ordered[1:]):
+            with self.subTest(older=older, newer=newer):
+                self.assertLess(semver(older), semver(newer))
+        self.assertEqual(semver('v1.2.3+build.01'), semver('1.2.3+another-build'))
+        for invalid in ('1.2', '01.2.3', '1.02.3', '1.2.03', '1.2.3-01', '1.2.3-a.01',
+                        '1.2.3-', '1.2.3-a..b', '1.2.3+', '1.2.3+a..b', '1.2.3-a_b', '１.2.3'):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(SystemExit):
+                    semver(invalid)
+
+    def test_first_release_copies_selected_icon_and_optional_license(self):
+        # Byte preservation is tested here; SDK catalog validation owns image format and size checks.
+        for name, payload in (('icon.svg', b'<svg viewBox="0 0 24 24"/>\n'),
+                              ('assets/icon.png', b'\x89PNG\r\n\x1a\nsynthetic binary fixture\x00')):
+            for metadata_source in ('export', 'manifest'):
+                with self.subTest(name=name, metadata_source=metadata_source):
+                    plugin = {'name': 'demo', 'doc': 'docs/demo.md'}
+                    local = {'plugin': {'name': 'demo'}}
+                    (plugin if metadata_source == 'export' else local['plugin'])['icon'] = name
+                    license_text = b'Synthetic test icon. No third-party artwork.\n'
+                    def check(source, target):
+                        self.assertTrue((target / name).is_file(), 'local icon must ship with its manifest')
+                        self.assertEqual((target / name).read_bytes(), payload)
+                        self.assertEqual((target / (name + '.license')).read_bytes(), license_text)
+                    entry, _, _ = self.release_entry(yaml.safe_dump({'plugin': plugin}),
+                        source_manifest=local, source_assets={name: payload, name + '.license': license_text},
+                        check_assets=check)
+                    self.assertEqual(entry['plugin']['icon'], name)
+
+    def test_existing_entry_refreshes_selected_icon_and_license(self):
+        old = {'plugin': {'name': 'demo', 'version': 'v0.2.0', 'icon': 'assets/icon.svg'}}
+        export = {'plugin': {'name': 'demo', 'icon': 'other.svg'}}
+        assets = {'assets/icon.svg': b'new icon', 'assets/icon.svg.license': b'new license',
+                  'other.svg': b'not selected'}
+        def check(source, target):
+            self.assertEqual((target / 'assets/icon.svg').read_bytes(), b'new icon')
+            self.assertEqual((target / 'assets/icon.svg.license').read_bytes(), b'new license')
+            self.assertFalse((target / 'other.svg').exists())
+        entry, _, _ = self.release_entry(yaml.safe_dump(export), old, source_assets=assets,
+            catalog_assets={'assets/icon.svg': b'old icon', 'assets/icon.svg.license': b'old license'},
+            check_assets=check)
+        self.assertEqual(entry['plugin']['icon'], 'assets/icon.svg')
+
+    def test_existing_entry_keeps_catalog_icon_choice_and_missing_optional_assets(self):
+        for icon in ('brand:github', 'catalog.svg'):
+            with self.subTest(icon=icon):
+                old = {'plugin': {'name': 'demo', 'version': 'v0.2.0'}}
+                if icon:
+                    old['plugin']['icon'] = icon
+                def check(source, target):
+                    self.assertEqual((target / 'catalog.svg').read_bytes(), b'catalog icon')
+                    self.assertEqual((target / 'catalog.svg.license').read_bytes(), b'catalog license')
+                    self.assertFalse((target / 'icon.svg').exists())
+                entry, _, _ = self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo', 'icon': 'icon.svg'}}),
+                    old, source_assets={'icon.svg': b'source icon', 'icon.svg.license': b'source license'},
+                    catalog_assets={'catalog.svg': b'catalog icon', 'catalog.svg.license': b'catalog license'},
+                    check_assets=check)
+                self.assertEqual(entry['plugin'].get('icon', ''), icon)
+
+        old = {'plugin': {'name': 'demo', 'version': 'v0.2.0', 'icon': 'icon.svg'}}
+        def check(source, target):
+            self.assertEqual((target / 'icon.svg').read_bytes(), b'new icon')
+            self.assertEqual((target / 'icon.svg.license').read_bytes(), b'catalog license')
+        self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old,
+            source_assets={'icon.svg': b'new icon'},
+            catalog_assets={'icon.svg': b'old icon', 'icon.svg.license': b'catalog license'}, check_assets=check)
+
+    def test_existing_entry_backfills_empty_icon_and_copies_its_assets(self):
+        for declaration in ({}, {'icon': ''}, {'icon': '  '}, {'icon': None}):
+            for metadata_source in ('export', 'manifest.yml', 'sokel.yaml'):
+                with self.subTest(declaration=declaration, metadata_source=metadata_source):
+                    old = {'plugin': {'name': 'demo', 'version': 'v0.2.0', 'label': 'Catalog label',
+                                      'desc': 'Catalog description', **declaration}}
+                    export = {'plugin': {'name': 'demo', 'icon': ''}}
+                    local = {'plugin': {'name': 'demo', 'label': 'Source label', 'desc': 'Source description'}}
+                    if metadata_source == 'export':
+                        export['plugin']['icon'] = 'icon.svg'
+                        local['plugin']['icon'] = 'ignored.svg'
+                    else:
+                        local['plugin']['icon'] = 'icon.svg'
+                    def check(source, target):
+                        self.assertTrue((target / 'icon.svg').is_file(), 'a backfilled icon must ship with its entry')
+                        self.assertEqual((target / 'icon.svg').read_bytes(), b'new icon')
+                        self.assertEqual((target / 'icon.svg.license').read_bytes(), b'new license')
+                        self.assertFalse((target / 'ignored.svg').exists())
+                    entry, _, _ = self.release_entry(yaml.safe_dump(export), old,
+                        source_manifest=local, manifest_name='sokel.yaml' if metadata_source == 'sokel.yaml' else 'manifest.yml',
+                        source_assets={'icon.svg': b'new icon', 'icon.svg.license': b'new license'}, check_assets=check)
+                    self.assertEqual(entry['plugin']['icon'], 'icon.svg')
+                    self.assertEqual(entry['plugin']['label'], 'Catalog label')
+                    self.assertEqual(entry['plugin']['desc'], 'Catalog description')
+
+    def test_existing_entry_backfill_requires_safe_local_assets_and_matching_metadata(self):
+        old = {'plugin': {'name': 'demo', 'version': 'v0.2.0'}}
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'icon': 'icon.svg'}})
+        self.release_entry(export, old, catalog_assets={'icon.svg': b'old unreferenced file'},
+                           expected_error='local icon')
+        self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old,
+            source_manifest={'plugin': {'name': 'other', 'icon': 'icon.svg'}},
+            expected_error='local manifest is for')
+        self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo', 'icon': '../outside.svg'}}), old,
+                           expected_error='local icon')
+        def setup(source, target):
+            outside = source.parent / 'outside.svg'
+            outside.write_bytes(b'outside unchanged')
+            (source / 'icon.svg').symlink_to(outside)
+        self.release_entry(export, old, setup_assets=setup, expected_error='local icon')
+
+        def check(source, target):
+            self.assertEqual((target / 'icon.svg').read_bytes(), b'icon without optional license')
+            self.assertFalse((target / 'icon.svg.license').exists())
+        self.release_entry(export, old, source_assets={'icon.svg': b'icon without optional license'}, check_assets=check)
+        unchanged, _, _ = self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old)
+        self.assertNotIn('icon', unchanged['plugin'], 'legacy entries without any icon declaration remain valid')
+
+    def test_local_icon_paths_reject_urls_and_escapes_before_writing(self):
+        for icon in ('../outside.svg', '/tmp/outside.svg', 'assets/../../outside.svg',
+                     'https://example.invalid/icon.svg', '//example.invalid/icon.svg',
+                     'data:image/svg+xml,content', 'file:icon.svg', 'C:\\icon.svg'):
+            with self.subTest(icon=icon):
+                self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo', 'icon': icon}}),
+                                   expected_error='local icon')
+
+    def test_first_local_icon_requires_a_file_but_no_license(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'icon': 'icon.svg'}})
+        self.release_entry(export, expected_error='local icon')
+        self.release_entry(export, setup_assets=lambda source, target: (source / 'icon.svg').mkdir(),
+                           expected_error='local icon')
+        def check(source, target):
+            self.assertEqual((target / 'icon.svg').read_bytes(), b'icon')
+            self.assertFalse((target / 'icon.svg.license').exists())
+        self.release_entry(export, source_assets={'icon.svg': b'icon'}, check_assets=check)
+
+    def test_icon_and_license_reject_unsafe_symlinks_before_any_catalog_writes(self):
+        for location in ('source', 'catalog'):
+            for filename in ('icon.svg', 'icon.svg.license'):
+                with self.subTest(location=location, filename=filename):
+                    old = {'plugin': {'name': 'demo', 'version': 'v0.2.0', 'icon': 'icon.svg', 'doc': 'README.md'}}
+                    def setup(source, target):
+                        outside = source.parent / 'outside'
+                        outside.write_bytes(b'outside unchanged')
+                        asset = (source if location == 'source' else target) / filename
+                        asset.unlink()
+                        asset.symlink_to(outside)
+                    def check(source, target):
+                        self.assertEqual((source.parent / 'outside').read_bytes(), b'outside unchanged')
+                        self.assertEqual((target / 'README.md').read_bytes(), b'old documentation')
+                    self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo'}}), old,
+                        source_assets={'icon.svg': b'new icon', 'icon.svg.license': b'new license'},
+                        catalog_assets={'icon.svg': b'old icon', 'icon.svg.license': b'old license',
+                                        'README.md': b'old documentation'},
+                        setup_assets=setup, check_assets=check, expected_error='local icon')
+
+        def setup(source, target):
+            outside = source.parent / 'outside-assets'
+            outside.mkdir()
+            (outside / 'icon.svg').write_bytes(b'outside unchanged')
+            (source / 'assets').symlink_to(outside, target_is_directory=True)
+        self.release_entry(yaml.safe_dump({'plugin': {'name': 'demo', 'icon': 'assets/icon.svg'}}),
+                           setup_assets=setup, expected_error='local icon')
 
     def test_first_release_accepts_english_source_with_chinese_locale(self):
         export = yaml.safe_dump({'plugin': {'name': 'demo', 'label': 'Demo', 'doc': 'docs/demo.md'},

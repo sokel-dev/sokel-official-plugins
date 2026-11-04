@@ -1,8 +1,9 @@
-# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+# Exported from schema/ with sokel-gen v0.7.8; distribution metadata is maintained here.
 plugin:
+  icon: icon.svg
   name: jira
   org: sokel
-  version: 0.1.0
+  version: 0.1.1
   label: Jira Cloud
   desc: Search and manage Jira Cloud issues, transitions and comments
   doc: docs/jira.md

@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: monday
   label: Monday
   desc: Discover Monday boards and manage items, column values and updates with versioned GraphQL
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/monday.md
 credential:
   fields:

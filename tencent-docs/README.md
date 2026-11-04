@@ -14,15 +14,15 @@ Official references: [headers](https://docs.qq.com/open/document/app/openapi/v2/
 
 ## Development
 
-Requires Go 1.23+ and public SDK v0.7.7.
+Requires Go 1.23+ and public SDK v0.7.8.
 
 ```sh
 go mod download
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 generate .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 go test -race ./...
 go vet ./...
 go build ./...
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 check .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 ```
 
 Run with `SOKEL_ENDPOINT` and either `SOKEL_TOKEN` or `SOKEL_DEPLOY_KEY`. Optional deployment-only `SOKEL_API_BASE_URL` selects a trusted API proxy; credentials are sent to that origin. The proxy must use HTTPS; HTTP is allowed only on loopback for local tests. Redirects are disabled. Request fixtures validate the official protocol; live tenant validation requires your own test credentials.

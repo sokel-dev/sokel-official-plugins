@@ -1,6 +1,6 @@
 # Dropbox
 
-List, search, upload and download files with a Dropbox user access token. This plugin uses the Dropbox API v2 and the public Sokel SDK v0.7.7.
+List, search, upload and download files with a Dropbox user access token. This plugin uses the Dropbox API v2 and the public Sokel SDK v0.7.8.
 
 ## Credentials and deployment
 

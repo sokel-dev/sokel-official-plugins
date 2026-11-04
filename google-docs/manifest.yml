@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: google-docs
   label: Google Docs
   desc: Read document tabs and automate text edits
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/google-docs.md
 credential:
   auth:

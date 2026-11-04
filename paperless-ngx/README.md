@@ -6,14 +6,14 @@ The baseline is the stable **Paperless-ngx 3.4.1** release (GPLv3), explicitly r
 
 Upload is multipart with repeated `tags`, a regular quoted UTF-8 filename and a 200 JSON-string UUID receipt. It queues consumption rather than returning a completed document. Files use SDK platform fetch/upload, 32 MiB bounds and no filesystem or arbitrary-URL reads. Downloads require an attachment response and never follow redirects. All numeric object IDs are parsed exactly as int64 and output as decimal strings. Metadata PATCH preserves omission and supports explicit empty-tag replacement; null relationship clearing is intentionally unsupported. Requests do not retry failed HTTP responses, replay mutation bodies, expose service error bodies or forward authentication to redirects.
 
-`schema/` is authoritative; public SDK v0.7.7 generates the unedited `zz_*.go` files. This module has no local replace directives. Runtime and manifest version 0.1.0 agree. The container tag is an intended build target, not a publication claim. Both complete guides and every UI source string are translated through `locales/zh-CN.json`. The entire English guide is the document translation key. SDK v0.7.7 does not expose deployment environment descriptions as locale keys; both guides cover that configuration.
+`schema/` is authoritative; public SDK v0.7.8 generates the unedited `zz_*.go` files. This module has no local replace directives. Runtime and manifest version 0.1.1 agree. The container tag is an intended build target, not a publication claim. Both complete guides and every UI source string are translated through `locales/zh-CN.json`. The entire English guide is the document translation key. SDK v0.7.8 does not expose deployment environment descriptions as locale keys; both guides cover that configuration.
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-plugin-paperless-ngx .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 ```
 
 `TestREDUploadAsyncUnicode` and `TestREDTaskAPI10` first failed behaviorally against compiling generated stubs. They passed after implementation. Synthetic wire and generated-dispatch tests cover large IDs, optional false, empty arrays, Unicode multipart headers, task lifecycle and missing tasks, paging, malformed receipts, bounded downloads, platform storage failures, authentication and HTTP errors. See [test provenance](testdata/README.md). **No live Paperless instance was run**; source-grounded protocol tests are not live acceptance. No deployment was performed.

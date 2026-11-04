@@ -2,7 +2,7 @@
 
 Eleven operations provide bounded search and user timelines, single-page X List discovery and timelines,
 List member management, post/user lookup, text posting/replies, deletion, and a read-only credential probe.
-Version 0.2.1 retains the eleven operations and input/output fields from v0.2.0, including the four
+Version 0.2.2 retains the eleven operations and input/output fields from v0.2.0, including the four
 List operations: `my_lists`, `list_timeline`, `add_list_member`, and `remove_list_member`.
 This plugin is a separate identity from the official OAuth `x` plugin: existing
 workflows, credentials, and API-based deployments keep their existing contract.
@@ -91,7 +91,7 @@ coverage. Media upload, direct messages, account pools, and built-in event polli
 ```bash
 python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-go install github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7
+go install github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8
 sokel-gen generate .
 sokel-gen check .
 .venv/bin/python -m unittest discover -v
@@ -119,8 +119,12 @@ The public mirror's `scripts/plugin-matrix.py` discovers this manifest, entry po
 the image context is `x-free/`. Contract edits require regeneration and matching English translations,
 including the exact usage-document key. The existing `x` catalog entry must not be replaced.
 
-For the `x-free/v0.2.1` tag, the public mirror's Release workflow builds the distributable image,
+For the `x-free/v0.2.2` tag, the public mirror's Release workflow builds the distributable image,
 records its digest, and prepares the `sokel/x-free` catalog entry through `scripts/registry-entry.py`.
 The catalog entry pins the image to that build's digest and must pass catalog admission before
 publication. Update the platform's registry pin after the catalog entry is published. The workflow's
 image reference and catalog entry determine the version available for installation.
+
+## SDK update (0.2.2)
+
+The runtime SDK and contract generator use v0.7.8. The eleven operation contracts are unchanged.

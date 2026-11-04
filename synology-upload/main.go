@@ -7,8 +7,7 @@
 // Run: SOKEL_ENDPOINT=https://<platform> SOKEL_TOKEN=skp_xxx ./synology-upload
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
-
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 import (
 	"fmt"
 	"log"

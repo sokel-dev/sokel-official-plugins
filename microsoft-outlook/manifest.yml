@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: microsoft-outlook
   label: Microsoft Outlook
   desc: Read and send mail, download attachments and manage calendar events
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/microsoft-outlook.md
 credential:
   fields:

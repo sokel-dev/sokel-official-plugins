@@ -1,7 +1,7 @@
 // wecom sends application notifications and hosts an authenticated interaction portal through Sokel.
 package main
 
-//go:generate go run -mod=mod github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate -lang go .
+//go:generate go run -mod=mod github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate -lang go .
 
 import (
 	"context"

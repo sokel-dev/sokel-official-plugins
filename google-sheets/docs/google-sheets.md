@@ -25,7 +25,7 @@ Polling is append-only. Every round verifies the old row digest. Edits, removals
 
 The checkpoint is published only after all event publications succeed. Retries can replay events with stable IDs for platform deduplication. Each credential watches one range. OAuth uses the spreadsheets scope; Google resource sharing still controls access.
 
-SDK v0.7.7 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
+SDK v0.7.8 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
 
 ## Setup and runtime
 

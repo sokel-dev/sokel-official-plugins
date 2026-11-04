@@ -14,7 +14,7 @@ IDs and counts are strings. Pagination validates origin, route, filters, continu
 
 ## Development and verification
 
-`schema/schema.go` is authoritative; `zz_*.go` comes from pinned public SDK `v0.7.7`, with no local replacements. The manifest is an actual export plus deployment/release metadata, version `0.1.0`. Its tagged image is an intended release target, not proof of publication. Run SDK commands sequentially within the plugin:
+`schema/schema.go` is authoritative; `zz_*.go` comes from pinned public SDK `v0.7.8`, with no local replacements. The manifest is an actual export plus deployment/release metadata, version `0.1.1`. Its tagged image is an intended release target, not proof of publication. Run SDK commands sequentially within the plugin:
 
 ```sh
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .

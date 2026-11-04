@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: bocha-search
   label: Bocha Search
   desc: Search the web with freshness filters and optional summaries.
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/bocha-search.md
 credential:
   fields:

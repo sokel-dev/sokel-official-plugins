@@ -13,7 +13,7 @@ var usageDoc string
 
 func main() {
 	p := sokel.New(sokel.Config{Endpoint: sokel.EnvOr("ENDPOINT", "http://localhost:8088"), Token: sokel.Env("TOKEN"), Name: "jina-reader"})
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
 	register(p)

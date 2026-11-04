@@ -10,8 +10,7 @@
 //	SOKEL_ENDPOINT=nats://<broker>:4222 SOKEL_TOKEN=skp_xxx go run .
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen
-
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 import (
 	"crypto/sha1"
 	"encoding/hex"
