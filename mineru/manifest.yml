@@ -1,0 +1,253 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: mineru
+  label: MinerU
+  desc: Asynchronous document parsing, batches and structured result links
+  version: 0.1.0
+  doc: docs/mineru.md
+credential:
+  fields:
+  - desc: Create a key in the official service dashboard; do not enter deployment
+      URLs.
+    label: API key
+    name: api_key
+    required: true
+    type: secret
+operations:
+- id: batch_status
+  inputs:
+  - label: Batch ID
+    name: batch_id
+    required: true
+    type: string
+  label: Get batch status
+  outputs:
+  - label: Batch ID
+    name: batch_id
+    required: true
+    type: string
+  - fields:
+    - label: Task ID
+      name: task_id
+      type: string
+    - label: Correlation ID
+      name: data_id
+      type: string
+    - label: File name
+      name: file_name
+      type: string
+    - label: Task state
+      name: state
+      required: true
+      type: string
+    - label: Result ZIP URL
+      name: full_zip_url
+      type: string
+    - label: Parsing error
+      name: err_msg
+      type: string
+    - fields:
+      - goType: int
+        label: Extracted pages
+        name: extracted_pages
+        type: number
+      - goType: int
+        label: Total pages
+        name: total_pages
+        type: number
+      - label: Start time
+        name: start_time
+        type: string
+      label: Parsing progress
+      name: extract_progress
+      type: json
+    goType: TaskResult
+    label: Extraction tasks
+    name: results
+    required: true
+    type: array
+  - label: Request trace ID
+    name: trace_id
+    type: string
+  timeoutSec: 60
+- id: batch_submit
+  inputs:
+  - fields:
+    - label: File URL
+      name: url
+      required: true
+      type: string
+    - label: Correlation ID
+      name: data_id
+      type: string
+    - label: Enable OCR
+      name: is_ocr
+      type: boolean
+    - label: Page ranges
+      name: page_ranges
+      type: string
+    goType: BatchSubmitFiles
+    label: Documents
+    name: files
+    required: true
+    type: array
+  - label: Parsing model
+    name: model_version
+    options:
+    - label: pipeline
+      value: pipeline
+    - label: vlm
+      value: vlm
+    - label: MinerU-HTML
+      value: MinerU-HTML
+    type: enum
+  - label: Document language
+    name: language
+    type: string
+  - itemType: string
+    label: Extra formats
+    name: extra_formats
+    type: array
+  - fields:
+    - label: Recognize formulas
+      name: enable_formula
+      type: boolean
+    - label: Recognize tables
+      name: enable_table
+      type: boolean
+    goType: BatchSubmitOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Submit document batch
+  outputs:
+  - label: Batch ID
+    name: batch_id
+    required: true
+    type: string
+  - label: Request trace ID
+    name: trace_id
+    type: string
+  timeoutSec: 60
+- id: health_check
+  inputs:
+  - label: Existing task ID
+    name: task_id
+    type: string
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: status
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  label: Get document status
+  outputs:
+  - fields:
+    - label: Task ID
+      name: task_id
+      type: string
+    - label: Correlation ID
+      name: data_id
+      type: string
+    - label: File name
+      name: file_name
+      type: string
+    - label: Task state
+      name: state
+      required: true
+      type: string
+    - label: Result ZIP URL
+      name: full_zip_url
+      type: string
+    - label: Parsing error
+      name: err_msg
+      type: string
+    - fields:
+      - goType: int
+        label: Extracted pages
+        name: extracted_pages
+        type: number
+      - goType: int
+        label: Total pages
+        name: total_pages
+        type: number
+      - label: Start time
+        name: start_time
+        type: string
+      label: Parsing progress
+      name: extract_progress
+      type: json
+    goType: TaskResult
+    label: Extraction task
+    name: result
+    required: true
+    type: json
+  - label: Request trace ID
+    name: trace_id
+    type: string
+  timeoutSec: 60
+- id: submit
+  inputs:
+  - label: File URL
+    name: url
+    required: true
+    type: string
+  - label: Correlation ID
+    name: data_id
+    type: string
+  - label: Page ranges
+    name: page_ranges
+    type: string
+  - label: Parsing model
+    name: model_version
+    options:
+    - label: pipeline
+      value: pipeline
+    - label: vlm
+      value: vlm
+    - label: MinerU-HTML
+      value: MinerU-HTML
+    type: enum
+  - label: Document language
+    name: language
+    type: string
+  - itemType: string
+    label: Extra formats
+    name: extra_formats
+    type: array
+  - fields:
+    - label: Enable OCR
+      name: is_ocr
+      type: boolean
+    - label: Recognize formulas
+      name: enable_formula
+      type: boolean
+    - label: Recognize tables
+      name: enable_table
+      type: boolean
+    goType: SubmitOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Submit document
+  outputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  - label: Request trace ID
+    name: trace_id
+    type: string
+  timeoutSec: 60

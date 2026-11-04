@@ -1,0 +1,708 @@
+{
+  "plugin": {
+    "name": "microsoft-onedrive",
+    "org": "sokel",
+    "label": "Microsoft OneDrive",
+    "desc": "Browse, search, upload small files and explicitly track drive changes",
+    "version": "0.1.0",
+    "doc": "docs/microsoft-onedrive.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "access_token",
+        "label": "Delegated access token",
+        "type": "secret",
+        "required": true,
+        "desc": "Obtain and refresh externally; include User.Read for health checks"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check delegated credentials",
+      "desc": "Check delegated credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_drive",
+      "label": "Get drive",
+      "desc": "Get drive",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": false,
+          "desc": "Omit to get the signed-in user default drive"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "drive",
+          "label": "Drive",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_type",
+              "label": "Drive type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Drive"
+        }
+      ]
+    },
+    {
+      "id": "list_items",
+      "label": "List folder items",
+      "desc": "List folder items",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "parent_id",
+          "label": "Parent item ID",
+          "type": "string",
+          "required": false,
+          "desc": "Omit to use the drive root"
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "items",
+          "label": "Items",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_item",
+      "label": "Get item",
+      "desc": "Get item",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "item_id",
+          "label": "Item ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "item",
+          "label": "Item",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        }
+      ]
+    },
+    {
+      "id": "search_items",
+      "label": "Search drive items",
+      "desc": "Search drive items",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "query",
+          "label": "Search query",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "items",
+          "label": "Items",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "upload_file",
+      "label": "Upload a small file",
+      "desc": "Upload up to 4 MiB; an existing file with the same name is replaced",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "parent_id",
+          "label": "Parent item ID",
+          "type": "string",
+          "required": false,
+          "desc": "Omit to use the drive root"
+        },
+        {
+          "name": "file",
+          "label": "Platform file",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "if_match",
+          "label": "Existing ETag",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "item",
+          "label": "Item",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        }
+      ]
+    },
+    {
+      "id": "delta",
+      "label": "Read drive changes",
+      "desc": "Read drive changes",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "continuation_url",
+          "label": "Next or delta URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "items",
+          "label": "Items",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "delta_link",
+          "label": "Delta checkpoint URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_download_info",
+      "label": "Get temporary download information",
+      "desc": "Get temporary download information",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "item_id",
+          "label": "Item ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "item",
+          "label": "Item",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "size_known",
+              "label": "Size is known",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_modified",
+              "label": "Last modified time",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "is_folder",
+              "label": "Folder",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "DriveItem"
+        },
+        {
+          "name": "download_url",
+          "label": "Temporary download URL",
+          "type": "string",
+          "required": true,
+          "desc": "Sensitive short-lived URL; do not send the Graph bearer token to this URL"
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

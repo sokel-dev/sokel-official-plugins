@@ -1,0 +1,1020 @@
+{
+  "plugin": {
+    "name": "bookstack",
+    "org": "sokel",
+    "label": "BookStack",
+    "desc": "Read, search and maintain knowledge pages on a self-hosted BookStack instance.",
+    "version": "0.1.0",
+    "doc": "docs/bookstack.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "label": "Token ID",
+        "name": "token_id",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "label": "Token secret",
+        "name": "token_secret",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_page",
+      "inputs": [
+        {
+          "label": "Parent type: book or chapter",
+          "name": "parent_type",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Parent ID",
+          "name": "parent_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Page name",
+          "name": "name",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Content format: html or markdown",
+          "name": "format",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Page content",
+          "name": "content",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Ordering priority",
+              "name": "priority",
+              "type": "number"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Tag name",
+                  "name": "name",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Tag value",
+                  "name": "value",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Replace tags",
+              "name": "tags",
+              "type": "array"
+            },
+            {
+              "label": "Revision note",
+              "name": "changelog",
+              "type": "string"
+            }
+          ],
+          "goType": "CreateOptions",
+          "label": "Page options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Create and publish page",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Page ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Page name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Rendered HTML",
+              "name": "html",
+              "type": "string"
+            },
+            {
+              "label": "Stored HTML",
+              "name": "raw_html",
+              "type": "string"
+            },
+            {
+              "label": "Markdown source",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "label": "Revision count",
+              "name": "revision_count",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Tag name",
+                  "name": "name",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Tag value",
+                  "name": "value",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "Page",
+          "label": "Page",
+          "name": "page",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_book",
+      "inputs": [
+        {
+          "label": "Book ID",
+          "name": "book_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get book",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Book",
+          "name": "book",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Flattened contents",
+          "name": "contents",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_chapter",
+      "inputs": [
+        {
+          "label": "Chapter ID",
+          "name": "chapter_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get chapter",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Chapter",
+          "name": "chapter",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Pages",
+          "name": "pages",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_page",
+      "inputs": [
+        {
+          "label": "Page ID",
+          "name": "page_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get page",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Page ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Page name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Rendered HTML",
+              "name": "html",
+              "type": "string"
+            },
+            {
+              "label": "Stored HTML",
+              "name": "raw_html",
+              "type": "string"
+            },
+            {
+              "label": "Markdown source",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "label": "Revision count",
+              "name": "revision_count",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Tag name",
+                  "name": "name",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Tag value",
+                  "name": "value",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "Page",
+          "label": "Page",
+          "name": "page",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_shelf",
+      "inputs": [
+        {
+          "label": "Shelf ID",
+          "name": "shelf_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get shelf",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Shelf",
+          "name": "shelf",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Books",
+          "name": "books",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check token and service",
+      "outputs": [
+        {
+          "label": "Healthy",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_entities",
+      "inputs": [
+        {
+          "label": "Entity type: shelves, books, chapters or pages",
+          "name": "kind",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "count",
+              "type": "number"
+            }
+          ],
+          "goType": "Pagination",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "List shelves, books, chapters or pages",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Entities",
+          "name": "entities",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total count",
+          "name": "total_count",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset; zero means finished",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "search",
+      "inputs": [
+        {
+          "label": "Search query",
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "count",
+              "type": "number"
+            }
+          ],
+          "goType": "SearchPagination",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "Search knowledge content",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entity ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Entity type",
+              "name": "kind",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Slug",
+              "name": "slug",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "web_url",
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Search results",
+          "name": "results",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total count",
+          "name": "total_count",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_page",
+      "inputs": [
+        {
+          "label": "Page ID",
+          "name": "page_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Page name",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "label": "HTML content",
+              "name": "html",
+              "type": "string"
+            },
+            {
+              "label": "Markdown content",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "goType": "int",
+              "label": "Ordering priority",
+              "name": "priority",
+              "type": "number"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Tag name",
+                  "name": "name",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Tag value",
+                  "name": "value",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Replace tags",
+              "name": "tags",
+              "type": "array"
+            },
+            {
+              "label": "Revision note",
+              "name": "changelog",
+              "type": "string"
+            }
+          ],
+          "goType": "PageChanges",
+          "label": "Page changes",
+          "name": "changes",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Update published page",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Page ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Page name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Book ID",
+              "name": "book_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Chapter ID",
+              "name": "chapter_id",
+              "type": "string"
+            },
+            {
+              "label": "Rendered HTML",
+              "name": "html",
+              "type": "string"
+            },
+            {
+              "label": "Stored HTML",
+              "name": "raw_html",
+              "type": "string"
+            },
+            {
+              "label": "Markdown source",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "label": "Revision count",
+              "name": "revision_count",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Tag name",
+                  "name": "name",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Tag value",
+                  "name": "value",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "Page",
+          "label": "Page",
+          "name": "page",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-bookstack:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_BOOKSTACK_URL",
+        "desc": "Required self-hosted BookStack site root, including any reverse-proxy path prefix; HTTP and HTTPS are supported.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

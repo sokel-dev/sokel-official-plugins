@@ -1,0 +1,267 @@
+# Exported from schema/ with SDK v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: salesforce
+  org: sokel
+  label: Salesforce
+  desc: Query Salesforce metadata and records and create, update or upsert records
+  version: 0.1.0
+  doc: docs/salesforce.md
+credential:
+  fields:
+  - desc: Use the HTTPS instance_url from Salesforce OAuth; only official Salesforce
+      instance domains are accepted
+    label: Salesforce instance URL
+    name: instance_url
+    required: true
+    type: text
+  - desc: Use an OAuth token with api scope and API Enabled permission; refresh externally
+    label: OAuth access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: create_record
+  inputs:
+  - label: Object API name
+    name: object_name
+    required: true
+    type: string
+  - desc: Writable fields depend on tenant object metadata; JSON null clears a nullable
+      field
+    label: Field values
+    name: fields
+    opaque: true
+    required: true
+    type: json
+  label: Create record
+  outputs:
+  - label: Record ID
+    name: record_id
+    required: true
+    type: string
+  - label: Successful
+    name: success
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: describe_object
+  inputs:
+  - label: Object API name
+    name: object_name
+    required: true
+    type: string
+  label: Describe object
+  outputs:
+  - label: Object API name
+    name: name
+    required: true
+    type: string
+  - label: Object label
+    name: label
+    required: true
+    type: string
+  - label: Can create
+    name: createable
+    required: true
+    type: boolean
+  - label: Can update
+    name: updateable
+    required: true
+    type: boolean
+  - fields:
+    - label: API field name
+      name: name
+      required: true
+      type: string
+    - label: Label
+      name: label
+      required: true
+      type: string
+    - label: Field type
+      name: type
+      required: true
+      type: string
+    - label: Can create
+      name: createable
+      required: true
+      type: boolean
+    - label: Can update
+      name: updateable
+      required: true
+      type: boolean
+    - label: Allows null
+      name: nillable
+      required: true
+      type: boolean
+    - label: External ID
+      name: external_id
+      required: true
+      type: boolean
+    - itemType: string
+      label: Referenced objects
+      name: reference_to
+      required: true
+      type: array
+    goType: ObjectField
+    label: Fields
+    name: fields
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_record
+  inputs:
+  - label: Object API name
+    name: object_name
+    required: true
+    type: string
+  - label: Record ID
+    name: record_id
+    required: true
+    type: string
+  - itemType: string
+    label: Requested field API names
+    name: field_names
+    type: array
+  label: Get record
+  outputs:
+  - desc: Fields depend on the Salesforce object and tenant custom schema
+    label: Record
+    name: record
+    opaque: true
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: query
+  inputs:
+  - label: Read-only SOQL query
+    name: soql
+    required: true
+    type: string
+  label: Run SOQL query
+  outputs:
+  - desc: Columns and nested relationships depend on the caller SOQL projection and
+      tenant schema
+    label: Records
+    name: records
+    opaque: true
+    required: true
+    type: array
+  - goType: int
+    label: Total records
+    name: total_size
+    required: true
+    type: number
+  - label: Complete
+    name: done
+    required: true
+    type: boolean
+  - label: Next records path
+    name: next_records_url
+    required: true
+    type: string
+  timeoutSec: 60
+- id: query_more
+  inputs:
+  - label: Next records path
+    name: next_records_url
+    required: true
+    type: string
+  label: Read next query page
+  outputs:
+  - desc: Columns and nested relationships depend on the caller SOQL projection and
+      tenant schema
+    label: Records
+    name: records
+    opaque: true
+    required: true
+    type: array
+  - goType: int
+    label: Total records
+    name: total_size
+    required: true
+    type: number
+  - label: Complete
+    name: done
+    required: true
+    type: boolean
+  - label: Next records path
+    name: next_records_url
+    required: true
+    type: string
+  timeoutSec: 60
+- id: update_record
+  inputs:
+  - label: Object API name
+    name: object_name
+    required: true
+    type: string
+  - label: Record ID
+    name: record_id
+    required: true
+    type: string
+  - desc: Writable fields depend on tenant object metadata; JSON null clears a nullable
+      field
+    label: Field values
+    name: fields
+    opaque: true
+    required: true
+    type: json
+  label: Update record
+  outputs:
+  - label: Record ID
+    name: record_id
+    required: true
+    type: string
+  - label: Successful
+    name: success
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: upsert_record
+  inputs:
+  - label: Object API name
+    name: object_name
+    required: true
+    type: string
+  - label: External ID field API name
+    name: external_id_field
+    required: true
+    type: string
+  - label: External ID value
+    name: external_id
+    required: true
+    type: string
+  - desc: Writable fields depend on tenant object metadata; JSON null clears a nullable
+      field
+    label: Field values
+    name: fields
+    opaque: true
+    required: true
+    type: json
+  label: Upsert by external ID
+  outputs:
+  - label: Record ID
+    name: record_id
+    required: true
+    type: string
+  - label: Successful
+    name: success
+    required: true
+    type: boolean
+  - label: Created a new record
+    name: created
+    required: true
+    type: boolean
+  timeoutSec: 60

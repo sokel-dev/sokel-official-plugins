@@ -1,0 +1,497 @@
+{
+  "plugin": {
+    "name": "qdrant",
+    "org": "sokel",
+    "label": "Qdrant",
+    "desc": "Manage dense-vector collections, points and similarity queries on a self-hosted Qdrant service",
+    "version": "0.1.0",
+    "doc": "docs/qdrant.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Optional for an unprotected self-hosted instance. Use a key with permissions for the requested operations.",
+        "label": "API key",
+        "name": "api_key",
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_collection",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Vector dimensions",
+          "name": "size",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "Distance metric",
+          "name": "distance",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Named vector",
+          "name": "vector_name",
+          "type": "string"
+        }
+      ],
+      "label": "Create dense-vector collection",
+      "outputs": [
+        {
+          "label": "Created",
+          "name": "created",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "delete_points",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "itemType": "string",
+          "label": "Point IDs",
+          "name": "ids",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "label": "Delete points by ID",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Write status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Operation ID",
+              "name": "operation_id",
+              "type": "string"
+            }
+          ],
+          "goType": "WriteReceipt",
+          "label": "Completed write receipt",
+          "name": "receipt",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_collection",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get collection",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Collection name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Approximate point count",
+              "name": "points_count",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Indexed vector count",
+              "name": "indexed_vectors_count",
+              "type": "number"
+            },
+            {
+              "label": "Collection configuration JSON",
+              "name": "config_json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "CollectionInfo",
+          "label": "Collection",
+          "name": "collection",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check connection and key",
+      "outputs": [
+        {
+          "label": "Usable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_collections",
+      "label": "List collections",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Collection name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Collection",
+          "label": "Collections",
+          "name": "collections",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "query_points",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "itemType": "number",
+          "label": "Dense vector",
+          "name": "vector",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Named vector",
+          "name": "vector_name",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Result offset",
+              "name": "offset",
+              "type": "number"
+            },
+            {
+              "label": "Score threshold",
+              "name": "score_threshold",
+              "type": "number"
+            },
+            {
+              "label": "Qdrant filter JSON",
+              "name": "filter_json",
+              "type": "string"
+            }
+          ],
+          "goType": "QueryOptions",
+          "label": "Query options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Query similar points",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Point ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Payload JSON",
+              "name": "payload_json",
+              "type": "string"
+            },
+            {
+              "label": "Similarity score",
+              "name": "score",
+              "type": "number"
+            }
+          ],
+          "goType": "Point",
+          "label": "Points",
+          "name": "points",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "retrieve_points",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "itemType": "string",
+          "label": "Point IDs",
+          "name": "ids",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "label": "Retrieve points",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Point ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Payload JSON",
+              "name": "payload_json",
+              "type": "string"
+            },
+            {
+              "label": "Similarity score",
+              "name": "score",
+              "type": "number"
+            }
+          ],
+          "goType": "Point",
+          "label": "Points",
+          "name": "points",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "IDs not returned",
+          "name": "missing_ids",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "scroll_points",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "label": "Next point offset",
+              "name": "offset",
+              "type": "string"
+            },
+            {
+              "label": "Qdrant filter JSON",
+              "name": "filter_json",
+              "type": "string"
+            }
+          ],
+          "goType": "ScrollOptions",
+          "label": "Scroll options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Scroll points",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Point ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Payload JSON",
+              "name": "payload_json",
+              "type": "string"
+            },
+            {
+              "label": "Similarity score",
+              "name": "score",
+              "type": "number"
+            }
+          ],
+          "goType": "Point",
+          "label": "Points",
+          "name": "points",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Next point offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "upsert_points",
+      "inputs": [
+        {
+          "label": "Collection name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Point ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "number",
+              "label": "Dense vector",
+              "name": "vector",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Payload JSON",
+              "name": "payload_json",
+              "type": "string"
+            }
+          ],
+          "goType": "PointInput",
+          "label": "Points to upsert",
+          "name": "points",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Named vector",
+          "name": "vector_name",
+          "type": "string"
+        }
+      ],
+      "label": "Upsert points",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Write status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Operation ID",
+              "name": "operation_id",
+              "type": "string"
+            }
+          ],
+          "goType": "WriteReceipt",
+          "label": "Completed write receipt",
+          "name": "receipt",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-qdrant:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_QDRANT_URL",
+        "desc": "HTTP(S) URL of your Qdrant service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

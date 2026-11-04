@@ -1,0 +1,539 @@
+plugin:
+  org: sokel
+  name: twilio
+  label: Twilio
+  desc: Send SMS and MMS, inspect delivery state, phone numbers and media metadata
+  version: 0.1.0
+  doc: docs/twilio.md
+credential:
+  fields:
+  - desc: Twilio account or subaccount SID (AC followed by 32 hexadecimal characters).
+    label: Account SID
+    name: account_sid
+    required: true
+    type: text
+  - desc: Use the Auth Token belonging to this account. API-key SIDs and OAuth tokens are not supported in this version.
+    label: Auth token
+    name: auth_token
+    required: true
+    type: secret
+operations:
+- desc: Read account identity without returning its Auth Token.
+  id: get_account
+  label: Get account
+  outputs:
+  - fields:
+    - label: Account SID
+      name: sid
+      required: true
+      type: string
+    - label: Friendly name
+      name: friendly_name
+      required: true
+      type: string
+    - label: Account status
+      name: status
+      required: true
+      type: string
+    - label: Account type
+      name: type
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    goType: Account
+    label: Account
+    name: account
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_incoming_number
+  inputs:
+  - label: Phone number SID
+    name: number_sid
+    required: true
+    type: string
+  label: Get account phone number
+  outputs:
+  - fields:
+    - label: Phone number SID
+      name: sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Phone number
+      name: phone_number
+      required: true
+      type: string
+    - label: Friendly name
+      name: friendly_name
+      required: true
+      type: string
+    - fields:
+      - label: SMS supported
+        name: sms
+        required: true
+        type: boolean
+      - label: MMS supported
+        name: mms
+        required: true
+        type: boolean
+      - label: Voice supported
+        name: voice
+        required: true
+        type: boolean
+      label: Capabilities
+      name: capabilities
+      required: true
+      type: json
+    - label: Number status
+      name: status
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    goType: IncomingNumber
+    label: Phone number
+    name: number
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_message
+  inputs:
+  - label: Message SID
+    name: message_sid
+    required: true
+    type: string
+  label: Get message
+  outputs:
+  - fields:
+    - label: Message SID
+      name: sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Sender
+      name: from
+      type: string
+    - label: Recipient
+      name: to
+      required: true
+      type: string
+    - label: Message body
+      name: body
+      required: true
+      type: string
+    - label: Message status
+      name: status
+      required: true
+      type: string
+    - label: Direction
+      name: direction
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    - label: Sent at
+      name: date_sent
+      type: string
+    - label: Updated at
+      name: date_updated
+      required: true
+      type: string
+    - label: Segment count
+      name: num_segments
+      required: true
+      type: string
+    - label: Media count
+      name: num_media
+      required: true
+      type: string
+    - label: Price
+      name: price
+      type: string
+    - label: Price currency
+      name: price_unit
+      type: string
+    - goType: int
+      label: Delivery error code
+      name: error_code
+      type: number
+    - label: Delivery error message
+      name: error_message
+      type: string
+    - label: Messaging Service SID
+      name: messaging_service_sid
+      type: string
+    goType: Message
+    label: Message
+    name: message
+    required: true
+    type: json
+  timeoutSec: 60
+- id: list_incoming_numbers
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: size
+      type: number
+    - label: Next page URI
+      name: next_page_uri
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List account phone numbers
+  outputs:
+  - fields:
+    - label: Phone number SID
+      name: sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Phone number
+      name: phone_number
+      required: true
+      type: string
+    - label: Friendly name
+      name: friendly_name
+      required: true
+      type: string
+    - fields:
+      - label: SMS supported
+        name: sms
+        required: true
+        type: boolean
+      - label: MMS supported
+        name: mms
+        required: true
+        type: boolean
+      - label: Voice supported
+        name: voice
+        required: true
+        type: boolean
+      label: Capabilities
+      name: capabilities
+      required: true
+      type: json
+    - label: Number status
+      name: status
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    goType: IncomingNumber
+    label: Phone numbers
+    name: numbers
+    required: true
+    type: array
+  - label: Next page URI
+    name: next_page_uri
+    required: true
+    type: string
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- desc: Return metadata only. Media binaries are not downloaded.
+  id: list_message_media
+  inputs:
+  - label: Message SID
+    name: message_sid
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: size
+      type: number
+    - label: Next page URI
+      name: next_page_uri
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List message media metadata
+  outputs:
+  - fields:
+    - label: Media SID
+      name: sid
+      required: true
+      type: string
+    - label: Message SID
+      name: parent_sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Content type
+      name: content_type
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    - label: Media metadata URI
+      name: uri
+      required: true
+      type: string
+    goType: Media
+    label: Media
+    name: media
+    required: true
+    type: array
+  - label: Next page URI
+    name: next_page_uri
+    required: true
+    type: string
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- desc: Read one page of message history. Reuse next_page_uri without changing filters.
+  id: list_messages
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: size
+      type: number
+    - label: Next page URI
+      name: next_page_uri
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  - fields:
+    - label: Recipient filter
+      name: to
+      type: string
+    - label: Sender filter
+      name: from
+      type: string
+    - label: Sent date (UTC)
+      name: date_sent
+      type: string
+    - label: Sent after date (UTC)
+      name: sent_after
+      type: string
+    - label: Sent before date (UTC)
+      name: sent_before
+      type: string
+    goType: MessageFilters
+    label: Message filters
+    name: filters
+    type: json
+  label: List messages
+  outputs:
+  - fields:
+    - label: Message SID
+      name: sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Sender
+      name: from
+      type: string
+    - label: Recipient
+      name: to
+      required: true
+      type: string
+    - label: Message body
+      name: body
+      required: true
+      type: string
+    - label: Message status
+      name: status
+      required: true
+      type: string
+    - label: Direction
+      name: direction
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    - label: Sent at
+      name: date_sent
+      type: string
+    - label: Updated at
+      name: date_updated
+      required: true
+      type: string
+    - label: Segment count
+      name: num_segments
+      required: true
+      type: string
+    - label: Media count
+      name: num_media
+      required: true
+      type: string
+    - label: Price
+      name: price
+      type: string
+    - label: Price currency
+      name: price_unit
+      type: string
+    - goType: int
+      label: Delivery error code
+      name: error_code
+      type: number
+    - label: Delivery error message
+      name: error_message
+      type: string
+    - label: Messaging Service SID
+      name: messaging_service_sid
+      type: string
+    goType: Message
+    label: Messages
+    name: messages
+    required: true
+    type: array
+  - label: Next page URI
+    name: next_page_uri
+    required: true
+    type: string
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- desc: Send one message. This may incur charges. The returned status does not guarantee delivery; requests are never automatically
+    retried.
+  id: send_message
+  inputs:
+  - fields:
+    - label: Recipient phone number
+      name: to
+      required: true
+      type: string
+    - label: Sender phone number or ID
+      name: from
+      type: string
+    - label: Messaging Service SID
+      name: messaging_service_sid
+      type: string
+    - label: Message body
+      name: body
+      type: string
+    - itemType: string
+      label: Media URLs
+      name: media_urls
+      type: array
+    - label: Use Smart Encoding
+      name: smart_encoded
+      type: boolean
+    - goType: int
+      label: Queue validity in seconds
+      name: validity_period
+      type: number
+    goType: SendOptions
+    label: Message
+    name: message
+    required: true
+    type: json
+  label: Send SMS or MMS
+  outputs:
+  - fields:
+    - label: Message SID
+      name: sid
+      required: true
+      type: string
+    - label: Account SID
+      name: account_sid
+      required: true
+      type: string
+    - label: Sender
+      name: from
+      type: string
+    - label: Recipient
+      name: to
+      required: true
+      type: string
+    - label: Message body
+      name: body
+      required: true
+      type: string
+    - label: Message status
+      name: status
+      required: true
+      type: string
+    - label: Direction
+      name: direction
+      required: true
+      type: string
+    - label: Created at
+      name: date_created
+      required: true
+      type: string
+    - label: Sent at
+      name: date_sent
+      type: string
+    - label: Updated at
+      name: date_updated
+      required: true
+      type: string
+    - label: Segment count
+      name: num_segments
+      required: true
+      type: string
+    - label: Media count
+      name: num_media
+      required: true
+      type: string
+    - label: Price
+      name: price
+      type: string
+    - label: Price currency
+      name: price_unit
+      type: string
+    - goType: int
+      label: Delivery error code
+      name: error_code
+      type: number
+    - label: Delivery error message
+      name: error_message
+      type: string
+    - label: Messaging Service SID
+      name: messaging_service_sid
+      type: string
+    goType: Message
+    label: Message
+    name: message
+    required: true
+    type: json
+  timeoutSec: 60
+deployment:
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-twilio:0.1.0

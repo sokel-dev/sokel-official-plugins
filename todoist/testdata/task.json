@@ -1,0 +1,17 @@
+{
+  "id": "6XGgmFVcrG5RRjVr",
+  "project_id": "6XGgm6PHrGgMpCFX",
+  "content": "Buy milk",
+  "description": "",
+  "labels": [],
+  "priority": 1,
+  "checked": false,
+  "added_at": "2030-01-01T00:00:00Z",
+  "updated_at": "2030-01-01T00:00:00Z",
+  "due": {
+    "date": "2030-01-02",
+    "is_recurring": false,
+    "string": "Jan 2",
+    "timezone": null
+  }
+}

@@ -1,0 +1,369 @@
+[
+  {
+    "method": "GET",
+    "path": "/indexes",
+    "query": "limit=1\u0026offset=0",
+    "status": 200,
+    "response": {
+      "results": [],
+      "offset": 0,
+      "limit": 1,
+      "total": 0
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/indexes",
+    "query": "",
+    "request": {
+      "primaryKey": "id",
+      "uid": "sokel_wave6_1793728021443482000"
+    },
+    "status": 202,
+    "response": {
+      "taskUid": 3,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "enqueued",
+      "type": "indexCreation",
+      "enqueuedAt": "2026-11-03T17:47:01.493693928Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/3",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 3,
+      "batchUid": 3,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "processing",
+      "type": "indexCreation",
+      "canceledBy": null,
+      "details": {
+        "primaryKey": "id"
+      },
+      "error": null,
+      "duration": null,
+      "enqueuedAt": "2026-11-03T17:47:01.493693928Z",
+      "startedAt": "2026-11-03T17:47:01.510425263Z",
+      "finishedAt": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/3",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 3,
+      "batchUid": 3,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "succeeded",
+      "type": "indexCreation",
+      "canceledBy": null,
+      "details": {
+        "primaryKey": "id"
+      },
+      "error": null,
+      "duration": "PT0.012428595S",
+      "enqueuedAt": "2026-11-03T17:47:01.493693928Z",
+      "startedAt": "2026-11-03T17:47:01.510425263Z",
+      "finishedAt": "2026-11-03T17:47:01.522853858Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/indexes/sokel_wave6_1793728021443482000",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": "sokel_wave6_1793728021443482000",
+      "createdAt": "2026-11-03T17:47:01.512368883Z",
+      "updatedAt": "2026-11-03T17:47:01.522480984Z",
+      "primaryKey": "id"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/indexes",
+    "query": "limit=1\u0026offset=0",
+    "status": 200,
+    "response": {
+      "results": [
+        {
+          "uid": "sokel_wave6_1793728021443482000",
+          "createdAt": "2026-11-03T17:47:01.512368883Z",
+          "updatedAt": "2026-11-03T17:47:01.522480984Z",
+          "primaryKey": "id"
+        }
+      ],
+      "offset": 0,
+      "limit": 1,
+      "total": 1
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/indexes/sokel_wave6_1793728021443482000/documents",
+    "query": "",
+    "request": [
+      {
+        "id": "one",
+        "title": "Book one",
+        "available": false
+      },
+      {
+        "id": 9007199254740993,
+        "title": "Book two"
+      }
+    ],
+    "status": 202,
+    "response": {
+      "taskUid": 4,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "enqueued",
+      "type": "documentAdditionOrUpdate",
+      "enqueuedAt": "2026-11-03T17:47:01.619087462Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/4",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 4,
+      "batchUid": 4,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "processing",
+      "type": "documentAdditionOrUpdate",
+      "canceledBy": null,
+      "details": {
+        "receivedDocuments": 2,
+        "indexedDocuments": null
+      },
+      "error": null,
+      "duration": null,
+      "enqueuedAt": "2026-11-03T17:47:01.619087462Z",
+      "startedAt": "2026-11-03T17:47:01.619146628Z",
+      "finishedAt": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/4",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 4,
+      "batchUid": 4,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "succeeded",
+      "type": "documentAdditionOrUpdate",
+      "canceledBy": null,
+      "details": {
+        "receivedDocuments": 2,
+        "indexedDocuments": 2
+      },
+      "error": null,
+      "duration": "PT0.018578414S",
+      "enqueuedAt": "2026-11-03T17:47:01.619087462Z",
+      "startedAt": "2026-11-03T17:47:01.619146628Z",
+      "finishedAt": "2026-11-03T17:47:01.637725042Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/indexes/sokel_wave6_1793728021443482000/documents/9007199254740993",
+    "query": "",
+    "status": 200,
+    "response": {
+      "id": 9007199254740993,
+      "title": "Book two"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/indexes/sokel_wave6_1793728021443482000/search",
+    "query": "",
+    "request": {
+      "limit": 1,
+      "offset": 0,
+      "q": "Book"
+    },
+    "status": 200,
+    "response": {
+      "hits": [
+        {
+          "id": "one",
+          "title": "Book one",
+          "available": false
+        }
+      ],
+      "query": "Book",
+      "processingTimeMs": 1,
+      "limit": 1,
+      "offset": 0,
+      "estimatedTotalHits": 2,
+      "requestUid": "01a1a285-84e3-73b1-b8f4-9f534db1c697"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/indexes/sokel_wave6_1793728021443482000/search",
+    "query": "",
+    "request": {
+      "limit": 1,
+      "offset": 1,
+      "q": "Book"
+    },
+    "status": 200,
+    "response": {
+      "hits": [
+        {
+          "id": 9007199254740993,
+          "title": "Book two"
+        }
+      ],
+      "query": "Book",
+      "processingTimeMs": 0,
+      "limit": 1,
+      "offset": 1,
+      "estimatedTotalHits": 2,
+      "requestUid": "01a1a285-84e6-7772-85f0-86a0146cec9c"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/indexes/sokel_wave6_1793728021443482000/documents",
+    "query": "",
+    "request": [
+      {
+        "title": "missing primary key"
+      }
+    ],
+    "status": 202,
+    "response": {
+      "taskUid": 5,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "enqueued",
+      "type": "documentAdditionOrUpdate",
+      "enqueuedAt": "2026-11-03T17:47:01.740214631Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/5",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 5,
+      "batchUid": 5,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "failed",
+      "type": "documentAdditionOrUpdate",
+      "canceledBy": null,
+      "details": {
+        "receivedDocuments": 1,
+        "indexedDocuments": 0
+      },
+      "error": {
+        "message": "Document doesn't have a `id` attribute: `{\"title\":\"missing primary key\"}`.",
+        "code": "missing_document_id",
+        "type": "invalid_request",
+        "link": "https://docs.meilisearch.com/errors#missing_document_id"
+      },
+      "duration": "PT0.002287328S",
+      "enqueuedAt": "2026-11-03T17:47:01.740214631Z",
+      "startedAt": "2026-11-03T17:47:01.740308464Z",
+      "finishedAt": "2026-11-03T17:47:01.742595792Z"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/indexes/sokel_wave6_1793728021443482000/documents/one",
+    "query": "",
+    "status": 202,
+    "response": {
+      "taskUid": 6,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "enqueued",
+      "type": "documentDeletion",
+      "enqueuedAt": "2026-11-03T17:47:01.745199494Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/6",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 6,
+      "batchUid": 6,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "processing",
+      "type": "documentDeletion",
+      "canceledBy": null,
+      "details": {
+        "providedIds": 1,
+        "deletedDocuments": null,
+        "originalFilter": null
+      },
+      "error": null,
+      "duration": null,
+      "enqueuedAt": "2026-11-03T17:47:01.745199494Z",
+      "startedAt": "2026-11-03T17:47:01.745571035Z",
+      "finishedAt": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/tasks/6",
+    "query": "",
+    "status": 200,
+    "response": {
+      "uid": 6,
+      "batchUid": 6,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "succeeded",
+      "type": "documentDeletion",
+      "canceledBy": null,
+      "details": {
+        "providedIds": 1,
+        "deletedDocuments": 1,
+        "originalFilter": null
+      },
+      "error": null,
+      "duration": "PT0.008752312S",
+      "enqueuedAt": "2026-11-03T17:47:01.745199494Z",
+      "startedAt": "2026-11-03T17:47:01.745571035Z",
+      "finishedAt": "2026-11-03T17:47:01.754323347Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/indexes/sokel_wave6_1793728021443482000/documents/one",
+    "query": "",
+    "status": 404,
+    "response": {
+      "message": "Document `one` not found.",
+      "code": "document_not_found",
+      "type": "invalid_request",
+      "link": "https://docs.meilisearch.com/errors#document_not_found"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/indexes/sokel_wave6_1793728021443482000",
+    "query": "",
+    "status": 202,
+    "response": {
+      "taskUid": 7,
+      "indexUid": "sokel_wave6_1793728021443482000",
+      "status": "enqueued",
+      "type": "indexDeletion",
+      "enqueuedAt": "2026-11-03T17:47:01.861980048Z"
+    }
+  }
+]

@@ -1,0 +1,335 @@
+{
+  "plugin": {
+    "name": "crawl4ai",
+    "org": "sokel",
+    "label": "Crawl4AI",
+    "desc": "Crawl pages and extract Markdown with a self-hosted Crawl4AI server",
+    "version": "0.1.0",
+    "doc": "docs/crawl4ai.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Self-hosted server API token or an existing JWT; no cloud account is required.",
+        "label": "Access token",
+        "name": "access_token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "crawl",
+      "inputs": [
+        {
+          "itemType": "string",
+          "label": "HTTP or HTTPS page URLs",
+          "name": "urls",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page timeout in milliseconds",
+              "name": "page_timeout_ms",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Minimum word count",
+              "name": "word_count_threshold",
+              "type": "number"
+            },
+            {
+              "label": "Extract text only",
+              "name": "only_text",
+              "type": "boolean"
+            },
+            {
+              "label": "Content CSS selector",
+              "name": "css_selector",
+              "type": "string"
+            }
+          ],
+          "goType": "CrawlOptions",
+          "label": "Crawl options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Crawl pages",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Page URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Page crawl succeeded",
+              "name": "success",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Page HTTP status",
+              "name": "status_code",
+              "type": "number"
+            },
+            {
+              "label": "Page title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "label": "Raw Markdown",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "label": "Result details",
+              "name": "message",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "CrawlResult",
+          "label": "Page results",
+          "name": "results",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Every page succeeded",
+          "name": "all_succeeded",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 180
+    },
+    {
+      "id": "get_task",
+      "inputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get crawl task",
+      "outputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Task status",
+          "name": "status",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Task completed",
+          "name": "completed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Every page succeeded",
+          "name": "all_succeeded",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "fields": [
+            {
+              "label": "Page URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Page crawl succeeded",
+              "name": "success",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Page HTTP status",
+              "name": "status_code",
+              "type": "number"
+            },
+            {
+              "label": "Page title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "label": "Raw Markdown",
+              "name": "markdown",
+              "type": "string"
+            },
+            {
+              "label": "Result details",
+              "name": "message",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "CrawlResult",
+          "label": "Page results",
+          "name": "results",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Task details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check service availability",
+      "outputs": [
+        {
+          "label": "Service reachable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "markdown",
+      "inputs": [
+        {
+          "label": "HTTP or HTTPS page URL",
+          "name": "url",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Allow cached content",
+          "name": "use_cache",
+          "type": "boolean"
+        }
+      ],
+      "label": "Extract raw Markdown",
+      "outputs": [
+        {
+          "label": "Page URL",
+          "name": "url",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Raw Markdown",
+          "name": "markdown",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 180
+    },
+    {
+      "id": "submit_crawl",
+      "inputs": [
+        {
+          "itemType": "string",
+          "label": "HTTP or HTTPS page URLs",
+          "name": "urls",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page timeout in milliseconds",
+              "name": "page_timeout_ms",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Minimum word count",
+              "name": "word_count_threshold",
+              "type": "number"
+            },
+            {
+              "label": "Extract text only",
+              "name": "only_text",
+              "type": "boolean"
+            },
+            {
+              "label": "Content CSS selector",
+              "name": "css_selector",
+              "type": "string"
+            }
+          ],
+          "goType": "CrawlOptions",
+          "label": "Crawl options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Submit crawl task",
+      "outputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Task accepted; completion is not confirmed",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-crawl4ai:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_CRAWL4AI_URL",
+        "desc": "HTTP(S) root URL of your Crawl4AI service; internal hosts and reverse-proxy prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

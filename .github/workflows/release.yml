@@ -125,7 +125,7 @@ jobs:
             unlisted=$(echo "$s" | python3 -c 'import json,sys;print(", ".join(json.load(sys.stdin).get("unlisted_inputs") or []))')
             if [ "$refreshed" = no ]; then echo "  The entry declares capabilities (\`implements\`): its shape was kept and the inputs / outputs it lists were refreshed from the export."; fi
             if [ -n "$unlisted" ]; then echo "  Inputs the plugin has that the entry does not list (left out; add them with the platform's catalog tools if a capability should take them): \`$unlisted\`."; fi
-            if [ "$changed" = yes ]; then echo "  New source strings in the contract need an English line in \`locales/en.json\`."; fi
+            if [ "$changed" = yes ]; then echo "  Changed source strings and the complete usage guide need matching translations: \`locales/zh-CN.json\` for English defaults, or \`locales/en.json\` for legacy Chinese defaults."; fi
             echo "- [x] \`go run ./cmd/build-index -base\` passed in the release run"
             echo
             echo "Opened by the Release workflow of ${{ github.repository }} for tag \`${{ github.ref_name }}\`."

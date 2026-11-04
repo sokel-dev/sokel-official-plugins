@@ -1,0 +1,680 @@
+{
+  "plugin": {
+    "name": "paperless-ngx",
+    "org": "sokel",
+    "label": "Paperless-ngx",
+    "desc": "Search, upload and manage documents, ingestion tasks and tags on a self-hosted Paperless-ngx instance.",
+    "version": "0.1.0",
+    "doc": "docs/paperless-ngx.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Use a token issued by your configured self-hosted service. The token is sent only to that service.",
+        "label": "API token",
+        "name": "token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_tag",
+      "inputs": [
+        {
+          "label": "Tag name",
+          "name": "name",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Hex color",
+              "name": "color",
+              "type": "string"
+            },
+            {
+              "label": "Inbox tag",
+              "name": "is_inbox_tag",
+              "type": "boolean"
+            }
+          ],
+          "goType": "TagOptions",
+          "label": "Tag options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Create tag",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Tag ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Tag name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Hex color",
+              "name": "color",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Inbox tag",
+              "name": "is_inbox_tag",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Tag",
+          "label": "Tag",
+          "name": "tag",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "download_document",
+      "inputs": [
+        {
+          "label": "Document ID",
+          "name": "document_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Download original",
+              "name": "original",
+              "type": "boolean"
+            },
+            {
+              "label": "Document version ID",
+              "name": "version_id",
+              "type": "string"
+            }
+          ],
+          "goType": "DownloadOptions",
+          "label": "Download options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Download document to platform file",
+      "outputs": [
+        {
+          "label": "Downloaded document",
+          "name": "file",
+          "required": true,
+          "type": "file"
+        }
+      ],
+      "timeoutSec": 300
+    },
+    {
+      "id": "get_document",
+      "inputs": [
+        {
+          "label": "Document ID",
+          "name": "document_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get document",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Document ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Extracted text",
+              "name": "content",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag IDs",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Correspondent ID",
+              "name": "correspondent_id",
+              "type": "string"
+            },
+            {
+              "label": "Document type ID",
+              "name": "document_type_id",
+              "type": "string"
+            },
+            {
+              "label": "Created date",
+              "name": "created",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "modified",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Original filename",
+              "name": "original_file_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Media type",
+              "name": "mime_type",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Document",
+          "label": "Document",
+          "name": "document",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_ingestion_task",
+      "inputs": [
+        {
+          "label": "Consumption task UUID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get ingestion task status",
+      "outputs": [
+        {
+          "label": "Task found",
+          "name": "found",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "fields": [
+            {
+              "label": "Task UUID",
+              "name": "task_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task type",
+              "name": "task_type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task finished",
+              "name": "complete",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Task succeeded",
+              "name": "succeeded",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Related document IDs",
+              "name": "related_document_ids",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Completed at",
+              "name": "date_done",
+              "type": "string"
+            }
+          ],
+          "goType": "IngestionTask",
+          "label": "Task",
+          "name": "task",
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check token and service",
+      "outputs": [
+        {
+          "label": "Healthy",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_documents",
+      "inputs": [
+        {
+          "label": "Full-text search query",
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "page_size",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "Search and list documents",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Document ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Extracted text",
+              "name": "content",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag IDs",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Correspondent ID",
+              "name": "correspondent_id",
+              "type": "string"
+            },
+            {
+              "label": "Document type ID",
+              "name": "document_type_id",
+              "type": "string"
+            },
+            {
+              "label": "Created date",
+              "name": "created",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "modified",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Original filename",
+              "name": "original_file_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Media type",
+              "name": "mime_type",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Document",
+          "label": "Documents",
+          "name": "documents",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "Total document count",
+          "name": "total_count",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_tags",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "page_size",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "List tags",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Tag ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Tag name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Hex color",
+              "name": "color",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Inbox tag",
+              "name": "is_inbox_tag",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Tag",
+          "label": "Tags",
+          "name": "tags",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "Total tag count",
+          "name": "total_count",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_document",
+      "inputs": [
+        {
+          "label": "Document ID",
+          "name": "document_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Replace tag IDs",
+              "name": "tags",
+              "type": "array"
+            },
+            {
+              "label": "Correspondent ID",
+              "name": "correspondent_id",
+              "type": "string"
+            },
+            {
+              "label": "Document type ID",
+              "name": "document_type_id",
+              "type": "string"
+            }
+          ],
+          "goType": "Metadata",
+          "label": "Metadata changes",
+          "name": "metadata",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Update document metadata",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Document ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Extracted text",
+              "name": "content",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag IDs",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Correspondent ID",
+              "name": "correspondent_id",
+              "type": "string"
+            },
+            {
+              "label": "Document type ID",
+              "name": "document_type_id",
+              "type": "string"
+            },
+            {
+              "label": "Created date",
+              "name": "created",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "modified",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Original filename",
+              "name": "original_file_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Media type",
+              "name": "mime_type",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Document",
+          "label": "Document",
+          "name": "document",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "upload_document",
+      "inputs": [
+        {
+          "label": "Platform document file",
+          "name": "file",
+          "required": true,
+          "type": "file"
+        },
+        {
+          "fields": [
+            {
+              "label": "Title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag IDs",
+              "name": "tags",
+              "type": "array"
+            },
+            {
+              "label": "Correspondent ID",
+              "name": "correspondent_id",
+              "type": "string"
+            },
+            {
+              "label": "Document type ID",
+              "name": "document_type_id",
+              "type": "string"
+            }
+          ],
+          "goType": "UploadOptions",
+          "label": "Document metadata",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Upload document for asynchronous ingestion",
+      "outputs": [
+        {
+          "label": "Consumption task UUID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Accepted for processing",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 300
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-paperless-ngx:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_PAPERLESS_URL",
+        "desc": "Required self-hosted Paperless-ngx site root, including any reverse-proxy path prefix; HTTP and HTTPS are supported.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

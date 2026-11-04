@@ -1,0 +1,732 @@
+{
+  "plugin": {
+    "name": "mailchimp",
+    "org": "sokel",
+    "label": "Mailchimp",
+    "desc": "Read audiences, members, tags and campaigns; explicitly upsert contacts",
+    "version": "0.1.0",
+    "doc": "docs/mailchimp.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Marketing API key including its data-center suffix, for example -us6",
+        "label": "API key",
+        "name": "api_key",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "desc": "Get audience",
+      "id": "get_audience",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get audience",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Audience ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Audience name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "date_created",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Double opt-in",
+              "name": "double_optin",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Audience",
+          "label": "Audience",
+          "name": "audience",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Get audience member",
+      "id": "get_member",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Email address",
+          "name": "email_address",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get audience member",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Member hash",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email address",
+              "name": "email_address",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Subscription status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Last changed",
+              "name": "last_changed",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "VIP",
+              "name": "vip",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "desc": "Audience-defined merge tags and values",
+              "label": "Merge fields",
+              "name": "merge_fields",
+              "opaque": true,
+              "required": true,
+              "type": "json"
+            }
+          ],
+          "goType": "Member",
+          "label": "Member",
+          "name": "member",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Check credentials",
+      "id": "health_check",
+      "label": "Check credentials",
+      "outputs": [
+        {
+          "label": "Available",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Message",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List audiences",
+      "id": "list_audiences",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List audiences",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Audience ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Audience name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "date_created",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Double opt-in",
+              "name": "double_optin",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Audience",
+          "label": "Audiences",
+          "name": "audiences",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List campaigns",
+      "id": "list_campaigns",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "type": "string"
+        },
+        {
+          "label": "Campaign status",
+          "name": "status",
+          "options": [
+            {
+              "value": "save"
+            },
+            {
+              "value": "paused"
+            },
+            {
+              "value": "schedule"
+            },
+            {
+              "value": "sending"
+            },
+            {
+              "value": "sent"
+            }
+          ],
+          "type": "enum"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List campaigns",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Campaign ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Campaign type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Campaign status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Subject",
+              "name": "subject_line",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Audience ID",
+              "name": "list_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "create_time",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Sent at",
+              "name": "send_time",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Campaign",
+          "label": "Campaigns",
+          "name": "campaigns",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List member tags",
+      "id": "list_member_tags",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Email address",
+          "name": "email_address",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List member tags",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Tag ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Tag name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "MemberTag",
+          "label": "Tags",
+          "name": "tags",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List audience members",
+      "id": "list_members",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Subscription status",
+          "name": "status",
+          "options": [
+            {
+              "value": "subscribed"
+            },
+            {
+              "value": "unsubscribed"
+            },
+            {
+              "value": "cleaned"
+            },
+            {
+              "value": "pending"
+            },
+            {
+              "value": "transactional"
+            },
+            {
+              "value": "archived"
+            }
+          ],
+          "type": "enum"
+        },
+        {
+          "desc": "RFC 3339 timestamp including a timezone",
+          "label": "Changed since",
+          "name": "since_last_changed",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "Only VIP members",
+              "name": "vip_only",
+              "type": "boolean"
+            }
+          ],
+          "goType": "ListMembersOptions",
+          "label": "Optional settings",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List audience members",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Member hash",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email address",
+              "name": "email_address",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Subscription status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Last changed",
+              "name": "last_changed",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "VIP",
+              "name": "vip",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "desc": "Audience-defined merge tags and values",
+              "label": "Merge fields",
+              "name": "merge_fields",
+              "opaque": true,
+              "required": true,
+              "type": "json"
+            }
+          ],
+          "goType": "Member",
+          "label": "Members",
+          "name": "members",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Add or update audience member",
+      "id": "upsert_member",
+      "inputs": [
+        {
+          "label": "Audience ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Email address",
+          "name": "email_address",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "Required explicit choice. Existing subscription status is never changed; pending can send an opt-in email",
+          "label": "Status for a new member",
+          "name": "status_if_new",
+          "options": [
+            {
+              "value": "subscribed"
+            },
+            {
+              "value": "unsubscribed"
+            },
+            {
+              "value": "cleaned"
+            },
+            {
+              "value": "pending"
+            },
+            {
+              "value": "transactional"
+            }
+          ],
+          "required": true,
+          "type": "enum"
+        },
+        {
+          "desc": "Audience-defined merge tags and values; omitted fields are not changed",
+          "label": "Merge fields",
+          "name": "merge_fields",
+          "opaque": true,
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "VIP",
+              "name": "vip",
+              "type": "boolean"
+            }
+          ],
+          "goType": "UpsertMemberOptions",
+          "label": "Optional settings",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Add or update audience member",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Member hash",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email address",
+              "name": "email_address",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Subscription status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Last changed",
+              "name": "last_changed",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "VIP",
+              "name": "vip",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "desc": "Audience-defined merge tags and values",
+              "label": "Merge fields",
+              "name": "merge_fields",
+              "opaque": true,
+              "required": true,
+              "type": "json"
+            }
+          ],
+          "goType": "Member",
+          "label": "Member",
+          "name": "member",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

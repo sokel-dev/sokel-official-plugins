@@ -1,0 +1,494 @@
+plugin:
+  org: sokel
+  name: monday
+  label: Monday
+  desc: Discover Monday boards and manage items, column values and updates with versioned GraphQL
+  version: 0.1.0
+  doc: docs/monday.md
+credential:
+  fields:
+  - desc: Provide a personal API token with access to the target boards; manage renewal outside this plugin.
+    label: API token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: add_update
+  inputs:
+  - label: Item ID
+    name: item_id
+    required: true
+    type: string
+  - label: Update body
+    name: body
+    required: true
+    type: string
+  label: Add item update
+  outputs:
+  - label: Update ID
+    name: update_id
+    required: true
+    type: string
+  - label: Update body
+    name: body
+    required: true
+    type: string
+  timeoutSec: 60
+- id: change_columns
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  - label: Item ID
+    name: item_id
+    required: true
+    type: string
+  - label: Column values as a JSON object string
+    name: column_values_json
+    required: true
+    type: string
+  - fields:
+    - label: Create missing labels
+      name: create_labels
+      type: boolean
+    goType: MutationOptions
+    label: Mutation options
+    name: options
+    type: json
+  label: Change item column values
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Item URL
+      name: url
+      required: true
+      type: string
+    - fields:
+      - label: Board ID
+        name: id
+        required: true
+        type: string
+      label: Board
+      name: board
+      required: true
+      type: json
+    - fields:
+      - label: Group ID
+        name: id
+        required: true
+        type: string
+      - label: Title
+        name: title
+        required: true
+        type: string
+      label: Group
+      name: group
+      type: json
+    - fields:
+      - label: Column ID
+        name: id
+        required: true
+        type: string
+      - label: Column type
+        name: type
+        required: true
+        type: string
+      - label: Display text
+        name: text
+        type: string
+      - label: Raw value JSON
+        name: value
+        type: string
+      label: Column values
+      name: column_values
+      required: true
+      type: array
+    goType: Item
+    label: Updated item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_item
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - label: Group ID
+    name: group_id
+    type: string
+  - label: Column values as a JSON object string
+    name: column_values_json
+    type: string
+  - fields:
+    - label: Create missing labels
+      name: create_labels
+      type: boolean
+    goType: MutationOptions
+    label: Mutation options
+    name: options
+    type: json
+  label: Create item
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Item URL
+      name: url
+      required: true
+      type: string
+    - fields:
+      - label: Board ID
+        name: id
+        required: true
+        type: string
+      label: Board
+      name: board
+      required: true
+      type: json
+    - fields:
+      - label: Group ID
+        name: id
+        required: true
+        type: string
+      - label: Title
+        name: title
+        required: true
+        type: string
+      label: Group
+      name: group
+      type: json
+    - fields:
+      - label: Column ID
+        name: id
+        required: true
+        type: string
+      - label: Column type
+        name: type
+        required: true
+        type: string
+      - label: Display text
+        name: text
+        type: string
+      - label: Raw value JSON
+        name: value
+        type: string
+      label: Column values
+      name: column_values
+      required: true
+      type: array
+    goType: Item
+    label: Created item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_board
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  label: Get board structure
+  outputs:
+  - fields:
+    - label: Board ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Board URL
+      name: url
+      required: true
+      type: string
+    goType: Board
+    label: Board
+    name: board
+    required: true
+    type: json
+  - fields:
+    - label: Group ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    goType: Group
+    label: Groups
+    name: groups
+    required: true
+    type: array
+  - fields:
+    - label: Column ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Column type
+      name: type
+      required: true
+      type: string
+    goType: Column
+    label: Columns
+    name: columns
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_item
+  inputs:
+  - label: Item ID
+    name: item_id
+    required: true
+    type: string
+  label: Get item
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Item URL
+      name: url
+      required: true
+      type: string
+    - fields:
+      - label: Board ID
+        name: id
+        required: true
+        type: string
+      label: Board
+      name: board
+      required: true
+      type: json
+    - fields:
+      - label: Group ID
+        name: id
+        required: true
+        type: string
+      - label: Title
+        name: title
+        required: true
+        type: string
+      label: Group
+      name: group
+      type: json
+    - fields:
+      - label: Column ID
+        name: id
+        required: true
+        type: string
+      - label: Column type
+        name: type
+        required: true
+        type: string
+      - label: Display text
+        name: text
+        type: string
+      - label: Raw value JSON
+        name: value
+        type: string
+      label: Column values
+      name: column_values
+      required: true
+      type: array
+    goType: Item
+    label: Item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_boards
+  inputs:
+  - fields:
+    - goType: int
+      label: Page number
+      name: number
+      type: number
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    goType: BoardPage
+    label: Pagination
+    name: page
+    type: json
+  label: List boards
+  outputs:
+  - fields:
+    - label: Board ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Board URL
+      name: url
+      required: true
+      type: string
+    goType: Board
+    label: Boards
+    name: boards
+    required: true
+    type: array
+  - goType: int
+    label: Next page; zero means complete
+    name: next_page
+    required: true
+    type: number
+  timeoutSec: 60
+- id: list_items
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List board items
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Item URL
+      name: url
+      required: true
+      type: string
+    - fields:
+      - label: Board ID
+        name: id
+        required: true
+        type: string
+      label: Board
+      name: board
+      required: true
+      type: json
+    - fields:
+      - label: Group ID
+        name: id
+        required: true
+        type: string
+      - label: Title
+        name: title
+        required: true
+        type: string
+      label: Group
+      name: group
+      type: json
+    - fields:
+      - label: Column ID
+        name: id
+        required: true
+        type: string
+      - label: Column type
+        name: type
+        required: true
+        type: string
+      - label: Display text
+        name: text
+        type: string
+      - label: Raw value JSON
+        name: value
+        type: string
+      label: Column values
+      name: column_values
+      required: true
+      type: array
+    goType: Item
+    label: Items
+    name: items
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60

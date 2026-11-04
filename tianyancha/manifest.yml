@@ -1,0 +1,157 @@
+plugin:
+  org: sokel
+  name: tianyancha
+  label: Tianyancha
+  desc: Commercial company information and registration change queries.
+  version: 0.1.0
+  doc: docs/tianyancha.md
+credential:
+  fields:
+  - desc: Obtain a token and enable each required API in the Tianyancha data console
+    label: Commercial API token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- desc: Billable lookup; requires access to API 365
+  id: get_company
+  inputs:
+  - label: Company name, ID or registration code
+    name: keyword
+    required: true
+    type: string
+  label: Get company and key personnel
+  outputs:
+  - fields:
+    - label: Company ID
+      name: id
+      required: true
+      type: string
+    - label: Company name
+      name: name
+      required: true
+      type: string
+    - label: Registration status
+      name: status
+      required: true
+      type: string
+    - label: Unified social credit code
+      name: credit_code
+      required: true
+      type: string
+    - label: Legal representative
+      name: legal_representative
+      required: true
+      type: string
+    - label: Registered capital
+      name: capital
+      required: true
+      type: string
+    - label: Industry
+      name: industry
+      required: true
+      type: string
+    - label: Registered address
+      name: address
+      required: true
+      type: string
+    - label: Business scope
+      name: business_scope
+      required: true
+      type: string
+    - label: Established at in milliseconds
+      name: established_at_ms
+      required: true
+      type: string
+    - fields:
+      - label: Person or company ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      - itemType: string
+        label: Positions
+        name: positions
+        required: true
+        type: array
+      label: Key personnel
+      name: staff
+      required: true
+      type: array
+    - goType: int
+      label: Total key personnel
+      name: staff_total
+      required: true
+      type: number
+    goType: Company
+    label: Company
+    name: company
+    required: true
+    type: json
+  timeoutSec: 60
+- desc: Billable lookup; requires access to API 822
+  id: list_company_changes
+  inputs:
+  - label: Company name or ID
+    name: keyword
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List company registration changes
+  outputs:
+  - fields:
+    - label: Changed item
+      name: item
+      required: true
+      type: string
+    - label: Before
+      name: before
+      required: true
+      type: string
+    - label: After
+      name: after
+      required: true
+      type: string
+    - label: Changed at
+      name: changed_at
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Change
+    label: Changes
+    name: changes
+    required: true
+    type: array
+  - goType: int
+    label: Total changes
+    name: total
+    required: true
+    type: number
+  - goType: int
+    label: Next page
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60

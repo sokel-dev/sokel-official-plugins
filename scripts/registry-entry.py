@@ -5,7 +5,7 @@
         --image ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1@sha256:... \
         --export export.yml --catalog <checkout of sokel-dev/sokel-registry>
 
-A first release creates its entry from the export, <plugin>/docs and <plugin>/locales. Deployment settings come
+A first release creates its entry from the export, <plugin>/docs and <plugin>/locales. Display metadata and deployment settings come
 from the export when present, otherwise from the local manifest.yml or sokel.yaml (Go exports may omit them).
 The released image replaces the first container target; other targets, environment variables and placement
 notes are retained.
@@ -100,8 +100,42 @@ def display_strings(value):
     return keys
 
 
-def local_deployment(source, plugin_name):
-    """Read only deployment metadata from a plugin-local manifest when its code export omits it."""
+def load_locale(path):
+    """Locale files are flat source-string to translated-string maps, with no duplicate keys."""
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate source key")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_pairs)
+        if not isinstance(value, dict) or any(
+                not isinstance(key, str) or not key.strip() or not isinstance(item, str)
+                for key, item in value.items()):
+            raise ValueError("expected a flat map of nonempty source strings to translation strings")
+    except (OSError, UnicodeError, ValueError) as error:
+        sys.exit(f"invalid locale {path.name}: {error}")
+    return value
+
+
+def local_locales(source, required=False):
+    """Validate all source locale assets before creating or changing catalog files."""
+    locales = {}
+    for candidate in sorted((source / "locales").glob("*.json")):
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(source) or not resolved.is_file():
+            sys.exit(f"invalid locale {candidate.name}: must be a file inside the plugin directory")
+        locales[candidate.name] = load_locale(resolved)
+    if required and not ({"en.json", "zh-CN.json"} & locales.keys()):
+        sys.exit("a first release requires locales/en.json or locales/zh-CN.json")
+    return locales
+
+
+def local_metadata(source, plugin_name):
+    """Read distribution metadata only, never contracts, from a matching local manifest."""
     for filename in ("manifest.yml", "sokel.yaml"):
         candidate = source / filename
         if not candidate.exists() and not candidate.is_symlink():
@@ -118,8 +152,15 @@ def local_deployment(source, plugin_name):
         deployment = document.get("deployment")
         if deployment is not None and not isinstance(deployment, dict):
             sys.exit("local manifest deployment must be a mapping")
-        return deployment
-    return None
+        metadata = {}
+        for key in ("label", "desc", "icon", "doc"):
+            if key in document["plugin"]:
+                value = document["plugin"][key]
+                if not isinstance(value, str):
+                    sys.exit(f"local manifest plugin.{key} must be a string")
+                metadata[key] = value
+        return metadata, deployment
+    return {}, None
 
 
 def main():
@@ -137,6 +178,7 @@ def main():
     if export.get("plugin", {}).get("name") != a.plugin:
         sys.exit(f"export is for {export.get('plugin', {}).get('name')!r}, not {a.plugin}")
     first_release = not Path(path).exists()
+    source_locales = local_locales(Path(a.plugin).resolve(), required=first_release)
     if first_release:
         # The first release supplies the contract and local documentation; the built image supplies its digest.
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.plugin):
@@ -145,16 +187,16 @@ def main():
             sys.exit("a first official release requires an image digest")
         plugin = dict(export["plugin"], org="sokel", version="v0.0.0")
         source = Path(a.plugin).resolve()
+        metadata, local_deploy = local_metadata(source, a.plugin)
+        for key, value in metadata.items():
+            plugin.setdefault(key, value)
         doc = (source / plugin.get("doc", "docs/" + a.plugin + ".md")).resolve()
         if not doc.is_relative_to(source) or not doc.is_file():
             sys.exit("a first release requires a local usage document")
-        locales = source / "locales"
-        if not (locales / "en.json").is_file():
-            sys.exit("a first release requires locales/en.json")
         plugin["doc"] = "README.md"
         deployment = export.get("deployment")
         if deployment is None:
-            deployment = local_deployment(source, a.plugin)
+            deployment = local_deploy
         entry = {"plugin": plugin, "deployment": deployment}
         entry_text = ""
     else:
@@ -205,7 +247,11 @@ def main():
         target = Path(path).parent
         target.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(doc, target / "README.md")
-        shutil.copytree(locales, target / "locales", dirs_exist_ok=True)
+        locale_target = target / "locales"
+        locale_target.mkdir(parents=True, exist_ok=True)
+        for filename, translations in source_locales.items():
+            (locale_target / filename).write_text(
+                json.dumps(translations, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     else:
         # New translations, including usage markdown, ship with every release.
         # Keep catalog-only translations for catalog-owned descriptions and notes.
@@ -219,13 +265,13 @@ def main():
             current_strings.add(target_doc.read_text(encoding="utf-8"))
         retired = old_strings - current_strings
         target = Path(path).parent / "locales"
-        for locale in (Path(a.plugin) / "locales").glob("*.json"):
+        for filename, translations in source_locales.items():
             target.mkdir(parents=True, exist_ok=True)
-            dest = target / locale.name
-            merged = json.loads(dest.read_text(encoding="utf-8")) if dest.exists() else {}
+            dest = target / filename
+            merged = load_locale(dest) if dest.exists() else {}
             # Catalog-owned metadata may differ from source labels/descriptions.
             # Only import translations actually referenced by the resulting entry.
-            merged.update({key: value for key, value in json.loads(locale.read_text(encoding="utf-8")).items()
+            merged.update({key: value for key, value in translations.items()
                            if key in current_strings})
             for key in retired:
                 merged.pop(key, None)

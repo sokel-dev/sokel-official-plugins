@@ -1,0 +1,171 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "status": 200,
+    "response": {
+      "database": "ok",
+      "version": "13.3.0",
+      "commit": "6f8ce3c693b493043ebcd4787566d2b6b118b0f0"
+    },
+    "adaptation": "None; actual synthetic local response."
+  },
+  {
+    "method": "GET",
+    "path": "/api/search?limit=1",
+    "status": 200,
+    "response": [
+      {
+        "id": 993909794291712,
+        "uid": "wave8-synthetic",
+        "orgId": 1,
+        "title": "Wave 8 synthetic acceptance",
+        "uri": "db/wave-8-synthetic-acceptance",
+        "url": "/d/wave8-synthetic/wave-8-synthetic-acceptance",
+        "slug": "",
+        "type": "dash-db",
+        "tags": [
+          "sokel-wave8"
+        ],
+        "isStarred": false,
+        "sortMeta": 0,
+        "isDeleted": false
+      }
+    ],
+    "adaptation": "None; actual synthetic local response."
+  },
+  {
+    "method": "GET",
+    "path": "/api/search?type=dash-db&page=1&limit=100",
+    "status": 200,
+    "response": [
+      {
+        "id": 993909794291712,
+        "uid": "wave8-synthetic",
+        "orgId": 1,
+        "title": "Wave 8 synthetic acceptance",
+        "uri": "db/wave-8-synthetic-acceptance",
+        "url": "/d/wave8-synthetic/wave-8-synthetic-acceptance",
+        "slug": "",
+        "type": "dash-db",
+        "tags": [
+          "sokel-wave8"
+        ],
+        "isStarred": false,
+        "sortMeta": 0,
+        "isDeleted": false
+      }
+    ],
+    "adaptation": "None; actual synthetic local response."
+  },
+  {
+    "method": "GET",
+    "path": "/api/datasources",
+    "status": 200,
+    "response": [
+      {
+        "id": 1,
+        "uid": "wave8-prometheus",
+        "name": "Wave 8 synthetic Prometheus",
+        "type": "prometheus",
+        "access": "proxy",
+        "isDefault": true,
+        "readOnly": false
+      }
+    ],
+    "adaptation": "Datasource config fields removed; other synthetic responses unchanged."
+  },
+  {
+    "method": "GET",
+    "path": "/api/datasources/uid/wave8-prometheus",
+    "status": 200,
+    "response": {
+      "id": 1,
+      "uid": "wave8-prometheus",
+      "name": "Wave 8 synthetic Prometheus",
+      "type": "prometheus",
+      "access": "proxy",
+      "isDefault": true,
+      "readOnly": false
+    },
+    "adaptation": "Datasource config fields removed; other synthetic responses unchanged."
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboards/uid/wave8-synthetic",
+    "status": 200,
+    "response": {
+      "meta": {
+        "type": "db",
+        "canSave": true,
+        "canEdit": true,
+        "canAdmin": false,
+        "canStar": true,
+        "canDelete": true,
+        "slug": "wave-8-synthetic-acceptance",
+        "url": "/d/wave8-synthetic/wave-8-synthetic-acceptance",
+        "expires": "0001-01-01T00:00:00Z",
+        "created": "2026-11-03T18:29:58Z",
+        "updated": "2026-11-03T18:29:58Z",
+        "updatedBy": "wave8admin",
+        "createdBy": "wave8admin",
+        "version": 1,
+        "hasAcl": false,
+        "isFolder": false,
+        "apiVersion": "v0alpha1",
+        "folderId": 0,
+        "folderUid": "",
+        "folderTitle": "General",
+        "folderUrl": "",
+        "provisioned": false,
+        "provisionedExternalId": "",
+        "annotationsPermissions": {
+          "dashboard": {
+            "canAdd": true,
+            "canEdit": true,
+            "canDelete": true
+          }
+        }
+      },
+      "dashboard": {
+        "id": 993909794291712,
+        "panels": [],
+        "schemaVersion": 41,
+        "tags": [
+          "sokel-wave8"
+        ],
+        "timezone": "utc",
+        "title": "Wave 8 synthetic acceptance",
+        "uid": "wave8-synthetic",
+        "version": 1
+      }
+    },
+    "adaptation": "None; actual synthetic local response."
+  },
+  {
+    "method": "GET",
+    "path": "/api/annotations?dashboardUID=wave8-synthetic&limit=100",
+    "status": 200,
+    "response": [
+      {
+        "id": 1,
+        "dashboardId": 993909794291712,
+        "dashboardUID": "wave8-synthetic",
+        "userUID": "cg37kxw0x8f7kc",
+        "created": 1793730622405,
+        "updated": 1793730622405,
+        "time": 1793730622383,
+        "timeEnd": 1793730622383,
+        "text": "Sokel synthetic acceptance 1793730622383",
+        "tags": [
+          "sokel-synthetic"
+        ],
+        "login": "sa-1-wave8-synthetic-editor",
+        "email": "sa-1-wave8-synthetic-editor",
+        "avatarUrl": "/avatar/5346222b8ac02ea11d943a7185c1c8f2320cfd366c3224b2b425ff3b49e55e7c",
+        "data": {}
+      }
+    ],
+    "adaptation": "None; actual synthetic local response."
+  }
+]

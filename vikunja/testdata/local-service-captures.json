@@ -1,0 +1,908 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v2/projects",
+    "query": "page=1\u0026per_page=1",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/PaginatedProject.json",
+      "items": [
+        {
+          "id": 1,
+          "title": "Inbox",
+          "description": "",
+          "identifier": "",
+          "hex_color": "",
+          "parent_project_id": 0,
+          "owner": {
+            "id": 1,
+            "name": "",
+            "username": "wave7admin",
+            "created": "2026-11-03T18:09:43Z",
+            "updated": "2026-11-03T18:09:43Z"
+          },
+          "is_archived": false,
+          "background_information": null,
+          "background_blur_hash": "",
+          "is_favorite": false,
+          "position": 65536,
+          "views": [
+            {
+              "id": 1,
+              "title": "List",
+              "project_id": 1,
+              "view_kind": "list",
+              "filter": {
+                "s": "",
+                "sort_by": null,
+                "order_by": null,
+                "filter": "done = false",
+                "filter_include_nulls": false
+              },
+              "position": 100,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 2,
+              "title": "Gantt",
+              "project_id": 1,
+              "view_kind": "gantt",
+              "filter": null,
+              "position": 200,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 3,
+              "title": "Table",
+              "project_id": 1,
+              "view_kind": "table",
+              "filter": null,
+              "position": 300,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 4,
+              "title": "Kanban",
+              "project_id": 1,
+              "view_kind": "kanban",
+              "filter": null,
+              "position": 400,
+              "bucket_configuration_mode": "manual",
+              "bucket_configuration": null,
+              "default_bucket_id": 1,
+              "done_bucket_id": 3,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            }
+          ],
+          "max_permission": null,
+          "created": "2026-11-03T18:09:43Z",
+          "updated": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": -2,
+          "title": "My Open Tasks",
+          "description": "",
+          "identifier": "",
+          "hex_color": "",
+          "parent_project_id": 0,
+          "owner": {
+            "id": 1,
+            "name": "",
+            "username": "wave7admin",
+            "created": "2026-11-03T18:09:43Z",
+            "updated": "2026-11-03T18:09:43Z"
+          },
+          "is_archived": false,
+          "background_information": null,
+          "background_blur_hash": "",
+          "is_favorite": false,
+          "position": 0,
+          "views": [
+            {
+              "id": 5,
+              "title": "List",
+              "project_id": -2,
+              "view_kind": "list",
+              "filter": null,
+              "position": 100,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 6,
+              "title": "Gantt",
+              "project_id": -2,
+              "view_kind": "gantt",
+              "filter": null,
+              "position": 200,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 7,
+              "title": "Table",
+              "project_id": -2,
+              "view_kind": "table",
+              "filter": null,
+              "position": 300,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            },
+            {
+              "id": 8,
+              "title": "Kanban",
+              "project_id": -2,
+              "view_kind": "kanban",
+              "filter": null,
+              "position": 400,
+              "bucket_configuration_mode": "manual",
+              "bucket_configuration": null,
+              "default_bucket_id": 4,
+              "done_bucket_id": 6,
+              "updated": "2026-11-03T18:09:43Z",
+              "created": "2026-11-03T18:09:43Z"
+            }
+          ],
+          "max_permission": null,
+          "created": "2026-11-03T18:09:43Z",
+          "updated": "2026-11-03T18:09:43Z"
+        }
+      ],
+      "total": 1,
+      "page": 1,
+      "per_page": 1,
+      "total_pages": 1
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v2/projects",
+    "query": "",
+    "request": {
+      "description": "\u003cp\u003eLocal acceptance\u003c/p\u003e",
+      "title": "sokel-wave7-1793729602455808000"
+    },
+    "status": 201,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/Project.json",
+      "id": 2,
+      "title": "sokel-wave7-1793729602455808000",
+      "description": "\u003cp\u003eLocal acceptance\u003c/p\u003e",
+      "identifier": "",
+      "hex_color": "",
+      "parent_project_id": 0,
+      "owner": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "is_archived": false,
+      "background_information": null,
+      "background_blur_hash": "",
+      "is_favorite": false,
+      "position": 131072,
+      "views": [
+        {
+          "id": 9,
+          "title": "List",
+          "project_id": 2,
+          "view_kind": "list",
+          "filter": {
+            "s": "",
+            "sort_by": null,
+            "order_by": null,
+            "filter": "done = false",
+            "filter_include_nulls": false
+          },
+          "position": 100,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22.454925551Z",
+          "created": "2026-11-03T18:13:22.454649704Z"
+        },
+        {
+          "id": 10,
+          "title": "Gantt",
+          "project_id": 2,
+          "view_kind": "gantt",
+          "filter": null,
+          "position": 200,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22.455733635Z",
+          "created": "2026-11-03T18:13:22.455697841Z"
+        },
+        {
+          "id": 11,
+          "title": "Table",
+          "project_id": 2,
+          "view_kind": "table",
+          "filter": null,
+          "position": 300,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22.456041526Z",
+          "created": "2026-11-03T18:13:22.45602415Z"
+        },
+        {
+          "id": 12,
+          "title": "Kanban",
+          "project_id": 2,
+          "view_kind": "kanban",
+          "filter": null,
+          "position": 400,
+          "bucket_configuration_mode": "manual",
+          "bucket_configuration": null,
+          "default_bucket_id": 7,
+          "done_bucket_id": 9,
+          "updated": "2026-11-03T18:13:22.457043994Z",
+          "created": "2026-11-03T18:13:22.456382043Z"
+        }
+      ],
+      "max_permission": null,
+      "created": "2026-11-03T18:13:22.4518356Z",
+      "updated": "2026-11-03T18:13:22.453440558Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v2/projects/2",
+    "query": "",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/ProjectReadBody.json",
+      "id": 2,
+      "title": "sokel-wave7-1793729602455808000",
+      "description": "\u003cp\u003eLocal acceptance\u003c/p\u003e",
+      "identifier": "",
+      "hex_color": "",
+      "parent_project_id": 0,
+      "owner": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "is_archived": false,
+      "background_information": null,
+      "background_blur_hash": "",
+      "is_favorite": false,
+      "position": 131072,
+      "views": [
+        {
+          "id": 9,
+          "title": "List",
+          "project_id": 2,
+          "view_kind": "list",
+          "filter": {
+            "s": "",
+            "sort_by": null,
+            "order_by": null,
+            "filter": "done = false",
+            "filter_include_nulls": false
+          },
+          "position": 100,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22Z",
+          "created": "2026-11-03T18:13:22Z"
+        },
+        {
+          "id": 10,
+          "title": "Gantt",
+          "project_id": 2,
+          "view_kind": "gantt",
+          "filter": null,
+          "position": 200,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22Z",
+          "created": "2026-11-03T18:13:22Z"
+        },
+        {
+          "id": 11,
+          "title": "Table",
+          "project_id": 2,
+          "view_kind": "table",
+          "filter": null,
+          "position": 300,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:13:22Z",
+          "created": "2026-11-03T18:13:22Z"
+        },
+        {
+          "id": 12,
+          "title": "Kanban",
+          "project_id": 2,
+          "view_kind": "kanban",
+          "filter": null,
+          "position": 400,
+          "bucket_configuration_mode": "manual",
+          "bucket_configuration": null,
+          "default_bucket_id": 7,
+          "done_bucket_id": 9,
+          "updated": "2026-11-03T18:13:22Z",
+          "created": "2026-11-03T18:13:22Z"
+        }
+      ],
+      "max_permission": 2,
+      "created": "2026-11-03T18:13:22Z",
+      "updated": "2026-11-03T18:13:22Z"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v2/projects",
+    "query": "page=1\u0026per_page=1\u0026q=sokel-wave7-1793729602455808000",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/PaginatedProject.json",
+      "items": [
+        {
+          "id": 2,
+          "title": "sokel-wave7-1793729602455808000",
+          "description": "\u003cp\u003eLocal acceptance\u003c/p\u003e",
+          "identifier": "",
+          "hex_color": "",
+          "parent_project_id": 0,
+          "owner": {
+            "id": 1,
+            "name": "",
+            "username": "wave7admin",
+            "created": "2026-11-03T18:09:43Z",
+            "updated": "2026-11-03T18:09:43Z"
+          },
+          "is_archived": false,
+          "background_information": null,
+          "background_blur_hash": "",
+          "is_favorite": false,
+          "position": 131072,
+          "views": [
+            {
+              "id": 9,
+              "title": "List",
+              "project_id": 2,
+              "view_kind": "list",
+              "filter": {
+                "s": "",
+                "sort_by": null,
+                "order_by": null,
+                "filter": "done = false",
+                "filter_include_nulls": false
+              },
+              "position": 100,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:13:22Z",
+              "created": "2026-11-03T18:13:22Z"
+            },
+            {
+              "id": 10,
+              "title": "Gantt",
+              "project_id": 2,
+              "view_kind": "gantt",
+              "filter": null,
+              "position": 200,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:13:22Z",
+              "created": "2026-11-03T18:13:22Z"
+            },
+            {
+              "id": 11,
+              "title": "Table",
+              "project_id": 2,
+              "view_kind": "table",
+              "filter": null,
+              "position": 300,
+              "bucket_configuration_mode": "none",
+              "bucket_configuration": null,
+              "default_bucket_id": 0,
+              "done_bucket_id": 0,
+              "updated": "2026-11-03T18:13:22Z",
+              "created": "2026-11-03T18:13:22Z"
+            },
+            {
+              "id": 12,
+              "title": "Kanban",
+              "project_id": 2,
+              "view_kind": "kanban",
+              "filter": null,
+              "position": 400,
+              "bucket_configuration_mode": "manual",
+              "bucket_configuration": null,
+              "default_bucket_id": 7,
+              "done_bucket_id": 9,
+              "updated": "2026-11-03T18:13:22Z",
+              "created": "2026-11-03T18:13:22Z"
+            }
+          ],
+          "max_permission": null,
+          "created": "2026-11-03T18:13:22Z",
+          "updated": "2026-11-03T18:13:22Z"
+        }
+      ],
+      "total": 1,
+      "page": 1,
+      "per_page": 1,
+      "total_pages": 1
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v2/projects/2/tasks",
+    "query": "",
+    "request": {
+      "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+      "due_date": "2027-01-01T12:00:00Z",
+      "priority": 3,
+      "title": "First"
+    },
+    "status": 201,
+    "response": {
+      "id": 1,
+      "title": "First",
+      "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+      "project_id": 2,
+      "done": false,
+      "done_at": "0001-01-01T00:00:00Z",
+      "due_date": "2027-01-01T12:00:00Z",
+      "reminders": null,
+      "repeat_after": 0,
+      "repeat_mode": 0,
+      "priority": 3,
+      "start_date": "0001-01-01T00:00:00Z",
+      "end_date": "0001-01-01T00:00:00Z",
+      "assignees": [],
+      "labels": null,
+      "hex_color": "",
+      "percent_done": 0,
+      "identifier": "#1",
+      "index": 1,
+      "related_tasks": null,
+      "attachments": null,
+      "cover_image_attachment_id": 0,
+      "is_favorite": false,
+      "created": "2026-11-03T18:13:22.470983547Z",
+      "updated": "2026-11-03T18:13:22.470984631Z",
+      "bucket_id": 0,
+      "position": 0,
+      "positions": [
+        {
+          "task_id": 1,
+          "project_view_id": 9,
+          "position": 65536
+        },
+        {
+          "task_id": 1,
+          "project_view_id": 10,
+          "position": 65536
+        },
+        {
+          "task_id": 1,
+          "project_view_id": 11,
+          "position": 65536
+        },
+        {
+          "task_id": 1,
+          "project_view_id": 12,
+          "position": 65536
+        }
+      ],
+      "reactions": null,
+      "created_by": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v2/projects/2/tasks",
+    "query": "",
+    "request": {
+      "title": "Second"
+    },
+    "status": 201,
+    "response": {
+      "id": 2,
+      "title": "Second",
+      "description": "",
+      "project_id": 2,
+      "done": false,
+      "done_at": "0001-01-01T00:00:00Z",
+      "due_date": "0001-01-01T00:00:00Z",
+      "reminders": null,
+      "repeat_after": 0,
+      "repeat_mode": 0,
+      "priority": 0,
+      "start_date": "0001-01-01T00:00:00Z",
+      "end_date": "0001-01-01T00:00:00Z",
+      "assignees": [],
+      "labels": null,
+      "hex_color": "",
+      "percent_done": 0,
+      "identifier": "#2",
+      "index": 2,
+      "related_tasks": null,
+      "attachments": null,
+      "cover_image_attachment_id": 0,
+      "is_favorite": false,
+      "created": "2026-11-03T18:13:22.48633059Z",
+      "updated": "2026-11-03T18:13:22.486332173Z",
+      "bucket_id": 0,
+      "position": 0,
+      "positions": [
+        {
+          "task_id": 2,
+          "project_view_id": 9,
+          "position": 32768
+        },
+        {
+          "task_id": 2,
+          "project_view_id": 10,
+          "position": 32768
+        },
+        {
+          "task_id": 2,
+          "project_view_id": 11,
+          "position": 32768
+        },
+        {
+          "task_id": 2,
+          "project_view_id": 12,
+          "position": 32768
+        }
+      ],
+      "reactions": null,
+      "created_by": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v2/projects/2/tasks",
+    "query": "page=1\u0026per_page=1",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/PaginatedTask.json",
+      "items": [
+        {
+          "id": 1,
+          "title": "First",
+          "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+          "project_id": 2,
+          "done": false,
+          "done_at": "0001-01-01T00:00:00Z",
+          "due_date": "2027-01-01T12:00:00Z",
+          "reminders": null,
+          "repeat_after": 0,
+          "repeat_mode": 0,
+          "priority": 3,
+          "start_date": "0001-01-01T00:00:00Z",
+          "end_date": "0001-01-01T00:00:00Z",
+          "assignees": null,
+          "labels": null,
+          "hex_color": "",
+          "percent_done": 0,
+          "identifier": "#1",
+          "index": 1,
+          "related_tasks": {},
+          "attachments": null,
+          "cover_image_attachment_id": 0,
+          "is_favorite": false,
+          "created": "2026-11-03T18:13:22Z",
+          "updated": "2026-11-03T18:13:22Z",
+          "bucket_id": 0,
+          "position": 0,
+          "reactions": null,
+          "created_by": {
+            "id": 1,
+            "name": "",
+            "username": "wave7admin",
+            "created": "2026-11-03T18:09:43Z",
+            "updated": "2026-11-03T18:09:43Z"
+          }
+        }
+      ],
+      "total": 2,
+      "page": 1,
+      "per_page": 1,
+      "total_pages": 2
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v2/projects/2/tasks",
+    "query": "page=2\u0026per_page=1",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/PaginatedTask.json",
+      "items": [
+        {
+          "id": 2,
+          "title": "Second",
+          "description": "",
+          "project_id": 2,
+          "done": false,
+          "done_at": "0001-01-01T00:00:00Z",
+          "due_date": "0001-01-01T00:00:00Z",
+          "reminders": null,
+          "repeat_after": 0,
+          "repeat_mode": 0,
+          "priority": 0,
+          "start_date": "0001-01-01T00:00:00Z",
+          "end_date": "0001-01-01T00:00:00Z",
+          "assignees": null,
+          "labels": null,
+          "hex_color": "",
+          "percent_done": 0,
+          "identifier": "#2",
+          "index": 2,
+          "related_tasks": {},
+          "attachments": null,
+          "cover_image_attachment_id": 0,
+          "is_favorite": false,
+          "created": "2026-11-03T18:13:22Z",
+          "updated": "2026-11-03T18:13:22Z",
+          "bucket_id": 0,
+          "position": 0,
+          "reactions": null,
+          "created_by": {
+            "id": 1,
+            "name": "",
+            "username": "wave7admin",
+            "created": "2026-11-03T18:09:43Z",
+            "updated": "2026-11-03T18:09:43Z"
+          }
+        }
+      ],
+      "total": 2,
+      "page": 2,
+      "per_page": 1,
+      "total_pages": 2
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v2/tasks/1",
+    "query": "",
+    "request": {
+      "done": true
+    },
+    "status": 200,
+    "response": {
+      "id": 1,
+      "title": "First",
+      "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+      "project_id": 2,
+      "done": true,
+      "done_at": "2026-11-03T18:13:22.500489613Z",
+      "due_date": "2027-01-01T12:00:00Z",
+      "reminders": null,
+      "repeat_after": 0,
+      "repeat_mode": 0,
+      "priority": 3,
+      "start_date": "0001-01-01T00:00:00Z",
+      "end_date": "0001-01-01T00:00:00Z",
+      "assignees": [],
+      "labels": null,
+      "hex_color": "",
+      "percent_done": 0,
+      "identifier": "#1",
+      "index": 1,
+      "related_tasks": {},
+      "attachments": null,
+      "cover_image_attachment_id": 0,
+      "is_favorite": false,
+      "subscription": {
+        "id": 1,
+        "entity": "task",
+        "entity_id": 1,
+        "created": "2026-11-03T18:13:22Z"
+      },
+      "created": "2026-11-03T18:13:22Z",
+      "updated": "2026-11-03T18:13:22Z",
+      "bucket_id": 0,
+      "position": 0,
+      "reactions": null,
+      "created_by": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v2/tasks/1",
+    "query": "",
+    "request": {
+      "done": false,
+      "due_date": "0001-01-01T00:00:00Z",
+      "priority": 0
+    },
+    "status": 200,
+    "response": {
+      "id": 1,
+      "title": "First",
+      "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+      "project_id": 2,
+      "done": false,
+      "done_at": "0001-01-01T00:00:00Z",
+      "due_date": "0001-01-01T00:00:00Z",
+      "reminders": null,
+      "repeat_after": 0,
+      "repeat_mode": 0,
+      "priority": 0,
+      "start_date": "0001-01-01T00:00:00Z",
+      "end_date": "0001-01-01T00:00:00Z",
+      "assignees": [],
+      "labels": null,
+      "hex_color": "",
+      "percent_done": 0,
+      "identifier": "#1",
+      "index": 1,
+      "related_tasks": {},
+      "attachments": null,
+      "cover_image_attachment_id": 0,
+      "is_favorite": false,
+      "subscription": {
+        "id": 1,
+        "entity": "task",
+        "entity_id": 1,
+        "created": "2026-11-03T18:13:22Z"
+      },
+      "created": "2026-11-03T18:13:22Z",
+      "updated": "2026-11-03T18:13:22Z",
+      "bucket_id": 0,
+      "position": 0,
+      "reactions": null,
+      "created_by": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v2/tasks/1",
+    "query": "",
+    "status": 200,
+    "response": {
+      "$schema": "http://127.0.0.1:13456/api/v2/schemas/TaskReadOneBody.json",
+      "id": 1,
+      "title": "First",
+      "description": "\u003cp\u003eKeep this description\u003c/p\u003e",
+      "project_id": 2,
+      "done": false,
+      "done_at": "0001-01-01T00:00:00Z",
+      "due_date": "0001-01-01T00:00:00Z",
+      "reminders": null,
+      "repeat_after": 0,
+      "repeat_mode": 0,
+      "priority": 0,
+      "start_date": "0001-01-01T00:00:00Z",
+      "end_date": "0001-01-01T00:00:00Z",
+      "assignees": null,
+      "labels": null,
+      "hex_color": "",
+      "percent_done": 0,
+      "identifier": "#1",
+      "index": 1,
+      "related_tasks": {},
+      "attachments": null,
+      "cover_image_attachment_id": 0,
+      "is_favorite": false,
+      "subscription": {
+        "id": 1,
+        "entity": "task",
+        "entity_id": 1,
+        "created": "2026-11-03T18:13:22Z"
+      },
+      "created": "2026-11-03T18:13:22Z",
+      "updated": "2026-11-03T18:13:22Z",
+      "bucket_id": 0,
+      "position": 0,
+      "reactions": null,
+      "created_by": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "max_permission": 2
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v2/tasks/1/comments",
+    "query": "",
+    "request": {
+      "comment": "\u003cp\u003eLocal acceptance comment\u003c/p\u003e"
+    },
+    "status": 201,
+    "response": {
+      "id": 1,
+      "comment": "\u003cp\u003eLocal acceptance comment\u003c/p\u003e",
+      "author": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "reactions": null,
+      "created": "2026-11-03T18:13:22.509204063Z",
+      "updated": "2026-11-03T18:13:22.50920473Z"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v2/projects/2",
+    "query": "",
+    "status": 204
+  }
+]

@@ -1,0 +1,335 @@
+plugin:
+  org: sokel
+  name: typeform
+  label: Typeform
+  desc: Read Typeform workspaces, forms and completed responses with explicit pagination
+  version: 0.1.0
+  doc: docs/typeform.md
+credential:
+  fields:
+  - desc: Use a personal access token with accounts:read, forms:read, responses:read and workspaces:read as needed.
+    label: Access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: get_form
+  inputs:
+  - label: Form ID
+    name: form_id
+    required: true
+    type: string
+  label: Get form
+  outputs:
+  - fields:
+    - label: Form ID
+      name: id
+      required: true
+      type: string
+    - label: Form title
+      name: title
+      required: true
+      type: string
+    - fields:
+      - label: Question ID
+        name: id
+        required: true
+        type: string
+      - label: Question reference
+        name: ref
+        type: string
+      - label: Question type
+        name: type
+        required: true
+        type: string
+      - label: Question title
+        name: title
+        required: true
+        type: string
+      - desc: Question-specific properties include choices and recursively nested group fields.
+        label: Question properties
+        name: properties
+        opaque: true
+        type: json
+      - desc: Validation keys depend on each Typeform question type.
+        label: Question validations
+        name: validations
+        opaque: true
+        type: json
+      label: Questions
+      name: questions
+      required: true
+      type: array
+    - itemType: string
+      label: Hidden field names
+      name: hidden
+      type: array
+    goType: Form
+    label: Form
+    name: form
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_workspace
+  inputs:
+  - label: Workspace ID
+    name: workspace_id
+    required: true
+    type: string
+  label: Get workspace
+  outputs:
+  - fields:
+    - label: Workspace ID
+      name: id
+      required: true
+      type: string
+    - label: Workspace name
+      name: name
+      required: true
+      type: string
+    - label: Account ID
+      name: account_id
+      type: string
+    - label: Shared workspace
+      name: shared
+      type: boolean
+    goType: Workspace
+    label: Workspace
+    name: workspace
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_forms
+  inputs:
+  - label: Workspace ID
+    name: workspace_id
+    type: string
+  - label: Form search
+    name: search
+    type: string
+  - fields:
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List forms
+  outputs:
+  - fields:
+    - label: Form ID
+      name: id
+      required: true
+      type: string
+    - label: Form title
+      name: title
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      type: string
+    - label: Updated at
+      name: updated_at
+      type: string
+    - label: Public form URL
+      name: display_url
+      type: string
+    goType: FormSummary
+    label: Forms
+    name: forms
+    required: true
+    type: array
+  - goType: int
+    label: Total items
+    name: total_items
+    required: true
+    type: number
+  - goType: int
+    label: Page count
+    name: page_count
+    required: true
+    type: number
+  - goType: int
+    label: Next page; zero means complete
+    name: next_page
+    required: true
+    type: number
+  timeoutSec: 60
+- id: list_responses
+  inputs:
+  - label: Form ID
+    name: form_id
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    - label: Before response cursor
+      name: before
+      type: string
+    - label: Submitted since
+      name: since
+      type: string
+    - label: Submitted until
+      name: until
+      type: string
+    - label: Answer search phrase
+      name: query
+      type: string
+    goType: ResponseOptions
+    label: Response filters
+    name: options
+    type: json
+  label: List completed responses
+  outputs:
+  - fields:
+    - label: Response cursor token
+      name: token
+      required: true
+      type: string
+    - label: Response ID
+      name: response_id
+      type: string
+    - label: Landed at
+      name: landed_at
+      type: string
+    - label: Submitted at
+      name: submitted_at
+      type: string
+    - fields:
+      - label: Answer type
+        name: type
+        required: true
+        type: string
+      - label: Question ID
+        name: field_id
+        required: true
+        type: string
+      - label: Question reference
+        name: field_ref
+        type: string
+      - label: Question type
+        name: field_type
+        required: true
+        type: string
+      - desc: Answer values are a type-dependent union of scalars, choices, payments and other Typeform answer payloads.
+        label: Answer value
+        name: value
+        opaque: true
+        required: true
+        type: json
+      label: Answers
+      name: answers
+      required: true
+      type: array
+    - label: Hidden field values
+      name: hidden
+      type: json
+      valueType:
+        name: ''
+        type: string
+    - desc: Forms define their own calculated score and price fields.
+      label: Calculated values
+      name: calculated
+      opaque: true
+      type: json
+    goType: Response
+    label: Responses
+    name: responses
+    required: true
+    type: array
+  - goType: int
+    label: Total matching responses
+    name: total_items
+    required: true
+    type: number
+  - goType: int
+    label: Page count
+    name: page_count
+    required: true
+    type: number
+  - label: Next before cursor
+    name: next_before
+    required: true
+    type: string
+  - label: A further page may exist
+    name: may_have_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_workspaces
+  inputs:
+  - fields:
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  - label: Workspace search
+    name: search
+    type: string
+  label: List workspaces
+  outputs:
+  - fields:
+    - label: Workspace ID
+      name: id
+      required: true
+      type: string
+    - label: Workspace name
+      name: name
+      required: true
+      type: string
+    - label: Account ID
+      name: account_id
+      type: string
+    - label: Shared workspace
+      name: shared
+      type: boolean
+    goType: Workspace
+    label: Workspaces
+    name: workspaces
+    required: true
+    type: array
+  - goType: int
+    label: Total items
+    name: total_items
+    required: true
+    type: number
+  - goType: int
+    label: Page count
+    name: page_count
+    required: true
+    type: number
+  - goType: int
+    label: Next page; zero means complete
+    name: next_page
+    required: true
+    type: number
+  timeoutSec: 60

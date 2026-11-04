@@ -1,0 +1,7 @@
+{
+  "err": null,
+  "images": {
+    "1:2": "https://example.invalid/render.png",
+    "9:9": null
+  }
+}

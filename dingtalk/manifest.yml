@@ -1,0 +1,151 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/sokel-dev/sokel-plugin-sdk/v0.7.7/docs/sokel.schema.json
+plugin:
+  org: sokel
+  name: dingtalk
+  label: DingTalk
+  desc: DingTalk
+  version: 0.1.0
+  doc: docs/dingtalk.md
+credential:
+  fields:
+  - name: app_key
+    label: App key
+    type: text
+    required: true
+  - name: app_secret
+    label: App secret
+    type: secret
+    required: true
+  - name: robot_code
+    label: Robot code
+    type: text
+    required: true
+operations:
+- id: group_message_send
+  label: Send group message
+  desc: Send group message
+  timeoutSec: 30
+  inputs:
+  - name: conversation_id
+    label: Conversation ID
+    type: string
+    required: true
+  - name: message_type
+    label: Message type
+    type: enum
+    default: text
+    options:
+    - text
+    - markdown
+  - name: text
+    label: Message body
+    type: string
+    required: true
+  - name: title
+    label: Message title
+    type: string
+  outputs:
+  - name: process_query_key
+    label: Delivery receipt
+    type: string
+    required: true
+- id: direct_message_send
+  label: Send direct messages
+  desc: Send direct messages
+  timeoutSec: 30
+  inputs:
+  - name: user_ids
+    label: User IDs
+    type: strings
+    required: true
+  - name: message_type
+    label: Message type
+    type: enum
+    default: text
+    options:
+    - text
+    - markdown
+  - name: text
+    label: Message body
+    type: string
+    required: true
+  - name: title
+    label: Message title
+    type: string
+  outputs:
+  - name: process_query_key
+    label: Delivery receipt
+    type: string
+    required: true
+  - name: invalid_user_ids
+    label: Invalid user IDs
+    type: strings
+  - name: rate_limited_user_ids
+    label: Rate-limited user IDs
+    type: strings
+- id: message_file_url
+  label: Get message attachment URL
+  desc: Get message attachment URL
+  timeoutSec: 30
+  inputs:
+  - name: download_code
+    label: Download code
+    type: string
+    required: true
+  outputs:
+  - name: download_url
+    label: Temporary download URL
+    type: string
+    required: true
+- id: health_check
+  label: Check credentials
+  desc: Check credentials
+  timeoutSec: 30
+  inputs: []
+  outputs:
+  - name: ok
+    label: Usable
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+codegen:
+- lang: go
+events:
+- id: message
+  label: Robot message received
+  fields:
+  - name: message_id
+    label: Message ID
+    type: string
+    required: true
+  - name: conversation_id
+    label: Conversation ID
+    type: string
+    required: true
+  - name: conversation_type
+    label: Conversation type
+    type: string
+  - name: sender_id
+    label: Sender ID
+    type: string
+  - name: sender_user_id
+    label: Sender staff ID
+    type: string
+  - name: sender_name
+    label: Sender name
+    type: string
+  - name: message_type
+    label: Message type
+    type: string
+  - name: text
+    label: Message body
+    type: string
+  - name: download_codes
+    label: Download codes
+    type: strings
+  - name: created_at
+    label: Creation timestamp
+    type: int

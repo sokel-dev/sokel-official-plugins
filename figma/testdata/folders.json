@@ -1,0 +1,10 @@
+{
+  "name": "Example team",
+  "folders": [
+    {
+      "id": "123",
+      "name": "Design",
+      "parent_folder_id": null
+    }
+  ]
+}

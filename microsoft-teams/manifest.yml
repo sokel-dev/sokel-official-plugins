@@ -1,0 +1,275 @@
+plugin:
+  org: sokel
+  name: microsoft-teams
+  label: Microsoft Teams
+  desc: Browse teams and chats and read or send delegated messages
+  version: 0.1.0
+  doc: docs/microsoft-teams.md
+credential:
+  fields:
+  - name: access_token
+    label: Delegated Microsoft Graph access token
+    type: secret
+    required: true
+    desc: Global Microsoft Graph delegated token; refresh externally and replace before
+      expiration
+operations:
+- id: health_check
+  label: Check delegated credential
+  timeoutSec: 60
+  inputs: []
+  outputs:
+  - name: ok
+    label: Available
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+- id: list_teams
+  label: List joined teams
+  timeoutSec: 60
+  inputs:
+  - &id001
+    name: next_link
+    label: Next-page URL
+    type: string
+    desc: Use the exact next_link returned by the previous call; keep resource inputs
+      unchanged
+  outputs:
+  - name: teams
+    label: Teams
+    type: array
+    required: true
+    goType: Team
+    fields:
+    - name: id
+      label: Team ID
+      type: string
+      required: true
+    - name: name
+      label: Name
+      type: string
+      required: true
+    - name: description
+      label: Description
+      type: string
+      required: true
+  - &id002
+    name: next_link
+    label: Next-page URL
+    type: string
+    required: true
+- id: list_channels
+  label: List team channels
+  timeoutSec: 60
+  inputs:
+  - &id003
+    name: team_id
+    label: Team ID
+    type: string
+    required: true
+  - *id001
+  outputs:
+  - name: channels
+    label: Channels
+    type: array
+    required: true
+    goType: Channel
+    fields:
+    - name: id
+      label: Channel ID
+      type: string
+      required: true
+    - name: name
+      label: Name
+      type: string
+      required: true
+    - name: description
+      label: Description
+      type: string
+      required: true
+    - name: membership_type
+      label: Membership type
+      type: string
+      required: true
+    - name: web_url
+      label: Web URL
+      type: string
+      required: true
+  - *id002
+- id: list_chats
+  label: List joined chats
+  timeoutSec: 60
+  inputs:
+  - &id004
+    name: limit
+    label: Page size
+    type: int
+    default: 50
+  - *id001
+  outputs:
+  - name: chats
+    label: Chats
+    type: array
+    required: true
+    goType: Chat
+    fields:
+    - name: id
+      label: Chat ID
+      type: string
+      required: true
+    - name: topic
+      label: Topic
+      type: string
+      required: true
+    - name: chat_type
+      label: Chat type
+      type: string
+      required: true
+    - name: web_url
+      label: Web URL
+      type: string
+      required: true
+    - name: created_at
+      label: Created at
+      type: string
+      required: true
+    - name: updated_at
+      label: Updated at
+      type: string
+      required: true
+  - *id002
+- id: list_channel_messages
+  label: List channel messages
+  timeoutSec: 60
+  inputs:
+  - *id003
+  - &id005
+    name: channel_id
+    label: Channel ID
+    type: string
+    required: true
+  - *id004
+  - *id001
+  outputs: &id006
+  - name: messages
+    label: Messages
+    type: array
+    required: true
+    goType: TeamsMessage
+    fields: &id007
+    - name: id
+      label: Message ID
+      type: string
+      required: true
+    - name: body
+      label: Body
+      type: string
+      required: true
+    - name: body_type
+      label: Body type
+      type: string
+      required: true
+    - name: author_id
+      label: Author ID
+      type: string
+      required: true
+    - name: author_name
+      label: Author name
+      type: string
+      required: true
+    - name: created_at
+      label: Created at
+      type: string
+      required: true
+    - name: updated_at
+      label: Updated at
+      type: string
+      required: true
+    - name: deleted_at
+      label: Deleted at
+      type: string
+      required: true
+    - name: reply_to_id
+      label: Parent message ID
+      type: string
+      required: true
+    - name: web_url
+      label: Web URL
+      type: string
+      required: true
+    - name: message_type
+      label: Message type
+      type: string
+      required: true
+  - *id002
+- id: list_replies
+  label: List channel message replies
+  timeoutSec: 60
+  inputs:
+  - *id003
+  - *id005
+  - name: message_id
+    label: Message ID
+    type: string
+    required: true
+  - *id004
+  - *id001
+  outputs: *id006
+- id: list_chat_messages
+  label: List chat messages
+  timeoutSec: 60
+  inputs:
+  - &id008
+    name: chat_id
+    label: Chat ID
+    type: string
+    required: true
+  - *id004
+  - *id001
+  outputs: *id006
+- id: send_channel_message
+  label: Send channel message or reply
+  timeoutSec: 60
+  inputs:
+  - *id003
+  - *id005
+  - &id009
+    name: content
+    label: Message content
+    type: string
+    required: true
+  - &id010
+    name: content_type
+    label: Content type
+    type: string
+    desc: text or html; defaults to text
+  - name: reply_to_id
+    label: Parent message ID
+    type: string
+    desc: When set, post a reply to this channel message
+  outputs:
+  - name: message
+    label: Message
+    type: json
+    required: true
+    goType: TeamsMessage
+    fields: *id007
+- id: send_chat_message
+  label: Send chat message
+  timeoutSec: 60
+  inputs:
+  - *id008
+  - *id009
+  - *id010
+  outputs:
+  - name: message
+    label: Message
+    type: json
+    required: true
+    goType: TeamsMessage
+    fields: *id007
+codegen:
+  lang: go

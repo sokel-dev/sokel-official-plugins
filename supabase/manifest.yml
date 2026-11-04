@@ -1,0 +1,259 @@
+plugin:
+  org: sokel
+  name: supabase
+  label: Supabase
+  desc: Query database records, call functions and access storage
+  version: 0.1.0
+  doc: docs/supabase.md
+credential:
+  fields:
+  - name: api_key
+    label: Project API key
+    type: secret
+    required: true
+  - name: access_token
+    label: User access token
+    type: secret
+operations:
+- id: select_rows
+  label: Select rows
+  timeoutSec: 60
+  inputs:
+  - &id001
+    name: table
+    label: Table or view
+    type: string
+    required: true
+  - &id002
+    name: schema
+    label: Exposed schema
+    type: string
+    desc: Defaults to public
+  - name: filters
+    label: Filters
+    type: array
+    goType: RowFilter
+    fields: &id006
+    - name: column
+      label: Column
+      type: string
+      required: true
+    - name: operator
+      label: Operator
+      type: string
+      required: true
+      desc: eq, neq, gt, gte, lt, lte, like, ilike, in, is, cs, cd or ov
+    - name: value
+      label: Filter value
+      type: string
+      required: true
+  - name: select
+    label: Selected columns
+    type: string
+    desc: PostgREST select expression; defaults to *
+  - name: order
+    label: Sort expression
+    type: string
+    desc: For example id.asc; use a stable unique order when paging
+  - name: limit
+    label: Page size
+    type: int
+    default: 100
+  - name: offset
+    label: Offset
+    type: int
+    default: 0
+  outputs:
+  - &id003
+    name: rows
+    label: Rows
+    type: array
+    required: true
+    opaque: true
+    desc: Objects with columns defined by the project database schema
+  - &id004
+    name: count
+    label: Returned row count
+    type: int
+    required: true
+  - name: next_offset
+    label: Next offset
+    type: int
+    required: true
+  - name: content_range
+    label: Content range
+    type: string
+    required: true
+    desc: Server range and exact total when available
+- id: insert_rows
+  label: Insert rows
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - *id003
+  outputs: &id005
+  - *id003
+  - *id004
+- id: upsert_rows
+  label: Upsert rows
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - *id003
+  - name: on_conflict
+    label: Unique conflict columns
+    type: string
+    desc: Comma-separated unique columns; defaults to the primary key
+  outputs: *id005
+- id: update_rows
+  label: Update matching rows
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - name: filters
+    label: Filters
+    type: array
+    goType: RowFilter
+    fields: *id006
+    required: true
+  - name: values
+    label: Column values
+    type: json
+    required: true
+    opaque: true
+    desc: Column names and JSON values defined by the project database schema
+  outputs: *id005
+- id: delete_rows
+  label: Delete matching rows
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - name: filters
+    label: Filters
+    type: array
+    goType: RowFilter
+    fields: *id006
+    required: true
+  outputs: *id005
+- id: call_function
+  label: Call a database function
+  timeoutSec: 60
+  inputs:
+  - name: function
+    label: Function name
+    type: string
+    required: true
+  - *id002
+  - name: arguments
+    label: Function arguments
+    type: json
+    opaque: true
+    desc: Named JSON parameters defined by the database function
+  outputs:
+  - name: result_json
+    label: Function result JSON
+    type: text
+    required: true
+    desc: Serialized JSON preserves scalar, object, array and null function results
+- id: list_objects
+  label: List storage objects
+  timeoutSec: 60
+  inputs:
+  - name: bucket
+    label: Bucket
+    type: string
+    required: true
+  - name: prefix
+    label: Folder prefix
+    type: string
+  - name: limit
+    label: Page size
+    type: int
+    default: 100
+  - name: offset
+    label: Offset
+    type: int
+    default: 0
+  outputs:
+  - name: objects
+    label: Objects
+    type: array
+    required: true
+    goType: StorageObject
+    fields:
+    - name: name
+      label: Name
+      type: string
+      required: true
+    - name: id
+      label: Object ID
+      type: string
+      required: true
+    - name: created_at
+      label: Created at
+      type: string
+      required: true
+    - name: updated_at
+      label: Updated at
+      type: string
+      required: true
+  - name: next_offset
+    label: Next offset
+    type: int
+    required: true
+- id: create_signed_url
+  label: Create a signed download URL
+  timeoutSec: 60
+  inputs:
+  - name: bucket
+    label: Bucket
+    type: string
+    required: true
+  - name: path
+    label: Object path
+    type: string
+    required: true
+  - name: expires_in
+    label: Expiry in seconds
+    type: int
+    default: 3600
+  outputs:
+  - name: signed_url
+    label: Signed download URL
+    type: string
+    required: true
+  - name: expires_in
+    label: Expiry in seconds
+    type: int
+    required: true
+- id: health_check
+  label: Check table access
+  timeoutSec: 30
+  inputs:
+  - name: table
+    label: Table or view
+    type: string
+  - *id002
+  outputs:
+  - name: ok
+    label: Available
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+codegen:
+  lang: go
+deployment:
+  env:
+  - name: SUPABASE_URL
+    desc: Supabase project origin, for example https://your-project.supabase.co
+    required: true
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-supabase:0.1.0

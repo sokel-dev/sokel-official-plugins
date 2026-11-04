@@ -1,0 +1,496 @@
+plugin:
+  org: sokel
+  name: pipedrive
+  label: Pipedrive
+  desc: Manage CRM persons, organizations and deals with Pipedrive API v2
+  version: 0.1.0
+  doc: docs/pipedrive.md
+credential:
+  fields:
+  - desc: Use a personal API token. Rotating it invalidates integrations using the previous token.
+    label: API token
+    name: api_token
+    required: true
+    type: secret
+  - desc: Enter only the company subdomain, for example acme, from acme.pipedrive.com.
+    label: Company subdomain
+    name: company_domain
+    required: true
+    type: text
+operations:
+- id: create_deal
+  inputs:
+  - label: Title
+    name: title
+    required: true
+    type: string
+  - fields:
+    - label: Exact monetary value
+      name: value
+      type: string
+    - label: Currency
+      name: currency
+      type: string
+    - label: Person ID
+      name: person_id
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    - label: Status
+      name: status
+      type: string
+    goType: DealFields
+    label: Deal fields
+    name: fields
+    type: json
+  label: Create deal
+  outputs:
+  - fields:
+    - label: Deal ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Exact monetary value
+      name: value
+      required: true
+      type: string
+    - label: Currency
+      name: currency
+      required: true
+      type: string
+    - label: Person ID
+      name: person_id
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    goType: Deal
+    label: Created deal
+    name: deal
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_organization
+  inputs:
+  - label: Name
+    name: name
+    required: true
+    type: string
+  label: Create organization
+  outputs:
+  - fields:
+    - label: Organization ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Organization
+    label: Created organization
+    name: organization
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_person
+  inputs:
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: Organization ID
+      name: org_id
+      type: string
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Email addresses
+      name: emails
+      type: array
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Phone numbers
+      name: phones
+      type: array
+    goType: PersonFields
+    label: Person fields
+    name: fields
+    type: json
+  label: Create person
+  outputs:
+  - fields:
+    - label: Person ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Email addresses
+      name: emails
+      required: true
+      type: array
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Phone numbers
+      name: phones
+      required: true
+      type: array
+    goType: Person
+    label: Created person
+    name: person
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_person
+  inputs:
+  - label: Person ID
+    name: person_id
+    required: true
+    type: string
+  label: Get person
+  outputs:
+  - fields:
+    - label: Person ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Email addresses
+      name: emails
+      required: true
+      type: array
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Phone numbers
+      name: phones
+      required: true
+      type: array
+    goType: Person
+    label: Person
+    name: person
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_deals
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List deals
+  outputs:
+  - fields:
+    - label: Deal ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Exact monetary value
+      name: value
+      required: true
+      type: string
+    - label: Currency
+      name: currency
+      required: true
+      type: string
+    - label: Person ID
+      name: person_id
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    goType: Deal
+    label: Deals
+    name: deals
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_organizations
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List organizations
+  outputs:
+  - fields:
+    - label: Organization ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Organization
+    label: Organizations
+    name: organizations
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_persons
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List persons
+  outputs:
+  - fields:
+    - label: Person ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Email addresses
+      name: emails
+      required: true
+      type: array
+    - fields:
+      - label: Email or phone
+        name: value
+        required: true
+        type: string
+      - label: Primary
+        name: primary
+        type: boolean
+      - label: Label
+        name: label
+        type: string
+      label: Phone numbers
+      name: phones
+      required: true
+      type: array
+    goType: Person
+    label: Persons
+    name: persons
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_deal
+  inputs:
+  - label: Deal ID
+    name: deal_id
+    required: true
+    type: string
+  - label: Title
+    name: title
+    type: string
+  - fields:
+    - label: Exact monetary value
+      name: value
+      type: string
+    - label: Currency
+      name: currency
+      type: string
+    - label: Person ID
+      name: person_id
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    - label: Status
+      name: status
+      type: string
+    goType: DealFields
+    label: Deal fields
+    name: fields
+    type: json
+  label: Update deal
+  outputs:
+  - fields:
+    - label: Deal ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Exact monetary value
+      name: value
+      required: true
+      type: string
+    - label: Currency
+      name: currency
+      required: true
+      type: string
+    - label: Person ID
+      name: person_id
+      type: string
+    - label: Organization ID
+      name: org_id
+      type: string
+    goType: Deal
+    label: Updated deal
+    name: deal
+    required: true
+    type: json
+  timeoutSec: 60

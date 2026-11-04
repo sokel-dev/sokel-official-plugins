@@ -1,0 +1,191 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/status/buildinfo",
+    "request": "",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "version": "3.15.1",
+        "revision": "bae3eced0a5369e050e83ea73bc381d7c4b1a719",
+        "branch": "HEAD",
+        "buildUser": "root@03bc6b0f3ef7",
+        "buildDate": "20261021-13:34:13",
+        "goVersion": "go1.27.3"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/query",
+    "request": "limit=1000\u0026query=sokel_wave8_gauge\u0026timeout=30s",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "resultType": "vector",
+        "result": [
+          {
+            "metric": {
+              "__name__": "sokel_wave8_gauge",
+              "fixture": "local"
+            },
+            "value": [
+              1793730796.897,
+              "7"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/query_range",
+    "request": "end=2026-11-03T18%3A33%3A16Z\u0026limit=1000\u0026query=sokel_wave8_gauge\u0026start=2026-11-03T18%3A32%3A46Z\u0026step=5\u0026timeout=30s",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "resultType": "matrix",
+        "result": [
+          {
+            "metric": {
+              "__name__": "sokel_wave8_gauge",
+              "fixture": "local"
+            },
+            "values": [
+              [
+                1793730766,
+                "7"
+              ],
+              [
+                1793730771,
+                "7"
+              ],
+              [
+                1793730776,
+                "7"
+              ],
+              [
+                1793730781,
+                "7"
+              ],
+              [
+                1793730786,
+                "7"
+              ],
+              [
+                1793730791,
+                "7"
+              ],
+              [
+                1793730796,
+                "7"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/labels?limit=1000\u0026match%5B%5D=sokel_wave8_gauge",
+    "request": "",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": [
+        "__name__",
+        "fixture"
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/label/fixture/values?limit=1000\u0026match%5B%5D=sokel_wave8_gauge",
+    "request": "",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": [
+        "local"
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/series?limit=1000\u0026match%5B%5D=sokel_wave8_gauge",
+    "request": "",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": [
+        {
+          "__name__": "sokel_wave8_gauge",
+          "fixture": "local"
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/alerts",
+    "request": "",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "alerts": [
+          {
+            "labels": {
+              "alertname": "SokelWave8SyntheticAlert",
+              "fixture": "local",
+              "severity": "test"
+            },
+            "annotations": {
+              "summary": "Synthetic local acceptance alert; no delivery configured"
+            },
+            "state": "firing",
+            "activeAt": "2026-11-03T18:29:17.402464112Z",
+            "value": "7e+00"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/query",
+    "request": "limit=1000\u0026query=0%2F0\u0026timeout=30s",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "resultType": "scalar",
+        "result": [
+          1793730796.907,
+          "NaN"
+        ]
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/query",
+    "request": "limit=1000\u0026query=%22synthetic%22\u0026timeout=30s",
+    "status": 200,
+    "response": {
+      "status": "success",
+      "data": {
+        "resultType": "string",
+        "result": [
+          1793730796.91,
+          "synthetic"
+        ]
+      }
+    }
+  }
+]

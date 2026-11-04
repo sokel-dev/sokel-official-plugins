@@ -1,0 +1,167 @@
+plugin:
+  org: sokel
+  name: google-docs
+  label: Google Docs
+  desc: Read document tabs and automate text edits
+  version: 0.1.0
+  doc: docs/google-docs.md
+credential:
+  auth:
+    kind: oauth
+    provider: google
+    scopes:
+    - https://www.googleapis.com/auth/documents
+    - https://www.googleapis.com/auth/userinfo.email
+  fields:
+  - name: access_token
+    label: Access token (injected by platform)
+    type: secret
+  - name: refresh_token
+    label: Refresh token (managed by platform)
+    type: secret
+operations:
+- id: get_document
+  label: Get document and tab text
+  timeoutSec: 60
+  inputs:
+  - &id001
+    name: document_id
+    label: Document ID
+    type: string
+    required: true
+  outputs:
+  - *id001
+  - name: title
+    label: Title
+    type: string
+    required: true
+  - name: revision_id
+    label: Revision ID
+    type: string
+    required: true
+  - name: tabs
+    label: Tabs
+    type: array
+    required: true
+    fields:
+    - name: id
+      label: Tab ID
+      type: string
+      required: true
+    - name: title
+      label: Title
+      type: string
+      required: true
+    - name: parent_id
+      label: Parent tab ID
+      type: string
+      required: true
+    - name: text
+      label: Body text
+      type: string
+      required: true
+    - name: end_index
+      label: Body end index
+      type: int
+      required: true
+    goType: DocumentTab
+- id: create_document
+  label: Create blank document
+  timeoutSec: 60
+  inputs:
+  - name: title
+    label: Title
+    type: string
+    required: true
+  outputs:
+  - *id001
+  - name: title
+    label: Title
+    type: string
+    required: true
+- id: insert_text
+  label: Insert or append text
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - &id002
+    name: tab_id
+    label: Tab ID
+    type: string
+    required: true
+  - name: text
+    label: Text
+    type: string
+    required: true
+  - name: index
+    label: UTF-16 insertion index
+    type: int
+    desc: Zero or omitted appends before the final newline; positive indexes insert
+      at that location
+  - &id003
+    name: required_revision_id
+    label: Required revision ID
+    type: string
+    desc: Reject the write if this revision is no longer current
+  outputs: &id005
+  - *id001
+  - &id004
+    name: revision_id
+    label: Revision after the write
+    type: string
+    required: true
+- id: replace_text
+  label: Replace text in a tab
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - name: find
+    label: Text to find
+    type: string
+    required: true
+  - name: replacement
+    label: Replacement text
+    type: string
+  - name: match_case
+    label: Match case
+    type: boolean
+  - *id003
+  outputs:
+  - *id001
+  - *id004
+  - name: occurrences_changed
+    label: Occurrences changed
+    type: int
+    required: true
+- id: delete_text
+  label: Delete a text range
+  timeoutSec: 60
+  inputs:
+  - *id001
+  - *id002
+  - name: start_index
+    label: Inclusive UTF-16 start index
+    type: int
+    required: true
+  - name: end_index
+    label: Exclusive UTF-16 end index
+    type: int
+    required: true
+  - *id003
+  outputs: *id005
+- id: health_check
+  label: Check credential
+  timeoutSec: 30
+  inputs: []
+  outputs:
+  - name: ok
+    label: Available
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+codegen:
+  lang: go

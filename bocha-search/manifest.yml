@@ -1,0 +1,105 @@
+plugin:
+  org: sokel
+  name: bocha-search
+  label: Bocha Search
+  desc: Search the web with freshness filters and optional summaries.
+  version: 0.1.0
+  doc: docs/bocha-search.md
+credential:
+  fields:
+  - label: Bocha API key
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: verify_credential
+  inputs:
+  - desc: Performs one paid search; no automatic health check is registered
+    label: Billable probe query
+    name: probe_query
+    required: true
+    type: string
+  label: Verify credential with a billable search
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: web_search
+  inputs:
+  - label: Search query
+    name: query
+    required: true
+    type: string
+  - desc: noLimit, oneDay, oneWeek, oneMonth, oneYear, YYYY-MM-DD or a date range
+      joined by ..
+    label: Freshness
+    name: freshness
+    type: string
+  - fields:
+    - goType: int
+      label: Result count
+      name: count
+      type: number
+    - label: Include summary
+      name: summary
+      type: boolean
+    goType: SearchOptions
+    label: Search options
+    name: options
+    type: json
+  label: Search the web
+  outputs:
+  - fields:
+    - label: Result ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: name
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Snippet
+      name: snippet
+      required: true
+      type: string
+    - label: Summary
+      name: summary
+      required: true
+      type: string
+    - label: Site name
+      name: site_name
+      required: true
+      type: string
+    - label: Published at
+      name: published_at
+      required: true
+      type: string
+    goType: Result
+    label: Search results
+    name: results
+    required: true
+    type: array
+  - label: Original query
+    name: query
+    required: true
+    type: string
+  - goType: int
+    label: Estimated matches
+    name: total_estimated_matches
+    required: true
+    type: number
+  - label: Request log ID
+    name: log_id
+    required: true
+    type: string
+  timeoutSec: 60

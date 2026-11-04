@@ -1,0 +1,788 @@
+{
+  "plugin": {
+    "name": "gitea",
+    "org": "sokel",
+    "label": "Gitea",
+    "desc": "Work with repositories, issues, comments and pull requests on a self-hosted Gitea instance.",
+    "version": "0.1.0",
+    "doc": "docs/gitea.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Use a token issued by your configured self-hosted service. The token is sent only to that service.",
+        "label": "API token",
+        "name": "token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "add_comment",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Issue or pull request number",
+          "name": "number",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Comment text",
+          "name": "body",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Add issue or pull request comment",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Comment ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Comment text",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Comment",
+          "label": "Comment",
+          "name": "comment",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_issue",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Issue description",
+              "name": "body",
+              "type": "string"
+            },
+            {
+              "label": "Create closed",
+              "name": "closed",
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Assignee usernames",
+              "name": "assignees",
+              "type": "array"
+            },
+            {
+              "itemType": "string",
+              "label": "Label IDs",
+              "name": "label_ids",
+              "type": "array"
+            }
+          ],
+          "goType": "IssueOptions",
+          "label": "Issue options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Create issue",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Issue ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Issue number",
+              "name": "number",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "State",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Updated at",
+              "name": "updated_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is a pull request",
+              "name": "is_pull_request",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Issue",
+          "label": "Issue",
+          "name": "issue",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_pull_request",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Head branch or owner:branch",
+          "name": "head",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Base branch",
+          "name": "base",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Description",
+          "name": "body",
+          "type": "string"
+        }
+      ],
+      "label": "Create pull request",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Pull request ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Pull request number",
+              "name": "number",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "State",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Merged",
+              "name": "merged",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Draft",
+              "name": "draft",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "PullRequest",
+          "label": "Pull request",
+          "name": "pull_request",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_issue",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Issue number",
+          "name": "number",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get issue",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Issue ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Issue number",
+              "name": "number",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "State",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Updated at",
+              "name": "updated_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is a pull request",
+              "name": "is_pull_request",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Issue",
+          "label": "Issue",
+          "name": "issue",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_repository",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get repository",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Repository ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Repository name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Full repository name",
+              "name": "full_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Private repository",
+              "name": "private",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Default branch",
+              "name": "default_branch",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Repository",
+          "label": "Repository",
+          "name": "repository",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check token and service",
+      "outputs": [
+        {
+          "label": "Healthy",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_issues",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "State: open, closed or all",
+          "name": "state",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "List issues",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Issue ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Issue number",
+              "name": "number",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "State",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Updated at",
+              "name": "updated_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is a pull request",
+              "name": "is_pull_request",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Issue",
+          "label": "Issues",
+          "name": "issues",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_pull_requests",
+      "inputs": [
+        {
+          "label": "Repository owner",
+          "name": "owner",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Repository name",
+          "name": "repository",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "State: open, closed or all",
+          "name": "state",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "List pull requests",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Pull request ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Pull request number",
+              "name": "number",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "body",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "State",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Merged",
+              "name": "merged",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Draft",
+              "name": "draft",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "PullRequest",
+          "label": "Pull requests",
+          "name": "pull_requests",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_repositories",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "pagination",
+          "type": "json"
+        }
+      ],
+      "label": "List accessible repositories",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Repository ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Repository name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Full repository name",
+              "name": "full_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Private repository",
+              "name": "private",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Default branch",
+              "name": "default_branch",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Web URL",
+              "name": "html_url",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Repository",
+          "label": "Repositories",
+          "name": "repositories",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-gitea:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_GITEA_URL",
+        "desc": "Required self-hosted Gitea site root, including any reverse-proxy path prefix; HTTP and HTTPS are supported.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

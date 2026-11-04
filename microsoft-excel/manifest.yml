@@ -1,0 +1,574 @@
+{
+  "plugin": {
+    "name": "microsoft-excel",
+    "org": "sokel",
+    "label": "Microsoft Excel 365",
+    "desc": "Read and edit business workbooks with explicit sessions, ranges and table rows",
+    "version": "0.1.0",
+    "doc": "docs/microsoft-excel.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "access_token",
+        "label": "Delegated access token",
+        "type": "secret",
+        "required": true,
+        "desc": "Obtain and refresh externally; include User.Read for health checks"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check delegated credentials",
+      "desc": "Check delegated credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "create_session",
+      "label": "Create workbook session",
+      "desc": "Create workbook session",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "persist_changes",
+          "label": "Persist changes",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "persist_changes",
+          "label": "Persist changes",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "close_session",
+      "label": "Close workbook session",
+      "desc": "Close workbook session",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "closed",
+          "label": "Closed",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_worksheets",
+      "label": "List worksheets",
+      "desc": "List worksheets",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "worksheets",
+          "label": "Worksheets",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Worksheet ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "position",
+              "label": "Worksheet position",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "visibility",
+              "label": "Visibility",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Worksheet"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_tables",
+      "label": "List workbook tables",
+      "desc": "List workbook tables",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tables",
+          "label": "Tables",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Table ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "show_headers",
+              "label": "Shows headers",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Table"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_range",
+      "label": "Read range",
+      "desc": "Read range",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "worksheet_id",
+          "label": "Worksheet ID or name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "address",
+          "label": "A1 range",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "range",
+          "label": "Range",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "address",
+              "label": "Resolved address",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "row_count",
+              "label": "Row count",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "column_count",
+              "label": "Column count",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "values",
+              "label": "Cell value matrix",
+              "type": "array",
+              "required": true,
+              "opaque": true,
+              "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+            }
+          ],
+          "goType": "CellRange"
+        }
+      ]
+    },
+    {
+      "id": "update_range",
+      "label": "Write range values",
+      "desc": "Write range values",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "worksheet_id",
+          "label": "Worksheet ID or name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "address",
+          "label": "A1 range",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "values",
+          "label": "Cell value matrix",
+          "type": "array",
+          "required": true,
+          "opaque": true,
+          "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "range",
+          "label": "Range",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "address",
+              "label": "Resolved address",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "row_count",
+              "label": "Row count",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "column_count",
+              "label": "Column count",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "values",
+              "label": "Cell value matrix",
+              "type": "array",
+              "required": true,
+              "opaque": true,
+              "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+            }
+          ],
+          "goType": "CellRange"
+        }
+      ]
+    },
+    {
+      "id": "append_rows",
+      "label": "Append table rows",
+      "desc": "Append table rows",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "table_id",
+          "label": "Table ID or name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "values",
+          "label": "Cell value matrix",
+          "type": "array",
+          "required": true,
+          "opaque": true,
+          "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "row",
+          "label": "Added rows",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "index",
+              "label": "Row index",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "values",
+              "label": "Cell value matrix",
+              "type": "array",
+              "required": true,
+              "opaque": true,
+              "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+            }
+          ],
+          "goType": "TableRow"
+        }
+      ]
+    },
+    {
+      "id": "list_rows",
+      "label": "List table rows",
+      "desc": "List table rows",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workbook_id",
+          "label": "Workbook item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "session_id",
+          "label": "Workbook session ID",
+          "type": "string",
+          "required": false,
+          "desc": "Use the ID returned by create_session; omit for sessionless persisted calls"
+        },
+        {
+          "name": "table_id",
+          "label": "Table ID or name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "skip",
+          "label": "Row offset",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rows",
+          "label": "Rows",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "index",
+              "label": "Row index",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "values",
+              "label": "Cell value matrix",
+              "type": "array",
+              "required": true,
+              "opaque": true,
+              "desc": "Rows contain string, number, boolean or null cells; workbook columns define their meaning"
+            }
+          ],
+          "goType": "TableRow"
+        },
+        {
+          "name": "next_skip",
+          "label": "Next row offset",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "has_more",
+          "label": "More rows may be available",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

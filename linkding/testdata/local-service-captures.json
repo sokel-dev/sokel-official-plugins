@@ -1,0 +1,305 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/tags/?limit=1\u0026offset=0",
+    "request": "",
+    "status": 200,
+    "response": {
+      "count": 0,
+      "next": null,
+      "previous": null,
+      "results": []
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/bookmarks/?disable_html_snapshot=true\u0026disable_scraping=true",
+    "request": "{\"url\":\"http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\\u0026fixture=sokelwave81793730796397096000\",\"title\":\"sokelwave817937307963970960000\",\"unread\":true,\"shared\":false,\"tag_names\":[\"sokelwave81793730796397096000\"]}",
+    "status": 201,
+    "response": {
+      "id": 1,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave817937307963970960000",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": true,
+      "shared": false,
+      "tag_names": [
+        "sokelwave81793730796397096000"
+      ],
+      "date_added": "2026-11-03T18:33:16.456732Z",
+      "date_modified": "2026-11-03T18:33:16.457596Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/bookmarks/?disable_html_snapshot=true\u0026disable_scraping=true",
+    "request": "{\"url\":\"http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=1\\u0026fixture=sokelwave81793730796397096000\",\"title\":\"sokelwave817937307963970960001\",\"unread\":true,\"shared\":false,\"tag_names\":[\"sokelwave81793730796397096000\"]}",
+    "status": 201,
+    "response": {
+      "id": 2,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=1\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave817937307963970960001",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=1\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": true,
+      "shared": false,
+      "tag_names": [
+        "sokelwave81793730796397096000"
+      ],
+      "date_added": "2026-11-03T18:33:16.467999Z",
+      "date_modified": "2026-11-03T18:33:16.468002Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/bookmarks/?disable_html_snapshot=true\u0026disable_scraping=true",
+    "request": "{\"url\":\"http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\\u0026fixture=sokelwave81793730796397096000\",\"title\":\"sokelwave81793730796397096000changed\",\"unread\":false,\"tag_names\":[\"sokelwave81793730796397096000\"]}",
+    "status": 201,
+    "response": {
+      "id": 1,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave81793730796397096000changed",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": false,
+      "shared": false,
+      "tag_names": [
+        "sokelwave81793730796397096000"
+      ],
+      "date_added": "2026-11-03T18:33:16.456732Z",
+      "date_modified": "2026-11-03T18:33:16.522359Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/bookmarks/1/",
+    "request": "{\"unread\":false,\"tag_names\":[]}",
+    "status": 200,
+    "response": {
+      "id": 1,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave81793730796397096000changed",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": false,
+      "shared": false,
+      "tag_names": [],
+      "date_added": "2026-11-03T18:33:16.456732Z",
+      "date_modified": "2026-11-03T18:33:16.528765Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/bookmarks/1/",
+    "request": "",
+    "status": 200,
+    "response": {
+      "id": 1,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave81793730796397096000changed",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": false,
+      "shared": false,
+      "tag_names": [],
+      "date_added": "2026-11-03T18:33:16.456732Z",
+      "date_modified": "2026-11-03T18:33:16.528765Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/bookmarks/?limit=1\u0026offset=0\u0026q=sokelwave81793730796397096000",
+    "request": "",
+    "status": 200,
+    "response": {
+      "count": 2,
+      "next": "http://127.0.0.1:19091/api/bookmarks/?limit=1\u0026offset=1\u0026q=sokelwave81793730796397096000",
+      "previous": null,
+      "results": [
+        {
+          "id": 2,
+          "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=1\u0026fixture=sokelwave81793730796397096000",
+          "title": "sokelwave817937307963970960001",
+          "description": "",
+          "notes": "",
+          "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=1\u0026fixture=sokelwave81793730796397096000",
+          "favicon_url": null,
+          "preview_image_url": null,
+          "is_archived": false,
+          "unread": true,
+          "shared": false,
+          "tag_names": [
+            "sokelwave81793730796397096000"
+          ],
+          "date_added": "2026-11-03T18:33:16.467999Z",
+          "date_modified": "2026-11-03T18:33:16.468002Z",
+          "website_title": null,
+          "website_description": null
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/bookmarks/?limit=1\u0026offset=1\u0026q=sokelwave81793730796397096000",
+    "request": "",
+    "status": 200,
+    "response": {
+      "count": 2,
+      "next": null,
+      "previous": "http://127.0.0.1:19091/api/bookmarks/?limit=1\u0026q=sokelwave81793730796397096000",
+      "results": [
+        {
+          "id": 1,
+          "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+          "title": "sokelwave81793730796397096000changed",
+          "description": "",
+          "notes": "",
+          "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+          "favicon_url": null,
+          "preview_image_url": null,
+          "is_archived": false,
+          "unread": false,
+          "shared": false,
+          "tag_names": [],
+          "date_added": "2026-11-03T18:33:16.456732Z",
+          "date_modified": "2026-11-03T18:33:16.528765Z",
+          "website_title": null,
+          "website_description": null
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/bookmarks/1/archive/",
+    "request": "",
+    "status": 204,
+    "response": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/bookmarks/1/",
+    "request": "",
+    "status": 200,
+    "response": {
+      "id": 1,
+      "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "title": "sokelwave81793730796397096000changed",
+      "description": "",
+      "notes": "",
+      "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": true,
+      "unread": false,
+      "shared": false,
+      "tag_names": [],
+      "date_added": "2026-11-03T18:33:16.456732Z",
+      "date_modified": "2026-11-03T18:33:16.541837Z",
+      "website_title": null,
+      "website_description": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/bookmarks/archived/?limit=100\u0026offset=0\u0026q=sokelwave81793730796397096000",
+    "request": "",
+    "status": 200,
+    "response": {
+      "count": 1,
+      "next": null,
+      "previous": null,
+      "results": [
+        {
+          "id": 1,
+          "url": "http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+          "title": "sokelwave81793730796397096000changed",
+          "description": "",
+          "notes": "",
+          "web_archive_snapshot_url": "https://web.archive.org/web/20261103183316/http://127.0.0.1:9090/synthetic-wave8/bookmark?entry=0\u0026fixture=sokelwave81793730796397096000",
+          "favicon_url": null,
+          "preview_image_url": null,
+          "is_archived": true,
+          "unread": false,
+          "shared": false,
+          "tag_names": [],
+          "date_added": "2026-11-03T18:33:16.456732Z",
+          "date_modified": "2026-11-03T18:33:16.541837Z",
+          "website_title": null,
+          "website_description": null
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/bookmarks/1/unarchive/",
+    "request": "",
+    "status": 204,
+    "response": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/tags/?limit=1\u0026offset=0",
+    "request": "",
+    "status": 200,
+    "response": {
+      "count": 1,
+      "next": null,
+      "previous": null,
+      "results": [
+        {
+          "id": 1,
+          "name": "sokelwave81793730796397096000",
+          "date_added": "2026-11-03T18:33:16.459459Z"
+        }
+      ]
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/bookmarks/1/",
+    "request": "",
+    "status": 204,
+    "response": null
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/bookmarks/2/",
+    "request": "",
+    "status": 204,
+    "response": null
+  }
+]

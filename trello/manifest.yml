@@ -1,0 +1,435 @@
+plugin:
+  org: sokel
+  name: trello
+  label: Trello
+  desc: Discover Trello boards and manage cards and comments with header authentication
+  version: 0.1.0
+  doc: docs/trello.md
+credential:
+  fields:
+  - desc: Trello Power-Up API key used with the user token.
+    label: API key
+    name: api_key
+    required: true
+    type: secret
+  - desc: Supply a Trello user token with read scope; writes also require write scope.
+    label: User token
+    name: api_token
+    required: true
+    type: secret
+operations:
+- id: add_comment
+  inputs:
+  - label: Card ID
+    name: card_id
+    required: true
+    type: string
+  - label: Comment text
+    name: text
+    required: true
+    type: string
+  label: Add card comment
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Card ID
+      name: card_id
+      required: true
+      type: string
+    - label: Comment text
+      name: text
+      required: true
+      type: string
+    - label: Created at
+      name: date
+      required: true
+      type: string
+    - label: Author ID
+      name: member_id
+      required: true
+      type: string
+    goType: Comment
+    label: Comment
+    name: comment
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_card
+  inputs:
+  - label: List ID
+    name: list_id
+    required: true
+    type: string
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - label: Description
+    name: description
+    type: string
+  - label: Due date
+    name: due
+    type: string
+  label: Create card
+  outputs:
+  - fields:
+    - label: Card ID
+      name: id
+      required: true
+      type: string
+    - label: Board ID
+      name: board_id
+      required: true
+      type: string
+    - label: List ID
+      name: list_id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due
+      type: string
+    - label: Due date completed
+      name: due_complete
+      required: true
+      type: boolean
+    - label: Card URL
+      name: url
+      required: true
+      type: string
+    goType: Card
+    label: Created card
+    name: card
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_board
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  label: Get board
+  outputs:
+  - fields:
+    - label: Board ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Board URL
+      name: url
+      required: true
+      type: string
+    goType: Board
+    label: Board
+    name: board
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_card
+  inputs:
+  - label: Card ID
+    name: card_id
+    required: true
+    type: string
+  label: Get card
+  outputs:
+  - fields:
+    - label: Card ID
+      name: id
+      required: true
+      type: string
+    - label: Board ID
+      name: board_id
+      required: true
+      type: string
+    - label: List ID
+      name: list_id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due
+      type: string
+    - label: Due date completed
+      name: due_complete
+      required: true
+      type: boolean
+    - label: Card URL
+      name: url
+      required: true
+      type: string
+    goType: Card
+    label: Card
+    name: card
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_boards
+  inputs:
+  - label: Board filter
+    name: filter
+    type: string
+  label: List boards
+  outputs:
+  - fields:
+    - label: Board ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Board URL
+      name: url
+      required: true
+      type: string
+    goType: Board
+    label: Boards
+    name: boards
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_cards
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  - label: Card filter
+    name: filter
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Before card ID
+      name: before
+      type: string
+    goType: CardPage
+    label: Pagination
+    name: page
+    type: json
+  label: List board cards
+  outputs:
+  - fields:
+    - label: Card ID
+      name: id
+      required: true
+      type: string
+    - label: Board ID
+      name: board_id
+      required: true
+      type: string
+    - label: List ID
+      name: list_id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due
+      type: string
+    - label: Due date completed
+      name: due_complete
+      required: true
+      type: boolean
+    - label: Card URL
+      name: url
+      required: true
+      type: string
+    goType: Card
+    label: Cards
+    name: cards
+    required: true
+    type: array
+  - label: Oldest card ID
+    name: oldest_card_id
+    required: true
+    type: string
+  - label: A further page may exist
+    name: may_have_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_lists
+  inputs:
+  - label: Board ID
+    name: board_id
+    required: true
+    type: string
+  - label: List filter
+    name: filter
+    type: string
+  label: List board lists
+  outputs:
+  - fields:
+    - label: List ID
+      name: id
+      required: true
+      type: string
+    - label: Board ID
+      name: board_id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Position
+      name: position
+      required: true
+      type: number
+    goType: BoardList
+    label: Lists
+    name: lists
+    required: true
+    type: array
+  timeoutSec: 60
+- id: update_card
+  inputs:
+  - label: Card ID
+    name: card_id
+    required: true
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Description
+      name: description
+      type: string
+    - label: Destination list ID
+      name: list_id
+      type: string
+    - label: Due date; empty clears it
+      name: due
+      type: string
+    - label: Due date completed
+      name: due_complete
+      type: boolean
+    - label: Archived
+      name: closed
+      type: boolean
+    goType: CardChanges
+    label: Card changes
+    name: changes
+    required: true
+    type: json
+  label: Update card
+  outputs:
+  - fields:
+    - label: Card ID
+      name: id
+      required: true
+      type: string
+    - label: Board ID
+      name: board_id
+      required: true
+      type: string
+    - label: List ID
+      name: list_id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Archived
+      name: closed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due
+      type: string
+    - label: Due date completed
+      name: due_complete
+      required: true
+      type: boolean
+    - label: Card URL
+      name: url
+      required: true
+      type: string
+    goType: Card
+    label: Updated card
+    name: card
+    required: true
+    type: json
+  timeoutSec: 60

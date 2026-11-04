@@ -1,0 +1,125 @@
+plugin:
+  name: apache-tika
+  org: sokel
+  label: Apache Tika
+  desc: Extract document text, metadata and embedded content with a self-hosted Apache Tika 4.2 service
+  version: 0.1.0
+  doc: docs/apache-tika.md
+credential:
+  fields:
+  - desc: Optional HTTP Basic authentication for the configured service or its reverse proxy.
+    label: Basic auth username
+    name: username
+    type: text
+  - label: Basic auth password
+    name: password
+    type: secret
+operations:
+- id: detect_type
+  inputs:
+  - label: Platform document
+    name: file
+    required: true
+    type: file
+  label: Detect document media type
+  outputs:
+  - label: Detected media type
+    name: media_type
+    required: true
+    type: string
+  timeoutSec: 300
+- id: extract_metadata
+  inputs:
+  - label: Platform document
+    name: file
+    required: true
+    type: file
+  label: Extract document metadata
+  outputs:
+  - fields:
+    - label: Metadata name
+      name: name
+      required: true
+      type: string
+    - itemType: string
+      label: Metadata values
+      name: values
+      required: true
+      type: array
+    goType: MetadataField
+    label: Metadata
+    name: metadata
+    required: true
+    type: array
+  timeoutSec: 300
+- id: extract_recursive
+  inputs:
+  - label: Platform document
+    name: file
+    required: true
+    type: file
+  label: Extract text and metadata from embedded documents
+  outputs:
+  - fields:
+    - label: Extracted text
+      name: text
+      required: true
+      type: string
+    - fields:
+      - label: Metadata name
+        name: name
+        required: true
+        type: string
+      - itemType: string
+        label: Metadata values
+        name: values
+        required: true
+        type: array
+      label: Metadata
+      name: metadata
+      required: true
+      type: array
+    goType: Document
+    label: Documents
+    name: documents
+    required: true
+    type: array
+  timeoutSec: 300
+- id: extract_text
+  inputs:
+  - label: Platform document
+    name: file
+    required: true
+    type: file
+  label: Extract document text
+  outputs:
+  - label: Extracted text
+    name: text
+    required: true
+    type: string
+  - fields:
+    - label: Metadata name
+      name: name
+      required: true
+      type: string
+    - itemType: string
+      label: Metadata values
+      name: values
+      required: true
+      type: array
+    goType: MetadataField
+    label: Metadata
+    name: metadata
+    required: true
+    type: array
+  timeoutSec: 300
+deployment:
+  env:
+  - name: SOKEL_TIKA_URL
+    desc: Base URL of your Apache Tika 4.2 service, including an optional reverse-proxy path prefix.
+    required: true
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-apache-tika:0.1.0
+codegen:
+- lang: go

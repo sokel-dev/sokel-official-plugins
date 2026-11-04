@@ -1,0 +1,436 @@
+plugin:
+  org: sokel
+  name: calendly
+  label: Calendly
+  desc: Read Calendly events and availability and create single-use scheduling links
+  version: 0.1.0
+  doc: docs/calendly.md
+credential:
+  fields:
+  - desc: Use a Calendly personal access token. Refresh or replace it outside this plugin.
+    label: Access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: create_scheduling_link
+  inputs:
+  - label: Event type ID
+    name: event_type_id
+    required: true
+    type: string
+  label: Create single-use scheduling link
+  outputs:
+  - label: Single-use booking URL
+    name: booking_url
+    required: true
+    type: string
+  - label: Event type URI
+    name: event_type_uri
+    required: true
+    type: string
+  timeoutSec: 60
+- id: get_current_user
+  label: Get current user
+  outputs:
+  - fields:
+    - label: User URI
+      name: uri
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Email
+      name: email
+      required: true
+      type: string
+    - label: Timezone
+      name: timezone
+      required: true
+      type: string
+    - label: Organization URI
+      name: organization_uri
+      required: true
+      type: string
+    - label: Scheduling URL
+      name: scheduling_url
+      required: true
+      type: string
+    goType: User
+    label: User
+    name: user
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_event
+  inputs:
+  - label: Event ID
+    name: event_id
+    required: true
+    type: string
+  label: Get scheduled event
+  outputs:
+  - fields:
+    - label: Event URI
+      name: uri
+      required: true
+      type: string
+    - label: Event name
+      name: name
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - label: End time
+      name: end_time
+      required: true
+      type: string
+    - label: Event type URI
+      name: event_type_uri
+      required: true
+      type: string
+    - desc: Location is a kind-dependent union of physical, phone and conferencing details.
+      label: Meeting location
+      name: location
+      opaque: true
+      type: json
+    goType: Event
+    label: Scheduled event
+    name: event
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_event_type
+  inputs:
+  - label: Event type ID
+    name: event_type_id
+    required: true
+    type: string
+  label: Get event type
+  outputs:
+  - fields:
+    - label: Event type URI
+      name: uri
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Active
+      name: active
+      required: true
+      type: boolean
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      required: true
+      type: number
+    - label: Event kind
+      name: kind
+      required: true
+      type: string
+    - label: Scheduling URL
+      name: scheduling_url
+      required: true
+      type: string
+    - label: Description
+      name: description
+      type: string
+    goType: EventType
+    label: Event type
+    name: event_type
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_available_times
+  inputs:
+  - label: Event type ID
+    name: event_type_id
+    required: true
+    type: string
+  - label: Start time
+    name: start_time
+    required: true
+    type: string
+  - label: End time
+    name: end_time
+    required: true
+    type: string
+  label: List available times
+  outputs:
+  - fields:
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - goType: int
+      label: Remaining invitee slots
+      name: invitees_remaining
+      required: true
+      type: number
+    - label: Scheduling URL
+      name: scheduling_url
+      required: true
+      type: string
+    goType: AvailableTime
+    label: Available times
+    name: times
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_event_types
+  inputs:
+  - label: User URI
+    name: user_uri
+    type: string
+  - label: Organization URI
+    name: organization_uri
+    type: string
+  - fields:
+    - label: Active only
+      name: active
+      type: boolean
+    goType: EventTypeFilters
+    label: Event type filters
+    name: filters
+    type: json
+  - fields:
+    - goType: int
+      label: Page size
+      name: count
+      type: number
+    - label: Page token
+      name: token
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List event types
+  outputs:
+  - fields:
+    - label: Event type URI
+      name: uri
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Active
+      name: active
+      required: true
+      type: boolean
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      required: true
+      type: number
+    - label: Event kind
+      name: kind
+      required: true
+      type: string
+    - label: Scheduling URL
+      name: scheduling_url
+      required: true
+      type: string
+    - label: Description
+      name: description
+      type: string
+    goType: EventType
+    label: Event types
+    name: event_types
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_events
+  inputs:
+  - label: User URI
+    name: user_uri
+    type: string
+  - label: Organization URI
+    name: organization_uri
+    type: string
+  - fields:
+    - label: Event status
+      name: status
+      type: string
+    - label: Earliest start time
+      name: min_start_time
+      type: string
+    - label: Latest start time
+      name: max_start_time
+      type: string
+    - label: Invitee email
+      name: invitee_email
+      type: string
+    goType: EventFilters
+    label: Event filters
+    name: filters
+    type: json
+  - fields:
+    - goType: int
+      label: Page size
+      name: count
+      type: number
+    - label: Page token
+      name: token
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List scheduled events
+  outputs:
+  - fields:
+    - label: Event URI
+      name: uri
+      required: true
+      type: string
+    - label: Event name
+      name: name
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - label: End time
+      name: end_time
+      required: true
+      type: string
+    - label: Event type URI
+      name: event_type_uri
+      required: true
+      type: string
+    - desc: Location is a kind-dependent union of physical, phone and conferencing details.
+      label: Meeting location
+      name: location
+      opaque: true
+      type: json
+    goType: Event
+    label: Scheduled events
+    name: events
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_invitees
+  inputs:
+  - label: Event ID
+    name: event_id
+    required: true
+    type: string
+  - label: Invitee status
+    name: status
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: count
+      type: number
+    - label: Page token
+      name: token
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List event invitees
+  outputs:
+  - fields:
+    - label: Invitee URI
+      name: uri
+      required: true
+      type: string
+    - label: Event URI
+      name: event_uri
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Email
+      name: email
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Timezone
+      name: timezone
+      type: string
+    - fields:
+      - label: Question
+        name: question
+        required: true
+        type: string
+      - label: Answer
+        name: answer
+        required: true
+        type: string
+      - goType: int
+        label: Question position
+        name: position
+        required: true
+        type: number
+      label: Questions and answers
+      name: questions_and_answers
+      required: true
+      type: array
+    - label: Rescheduled
+      name: rescheduled
+      required: true
+      type: boolean
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Invitee
+    label: Invitees
+    name: invitees
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  timeoutSec: 60

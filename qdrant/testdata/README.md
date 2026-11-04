@@ -1,0 +1,5 @@
+# Fixture provenance
+
+`local-service-captures.json` contains actual HTTP request/response captures from an isolated qdrant v1.20.0 container on 2026-11-04. The acceptance test used disposable synthetic records, a loopback-only URL, temporary in-memory container storage and the public test-only key documented in the test. Authentication headers and server origins are not captured. These responses are real service output; the records are not production data.
+
+`TestLocalServiceAcceptance` exercised the production client with these services and removed its temporary resources. Production handlers never poll tasks automatically. The bounded polling in the Meilisearch acceptance test exists only for test orchestration. `TestCapturedServiceResponses` replays the captured responses offline. Separately, `acceptance_test.go` uses synthetic fixtures adapted from official API examples and checks the exact HTTP request bytes, including explicit false/zero and large-number variants. Those synthetic wire fixtures are not service recordings.

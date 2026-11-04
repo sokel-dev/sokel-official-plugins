@@ -1,0 +1,576 @@
+{
+  "plugin": {
+    "name": "meilisearch",
+    "org": "sokel",
+    "label": "Meilisearch",
+    "desc": "Index and search documents and inspect asynchronous tasks on a self-hosted Meilisearch service",
+    "version": "0.1.0",
+    "doc": "docs/meilisearch.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Optional for an unprotected self-hosted instance. Use a key with permissions for the requested operations.",
+        "label": "API key",
+        "name": "api_key",
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "add_documents",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Document array JSON",
+          "name": "documents_json",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Primary key",
+          "name": "primary_key",
+          "type": "string"
+        }
+      ],
+      "label": "Add or replace documents",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Index UID",
+              "name": "index_uid",
+              "type": "string"
+            },
+            {
+              "label": "Task status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Enqueued at",
+              "name": "enqueued_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "TaskReceipt",
+          "label": "Enqueued task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_index",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Primary key",
+          "name": "primary_key",
+          "type": "string"
+        }
+      ],
+      "label": "Create index",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Index UID",
+              "name": "index_uid",
+              "type": "string"
+            },
+            {
+              "label": "Task status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Enqueued at",
+              "name": "enqueued_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "TaskReceipt",
+          "label": "Enqueued task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "delete_document",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Document ID",
+          "name": "document_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Delete document",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Index UID",
+              "name": "index_uid",
+              "type": "string"
+            },
+            {
+              "label": "Task status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Enqueued at",
+              "name": "enqueued_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "TaskReceipt",
+          "label": "Enqueued task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_document",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Document ID",
+          "name": "document_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get document",
+      "outputs": [
+        {
+          "label": "Document JSON",
+          "name": "document_json",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_index",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get index",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Index UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Primary key",
+              "name": "primary_key",
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "created_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Updated at",
+              "name": "updated_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Index",
+          "label": "Index",
+          "name": "index",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_task",
+      "inputs": [
+        {
+          "label": "Task UID",
+          "name": "task_uid",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get asynchronous task",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Index UID",
+              "name": "index_uid",
+              "type": "string"
+            },
+            {
+              "label": "Task status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Task type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Enqueued at",
+              "name": "enqueued_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Started at",
+              "name": "started_at",
+              "type": "string"
+            },
+            {
+              "label": "Finished at",
+              "name": "finished_at",
+              "type": "string"
+            },
+            {
+              "label": "Task error code",
+              "name": "error_code",
+              "type": "string"
+            }
+          ],
+          "goType": "Task",
+          "label": "Task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "label": "Terminal task state",
+          "name": "finished",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Task succeeded",
+          "name": "succeeded",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check connection and key",
+      "outputs": [
+        {
+          "label": "Usable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_indexes",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "Page",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List indexes",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Index UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Primary key",
+              "name": "primary_key",
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "created_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Updated at",
+              "name": "updated_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Index",
+          "label": "Indexes",
+          "name": "indexes",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total indexes",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset; zero means complete",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "search",
+      "inputs": [
+        {
+          "label": "Index UID",
+          "name": "index_uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Search query",
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Result offset",
+              "name": "offset",
+              "type": "number"
+            },
+            {
+              "label": "Filter expression",
+              "name": "filter",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Sort expressions",
+              "name": "sort",
+              "type": "array"
+            },
+            {
+              "itemType": "string",
+              "label": "Attributes to retrieve",
+              "name": "attributes_to_retrieve",
+              "type": "array"
+            }
+          ],
+          "goType": "SearchOptions",
+          "label": "Search options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Search documents",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Document JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Document",
+          "label": "Matching documents",
+          "name": "hits",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Estimated total hits",
+          "name": "estimated_total_hits",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "goType": "int",
+          "label": "Processing time in milliseconds",
+          "name": "processing_time_ms",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "goType": "int",
+          "label": "Next result offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "A further result page may exist",
+          "name": "may_have_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-meilisearch:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_MEILISEARCH_URL",
+        "desc": "HTTP(S) URL of your Meilisearch service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

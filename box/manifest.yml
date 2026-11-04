@@ -1,0 +1,360 @@
+plugin:
+  org: sokel
+  name: box
+  label: Box
+  desc: Read, search and transfer Box files with explicit pagination
+  version: 0.1.0
+  doc: docs/box.md
+credential:
+  fields:
+  - desc: Supply a current access token. Refresh it outside this plugin before expiry.
+    label: Access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: create_folder
+  inputs:
+  - label: Parent folder ID; 0 means root
+    name: parent_id
+    required: true
+    type: string
+  - label: Folder name
+    name: name
+    required: true
+    type: string
+  label: Create folder
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: download_file
+  inputs:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  label: Download file
+  outputs:
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: File metadata
+    name: item
+    required: true
+    type: json
+  timeoutSec: 180
+- id: get_file
+  inputs:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  label: Get file metadata
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_folder
+  inputs:
+  - label: Folder ID; 0 means root
+    name: folder_id
+    required: true
+    type: string
+  label: Get folder metadata
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_folder
+  inputs:
+  - label: Folder ID; 0 means root
+    name: folder_id
+    required: true
+    type: string
+  - label: Pagination marker
+    name: marker
+    type: string
+  label: List folder items
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Items
+    name: items
+    required: true
+    type: array
+  - label: Next marker
+    name: next_marker
+    required: true
+    type: string
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: search
+  inputs:
+  - label: Search query
+    name: query
+    required: true
+    type: string
+  - label: Ancestor folder ID
+    name: ancestor_folder_id
+    type: string
+  - fields:
+    - goType: int
+      label: Page offset
+      name: offset
+      type: number
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    goType: SearchPage
+    label: Pagination
+    name: page
+    type: json
+  label: Search files and folders
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Items
+    name: items
+    required: true
+    type: array
+  - goType: int
+    label: Total offset bound
+    name: total_count
+    required: true
+    type: number
+  - goType: int
+    label: Next offset
+    name: next_offset
+    required: true
+    type: number
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: upload_file
+  inputs:
+  - label: Parent folder ID; 0 means root
+    name: parent_id
+    required: true
+    type: string
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  label: Upload new file
+  outputs:
+  - fields:
+    - label: Item ID
+      name: id
+      required: true
+      type: string
+    - label: Item type
+      name: type
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: SHA-1 checksum
+      name: sha1
+      type: string
+    - label: ETag
+      name: etag
+      type: string
+    - label: Modified at
+      name: modified_at
+      type: string
+    goType: Item
+    label: Item
+    name: item
+    required: true
+    type: json
+  timeoutSec: 180

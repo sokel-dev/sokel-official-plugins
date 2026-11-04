@@ -1,0 +1,851 @@
+{
+  "plugin": {
+    "name": "stripe",
+    "org": "sokel",
+    "label": "Stripe",
+    "desc": "Read customers, subscriptions and payment intents; verify signed webhook events",
+    "version": "0.1.0",
+    "doc": "docs/stripe.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Secret or restricted API key",
+        "type": "secret",
+        "required": true
+      },
+      {
+        "name": "webhook_secret",
+        "label": "Webhook signing secret",
+        "type": "secret",
+        "required": false
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "desc": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_customers",
+      "label": "List customers",
+      "desc": "List customers",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "starting_after",
+          "label": "Starting after ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "email",
+          "label": "Email address",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "customers",
+          "label": "Customers",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Customer name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "Email address",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Customer"
+        },
+        {
+          "name": "has_more",
+          "label": "More results available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "next_starting_after",
+          "label": "Next starting-after ID",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_customer",
+      "label": "Get customer",
+      "desc": "Get customer",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "id",
+          "label": "Customer ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "customer",
+          "label": "Customer",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Customer name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "Email address",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Customer"
+        }
+      ]
+    },
+    {
+      "id": "list_subscriptions",
+      "label": "List subscriptions",
+      "desc": "List subscriptions",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "starting_after",
+          "label": "Starting after ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "customer",
+          "label": "Customer ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "label": "Subscription status",
+          "type": "enum",
+          "required": false,
+          "options": [
+            {
+              "value": "all"
+            },
+            {
+              "value": "active"
+            },
+            {
+              "value": "past_due"
+            },
+            {
+              "value": "unpaid"
+            },
+            {
+              "value": "canceled"
+            },
+            {
+              "value": "incomplete"
+            },
+            {
+              "value": "incomplete_expired"
+            },
+            {
+              "value": "trialing"
+            },
+            {
+              "value": "paused"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "subscriptions",
+          "label": "Subscriptions",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Subscription ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Subscription status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "cancel_at_period_end",
+              "label": "Cancels at period end",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Subscription"
+        },
+        {
+          "name": "has_more",
+          "label": "More results available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "next_starting_after",
+          "label": "Next starting-after ID",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_subscription",
+      "label": "Get subscription",
+      "desc": "Get subscription",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "id",
+          "label": "Subscription ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "subscription",
+          "label": "Subscription",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Subscription ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Subscription status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "cancel_at_period_end",
+              "label": "Cancels at period end",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Subscription"
+        }
+      ]
+    },
+    {
+      "id": "list_payment_intents",
+      "label": "List payment intents",
+      "desc": "List payment intents",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "starting_after",
+          "label": "Starting after ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "customer",
+          "label": "Customer ID",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "payment_intents",
+          "label": "Payment intents",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "PaymentIntent ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Payment status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount",
+              "label": "Amount in smallest currency unit",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "amount_received",
+              "label": "Amount received",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "PaymentIntent"
+        },
+        {
+          "name": "has_more",
+          "label": "More results available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "next_starting_after",
+          "label": "Next starting-after ID",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_payment_intent",
+      "label": "Get payment intent",
+      "desc": "Get payment intent",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "id",
+          "label": "PaymentIntent ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "payment_intent",
+          "label": "PaymentIntent",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "PaymentIntent ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Payment status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount",
+              "label": "Amount in smallest currency unit",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "amount_received",
+              "label": "Amount received",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "PaymentIntent"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "customer_changed",
+      "label": "Customer event",
+      "fields": [
+        {
+          "name": "event_id",
+          "label": "Event ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "event_type",
+          "label": "Event type",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "created",
+          "label": "Event timestamp",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "livemode",
+          "label": "Live mode",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "account_id",
+          "label": "Connected account ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "customer",
+          "label": "Customer",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Customer name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "Email address",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "deleted",
+              "label": "Deleted",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Customer"
+        }
+      ]
+    },
+    {
+      "id": "subscription_changed",
+      "label": "Subscription event",
+      "fields": [
+        {
+          "name": "event_id",
+          "label": "Event ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "event_type",
+          "label": "Event type",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "created",
+          "label": "Event timestamp",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "livemode",
+          "label": "Live mode",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "account_id",
+          "label": "Connected account ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "subscription",
+          "label": "Subscription",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Subscription ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Subscription status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "cancel_at_period_end",
+              "label": "Cancels at period end",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Subscription"
+        }
+      ]
+    },
+    {
+      "id": "payment_intent_changed",
+      "label": "PaymentIntent event",
+      "fields": [
+        {
+          "name": "event_id",
+          "label": "Event ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "event_type",
+          "label": "Event type",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "created",
+          "label": "Event timestamp",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "livemode",
+          "label": "Live mode",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "account_id",
+          "label": "Connected account ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "payment_intent",
+          "label": "PaymentIntent",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "PaymentIntent ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer",
+              "label": "Customer ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Payment status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "label": "Currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount",
+              "label": "Amount in smallest currency unit",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "amount_received",
+              "label": "Amount received",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "created",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "livemode",
+              "label": "Live mode",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "PaymentIntent"
+        }
+      ]
+    }
+  ],
+  "events_common": [
+    "event_id",
+    "event_type",
+    "created",
+    "livemode",
+    "account_id"
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

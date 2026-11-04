@@ -1,0 +1,602 @@
+plugin:
+  org: sokel
+  name: resend
+  label: Resend
+  desc: Send and inspect transactional email, received mail and domain configuration
+  version: 0.1.0
+  doc: docs/resend.md
+credential:
+  fields:
+  - desc: Use a Resend API key. Sending-only keys cannot read emails or domains; those operations require full access.
+    label: API key
+    name: api_key
+    required: true
+    type: secret
+operations:
+- desc: Only emails that have not yet been sent can be canceled.
+  id: cancel_email
+  inputs:
+  - label: Email ID
+    name: email_id
+    required: true
+    type: string
+  label: Cancel scheduled email
+  outputs:
+  - label: Email ID
+    name: email_id
+    required: true
+    type: string
+  timeoutSec: 60
+- id: get_domain
+  inputs:
+  - label: Domain ID
+    name: domain_id
+    required: true
+    type: string
+  label: Get domain
+  outputs:
+  - fields:
+    - label: Domain ID
+      name: id
+      required: true
+      type: string
+    - label: Domain name
+      name: name
+      required: true
+      type: string
+    - label: Verification status
+      name: status
+      required: true
+      type: string
+    - label: Region
+      name: region
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Open tracking
+      name: open_tracking
+      type: boolean
+    - label: Click tracking
+      name: click_tracking
+      type: boolean
+    - fields:
+      - label: Sending capability
+        name: sending
+        required: true
+        type: string
+      - label: Receiving capability
+        name: receiving
+        required: true
+        type: string
+      label: Domain capabilities
+      name: capabilities
+      type: json
+    goType: Domain
+    label: Domain
+    name: domain
+    required: true
+    type: json
+  - fields:
+    - label: Record purpose
+      name: record
+      required: true
+      type: string
+    - label: DNS name
+      name: name
+      required: true
+      type: string
+    - label: DNS record type
+      name: type
+      required: true
+      type: string
+    - label: DNS value
+      name: value
+      required: true
+      type: string
+    - label: DNS TTL
+      name: ttl
+      required: true
+      type: string
+    - label: Verification status
+      name: status
+      required: true
+      type: string
+    - goType: int
+      label: DNS priority
+      name: priority
+      type: number
+    goType: DNSRecord
+    label: DNS records
+    name: records
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_email
+  inputs:
+  - label: Email ID
+    name: email_id
+    required: true
+    type: string
+  label: Get sent email
+  outputs:
+  - fields:
+    - label: Email ID
+      name: id
+      required: true
+      type: string
+    - label: Message-ID header
+      name: message_id
+      type: string
+    - label: Sender address
+      name: from
+      required: true
+      type: string
+    - itemType: string
+      label: Recipient addresses
+      name: to
+      required: true
+      type: array
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - itemType: string
+      label: CC addresses
+      name: cc
+      type: array
+    - itemType: string
+      label: BCC addresses
+      name: bcc
+      type: array
+    - itemType: string
+      label: Reply-to addresses
+      name: reply_to
+      type: array
+    - label: Last delivery event
+      name: last_event
+      type: string
+    - label: Scheduled time
+      name: scheduled_at
+      type: string
+    - label: HTML body
+      name: html
+      type: string
+    - label: Plain text body
+      name: text
+      type: string
+    - fields:
+      - label: Tag name
+        name: name
+        required: true
+        type: string
+      - label: Tag value
+        name: value
+        required: true
+        type: string
+      label: Tags
+      name: tags
+      type: array
+    goType: SentEmail
+    label: Email
+    name: email
+    required: true
+    type: json
+  timeoutSec: 60
+- desc: Read email content and attachment metadata. Inline images use CID references; download URLs are not fetched.
+  id: get_received_email
+  inputs:
+  - label: Email ID
+    name: email_id
+    required: true
+    type: string
+  label: Get received email
+  outputs:
+  - fields:
+    - label: Email ID
+      name: id
+      required: true
+      type: string
+    - label: Message-ID header
+      name: message_id
+      type: string
+    - label: Sender address
+      name: from
+      required: true
+      type: string
+    - itemType: string
+      label: Recipient addresses
+      name: to
+      required: true
+      type: array
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - itemType: string
+      label: CC addresses
+      name: cc
+      type: array
+    - itemType: string
+      label: BCC addresses
+      name: bcc
+      type: array
+    - itemType: string
+      label: Reply-to addresses
+      name: reply_to
+      type: array
+    - label: Last delivery event
+      name: last_event
+      type: string
+    - label: Scheduled time
+      name: scheduled_at
+      type: string
+    - label: HTML body
+      name: html
+      type: string
+    - label: Plain text body
+      name: text
+      type: string
+    - label: Inline image format
+      name: html_format
+      type: string
+    - fields:
+      - label: Attachment ID
+        name: id
+        required: true
+        type: string
+      - label: Filename
+        name: filename
+        type: string
+      - label: Content type
+        name: content_type
+        required: true
+        type: string
+      - goType: int64
+        label: Size in bytes
+        name: size
+        required: true
+        type: number
+      - label: Inline content ID
+        name: content_id
+        type: string
+      - label: Content disposition
+        name: content_disposition
+        type: string
+      label: Attachments
+      name: attachments
+      required: true
+      type: array
+    - fields:
+      - label: Raw email download URL
+        name: download_url
+        required: true
+        type: string
+      - label: Download URL expiry
+        name: expires_at
+        required: true
+        type: string
+      label: Raw email
+      name: raw
+      type: json
+    - fields:
+      - label: SPF result
+        name: spf
+        required: true
+        type: string
+      - label: DKIM result
+        name: dkim
+        required: true
+        type: string
+      - label: DMARC result
+        name: dmarc
+        required: true
+        type: string
+      label: Email authentication
+      name: authentication
+      type: json
+    - itemType: string
+      label: Forwarded recipient addresses
+      name: received_for
+      type: array
+    goType: ReceivedEmail
+    label: Email
+    name: email
+    required: true
+    type: json
+  timeoutSec: 60
+- id: list_domains
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: After ID
+      name: after
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List domains
+  outputs:
+  - fields:
+    - label: Domain ID
+      name: id
+      required: true
+      type: string
+    - label: Domain name
+      name: name
+      required: true
+      type: string
+    - label: Verification status
+      name: status
+      required: true
+      type: string
+    - label: Region
+      name: region
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Open tracking
+      name: open_tracking
+      type: boolean
+    - label: Click tracking
+      name: click_tracking
+      type: boolean
+    - fields:
+      - label: Sending capability
+        name: sending
+        required: true
+        type: string
+      - label: Receiving capability
+        name: receiving
+        required: true
+        type: string
+      label: Domain capabilities
+      name: capabilities
+      type: json
+    goType: Domain
+    label: Domains
+    name: domains
+    required: true
+    type: array
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  - label: Next after ID
+    name: next_after
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_emails
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: After ID
+      name: after
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List sent emails
+  outputs:
+  - fields:
+    - label: Email ID
+      name: id
+      required: true
+      type: string
+    - label: Message-ID header
+      name: message_id
+      type: string
+    - label: Sender address
+      name: from
+      required: true
+      type: string
+    - itemType: string
+      label: Recipient addresses
+      name: to
+      required: true
+      type: array
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - itemType: string
+      label: CC addresses
+      name: cc
+      type: array
+    - itemType: string
+      label: BCC addresses
+      name: bcc
+      type: array
+    - itemType: string
+      label: Reply-to addresses
+      name: reply_to
+      type: array
+    - label: Last delivery event
+      name: last_event
+      type: string
+    - label: Scheduled time
+      name: scheduled_at
+      type: string
+    goType: EmailSummary
+    label: Emails
+    name: emails
+    required: true
+    type: array
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  - label: Next after ID
+    name: next_after
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_received_emails
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: After ID
+      name: after
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List received emails
+  outputs:
+  - fields:
+    - label: Email ID
+      name: id
+      required: true
+      type: string
+    - label: Message-ID header
+      name: message_id
+      type: string
+    - label: Sender address
+      name: from
+      required: true
+      type: string
+    - itemType: string
+      label: Recipient addresses
+      name: to
+      required: true
+      type: array
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - itemType: string
+      label: CC addresses
+      name: cc
+      type: array
+    - itemType: string
+      label: BCC addresses
+      name: bcc
+      type: array
+    - itemType: string
+      label: Reply-to addresses
+      name: reply_to
+      type: array
+    - label: Last delivery event
+      name: last_event
+      type: string
+    - label: Scheduled time
+      name: scheduled_at
+      type: string
+    goType: EmailSummary
+    label: Emails
+    name: emails
+    required: true
+    type: array
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  - label: Next after ID
+    name: next_after
+    required: true
+    type: string
+  timeoutSec: 60
+- desc: Send one email or schedule it. An accepted email is not proof of delivery.
+  id: send_email
+  inputs:
+  - fields:
+    - label: Sender address
+      name: from
+      required: true
+      type: string
+    - itemType: string
+      label: Recipient addresses
+      name: to
+      required: true
+      type: array
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: HTML body
+      name: html
+      type: string
+    - label: Plain text body
+      name: text
+      type: string
+    - itemType: string
+      label: CC addresses
+      name: cc
+      type: array
+    - itemType: string
+      label: BCC addresses
+      name: bcc
+      type: array
+    - itemType: string
+      label: Reply-to addresses
+      name: reply_to
+      type: array
+    - label: Scheduled time
+      name: scheduled_at
+      type: string
+    - fields:
+      - label: Tag name
+        name: name
+        required: true
+        type: string
+      - label: Tag value
+        name: value
+        required: true
+        type: string
+      label: Tags
+      name: tags
+      type: array
+    goType: SendOptions
+    label: Email
+    name: email
+    required: true
+    type: json
+  - desc: Reuse the same key and payload when retrying within 24 hours; up to 256 ASCII characters.
+    label: Idempotency key
+    name: idempotency_key
+    type: string
+  label: Send email
+  outputs:
+  - label: Email ID
+    name: email_id
+    required: true
+    type: string
+  timeoutSec: 60
+deployment:
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-resend:0.1.0

@@ -1,0 +1,303 @@
+[
+  {
+    "method": "GET",
+    "path": "/collections",
+    "query": "",
+    "status": 200,
+    "response": {
+      "result": {
+        "collections": []
+      },
+      "status": "ok",
+      "time": 0.012657595
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/sokel_wave6_1793728017927375000",
+    "query": "timeout=30",
+    "request": {
+      "vectors": {
+        "distance": "Cosine",
+        "size": 3
+      }
+    },
+    "status": 200,
+    "response": {
+      "result": true,
+      "status": "ok",
+      "time": 0.054806202
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/collections/sokel_wave6_1793728017927375000",
+    "query": "",
+    "status": 200,
+    "response": {
+      "result": {
+        "status": "green",
+        "optimizer_status": "ok",
+        "indexed_vectors_count": 0,
+        "points_count": 0,
+        "segments_count": 2,
+        "config": {
+          "params": {
+            "vectors": {
+              "size": 3,
+              "distance": "Cosine"
+            },
+            "shard_number": 1,
+            "replication_factor": 1,
+            "write_consistency_factor": 1,
+            "on_disk_payload": true
+          },
+          "hnsw_config": {
+            "m": 16,
+            "ef_construct": 100,
+            "full_scan_threshold": 10000,
+            "max_indexing_threads": 0,
+            "on_disk": false
+          },
+          "optimizer_config": {
+            "deleted_threshold": 0.2,
+            "vacuum_min_vector_number": 1000,
+            "default_segment_number": 0,
+            "max_segment_size": null,
+            "memmap_threshold": null,
+            "indexing_threshold": 10000,
+            "flush_interval_sec": 5,
+            "max_optimization_threads": null,
+            "prevent_unoptimized": null
+          },
+          "wal_config": {
+            "wal_capacity_mb": 32,
+            "wal_segments_ahead": 0,
+            "wal_retain_closed": 1
+          },
+          "quantization_config": null
+        },
+        "payload_schema": {},
+        "update_queue": {
+          "length": 0
+        },
+        "created_at": "2026-11-03T17:46:57.993Z"
+      },
+      "status": "ok",
+      "time": 0.003897407
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/sokel_wave6_1793728017927375000/points",
+    "query": "timeout=30\u0026wait=true",
+    "request": {
+      "points": [
+        {
+          "id": 0,
+          "payload": {
+            "tag": "book",
+            "count": 9007199254740993,
+            "available": false
+          },
+          "vector": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "id": 18446744073709551615,
+          "payload": {
+            "tag": "book",
+            "count": 9007199254740993,
+            "available": false
+          },
+          "vector": [
+            0,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "result": {
+        "operation_id": 1,
+        "status": "completed"
+      },
+      "status": "ok",
+      "time": 0.001223664
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points",
+    "query": "timeout=30",
+    "request": {
+      "ids": [
+        18446744073709551615,
+        1
+      ],
+      "with_payload": true,
+      "with_vector": false
+    },
+    "status": 200,
+    "response": {
+      "result": [
+        {
+          "id": 18446744073709551615,
+          "payload": {
+            "tag": "book",
+            "count": 9007199254740993,
+            "available": false
+          }
+        }
+      ],
+      "status": "ok",
+      "time": 0.001219081
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points/scroll",
+    "query": "timeout=30",
+    "request": {
+      "limit": 1,
+      "with_payload": true,
+      "with_vector": false
+    },
+    "status": 200,
+    "response": {
+      "result": {
+        "points": [
+          {
+            "id": 0,
+            "payload": {
+              "tag": "book",
+              "count": 9007199254740993,
+              "available": false
+            }
+          }
+        ],
+        "next_page_offset": 18446744073709551615
+      },
+      "status": "ok",
+      "time": 0.000152541
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points/scroll",
+    "query": "timeout=30",
+    "request": {
+      "limit": 1,
+      "offset": 18446744073709551615,
+      "with_payload": true,
+      "with_vector": false
+    },
+    "status": 200,
+    "response": {
+      "result": {
+        "points": [
+          {
+            "id": 18446744073709551615,
+            "payload": {
+              "tag": "book",
+              "count": 9007199254740993,
+              "available": false
+            }
+          }
+        ],
+        "next_page_offset": null
+      },
+      "status": "ok",
+      "time": 0.000048083
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points/query",
+    "query": "timeout=30",
+    "request": {
+      "limit": 1,
+      "offset": 0,
+      "query": [
+        1,
+        0,
+        0
+      ],
+      "score_threshold": 0,
+      "with_payload": true,
+      "with_vector": false
+    },
+    "status": 200,
+    "response": {
+      "result": {
+        "points": [
+          {
+            "id": 0,
+            "version": 1,
+            "score": 1.0,
+            "payload": {
+              "tag": "book",
+              "count": 9007199254740993,
+              "available": false
+            }
+          }
+        ]
+      },
+      "status": "ok",
+      "time": 0.001535788
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points/delete",
+    "query": "timeout=30\u0026wait=true",
+    "request": {
+      "points": [
+        0
+      ]
+    },
+    "status": 200,
+    "response": {
+      "result": {
+        "operation_id": 2,
+        "status": "completed"
+      },
+      "status": "ok",
+      "time": 0.000359499
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/collections/sokel_wave6_1793728017927375000/points",
+    "query": "timeout=30",
+    "request": {
+      "ids": [
+        0
+      ],
+      "with_payload": true,
+      "with_vector": false
+    },
+    "status": 200,
+    "response": {
+      "result": [],
+      "status": "ok",
+      "time": 0.000140208
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/sokel_wave6_1793728017927375000",
+    "query": "timeout=30",
+    "status": 200,
+    "response": {
+      "result": true,
+      "status": "ok",
+      "time": 0.000711748
+    }
+  }
+]

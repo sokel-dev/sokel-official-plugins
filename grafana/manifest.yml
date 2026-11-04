@@ -1,0 +1,469 @@
+{
+  "plugin": {
+    "name": "grafana",
+    "org": "sokel",
+    "label": "Grafana",
+    "desc": "Inspect dashboards and safe data source summaries, and read or create annotations on self-hosted Grafana.",
+    "version": "0.1.0",
+    "doc": "docs/grafana.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "label": "Service account token",
+        "name": "token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_annotation",
+      "inputs": [
+        {
+          "label": "Annotation text",
+          "name": "text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Time in epoch milliseconds",
+          "name": "time",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Region end in epoch milliseconds",
+              "name": "time_end",
+              "type": "string"
+            },
+            {
+              "label": "Dashboard UID",
+              "name": "dashboard_uid",
+              "type": "string"
+            },
+            {
+              "label": "Panel ID",
+              "name": "panel_id",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "AnnotationOptions",
+          "label": "Annotation options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Create annotation",
+      "outputs": [
+        {
+          "label": "Annotation ID",
+          "name": "id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_dashboard",
+      "inputs": [
+        {
+          "label": "Dashboard UID",
+          "name": "uid",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get dashboard model",
+      "outputs": [
+        {
+          "label": "Dashboard UID",
+          "name": "uid",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Dashboard version",
+          "name": "version",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "Panel and plugin-defined dashboard models have variable schemas. JSON text preserves exact numbers and the original model structure.",
+          "label": "Dashboard model JSON",
+          "name": "model_json",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_data_source",
+      "inputs": [
+        {
+          "label": "Data source UID",
+          "name": "uid",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get data source summary",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Data source UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Data source name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Data source type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Default data source",
+              "name": "is_default",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Read only",
+              "name": "read_only",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "DataSource",
+          "label": "Data source",
+          "name": "data_source",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check token and service",
+      "outputs": [
+        {
+          "label": "Healthy",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_annotations",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "label": "Start time in epoch milliseconds",
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "label": "End time in epoch milliseconds",
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "label": "Dashboard UID",
+              "name": "dashboard_uid",
+              "type": "string"
+            },
+            {
+              "label": "Panel ID",
+              "name": "panel_id",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "AnnotationFilter",
+          "label": "Annotation filters",
+          "name": "filter",
+          "type": "json"
+        }
+      ],
+      "label": "Find annotations",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Annotation ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Dashboard UID",
+              "name": "dashboard_uid",
+              "type": "string"
+            },
+            {
+              "label": "Panel ID",
+              "name": "panel_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Time in epoch milliseconds",
+              "name": "time",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Region end in epoch milliseconds",
+              "name": "time_end",
+              "type": "string"
+            },
+            {
+              "label": "Annotation text",
+              "name": "text",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            }
+          ],
+          "goType": "Annotation",
+          "label": "Annotations",
+          "name": "annotations",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Result limit reached",
+          "name": "limit_reached",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_data_sources",
+      "label": "List data source summaries",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Data source UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Data source name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Data source type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Default data source",
+              "name": "is_default",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Read only",
+              "name": "read_only",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "DataSource",
+          "label": "Data sources",
+          "name": "data_sources",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "search_dashboards",
+      "inputs": [
+        {
+          "label": "Search query",
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "itemType": "string",
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "itemType": "string",
+              "label": "Folder UIDs",
+              "name": "folder_uids",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Starred only",
+              "name": "starred",
+              "type": "boolean"
+            }
+          ],
+          "goType": "SearchOptions",
+          "label": "Search options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Search dashboards",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Dashboard UID",
+              "name": "uid",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Dashboard URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Tags",
+              "name": "tags",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Folder UID",
+              "name": "folder_uid",
+              "type": "string"
+            },
+            {
+              "label": "Starred",
+              "name": "is_starred",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "DashboardHit",
+          "label": "Dashboards",
+          "name": "dashboards",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means finished",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-grafana:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_GRAFANA_URL",
+        "desc": "Required self-hosted Grafana site root, including any reverse-proxy path prefix; HTTP and HTTPS are supported.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

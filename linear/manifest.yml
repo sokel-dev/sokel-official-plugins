@@ -1,0 +1,614 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: linear
+  org: sokel
+  version: 0.1.0
+  label: Linear
+  desc: Query Linear issues and projects and create or update issues
+  doc: docs/linear.md
+credential:
+  fields:
+  - label: Personal API key
+    name: api_key
+    required: true
+    type: secret
+operations:
+- id: create_issue
+  inputs:
+  - label: Team ID
+    name: team_id
+    required: true
+    type: string
+  - label: Title
+    name: title
+    required: true
+    type: string
+  - fields:
+    - label: Title
+      name: title
+      type: string
+    - label: Markdown description
+      name: description
+      type: string
+    - label: State ID
+      name: state_id
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      type: string
+    - label: Project ID
+      name: project_id
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - label: Due date
+      name: due_date
+      type: string
+    goType: IssueChanges
+    label: Optional issue details
+    name: details
+    type: json
+  label: Create issue
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Identifier
+      name: identifier
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Markdown description
+      name: description
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - fields:
+      - label: Team ID
+        name: id
+        required: true
+        type: string
+      - label: Team key
+        name: key
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Team
+      name: team
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: State
+      name: state
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Project
+      name: project
+      type: json
+    goType: Issue
+    label: Issue
+    name: issue
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_issue
+  inputs:
+  - label: Issue ID or identifier
+    name: issue_id
+    required: true
+    type: string
+  label: Get issue
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Identifier
+      name: identifier
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Markdown description
+      name: description
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - fields:
+      - label: Team ID
+        name: id
+        required: true
+        type: string
+      - label: Team key
+        name: key
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Team
+      name: team
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: State
+      name: state
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Project
+      name: project
+      type: json
+    goType: Issue
+    label: Issue
+    name: issue
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_issues
+  inputs:
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Team ID
+    name: team_id
+    type: string
+  - label: Project ID
+    name: project_id
+    type: string
+  - label: Assignee ID
+    name: assignee_id
+    type: string
+  - label: State ID
+    name: state_id
+    type: string
+  - label: Title contains
+    name: title_contains
+    type: string
+  label: List issues
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Identifier
+      name: identifier
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Markdown description
+      name: description
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - fields:
+      - label: Team ID
+        name: id
+        required: true
+        type: string
+      - label: Team key
+        name: key
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Team
+      name: team
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: State
+      name: state
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Project
+      name: project
+      type: json
+    goType: Issue
+    label: Issues
+    name: issues
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_projects
+  inputs:
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Name contains
+    name: name_contains
+    type: string
+  label: List projects
+  outputs:
+  - fields:
+    - label: Project ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - label: Target date
+      name: target_date
+      required: true
+      type: string
+    goType: Project
+    label: Projects
+    name: projects
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_teams
+  inputs:
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  label: List teams
+  outputs:
+  - fields:
+    - label: Team ID
+      name: id
+      required: true
+      type: string
+    - label: Team key
+      name: key
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Team
+    label: Teams
+    name: teams
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_issue
+  inputs:
+  - label: Issue ID or identifier
+    name: issue_id
+    required: true
+    type: string
+  - fields:
+    - label: Title
+      name: title
+      type: string
+    - label: Markdown description
+      name: description
+      type: string
+    - label: State ID
+      name: state_id
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      type: string
+    - label: Project ID
+      name: project_id
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - label: Due date
+      name: due_date
+      type: string
+    goType: IssueChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update issue
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Identifier
+      name: identifier
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Markdown description
+      name: description
+      required: true
+      type: string
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - fields:
+      - label: Team ID
+        name: id
+        required: true
+        type: string
+      - label: Team key
+        name: key
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Team
+      name: team
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: State
+      name: state
+      required: true
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - fields:
+      - label: ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Project
+      name: project
+      type: json
+    goType: Issue
+    label: Issue
+    name: issue
+    required: true
+    type: json
+  timeoutSec: 60

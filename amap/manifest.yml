@@ -1,0 +1,578 @@
+plugin:
+  org: sokel
+  name: amap
+  label: AMap
+  desc: Geocoding, place search, routes, weather and administrative districts.
+  version: 0.1.0
+  doc: docs/amap.md
+credential:
+  fields:
+  - label: Web Service API key
+    name: api_key
+    required: true
+    type: secret
+  - desc: Only for keys with digital signatures enabled
+    label: Optional signing secret
+    name: signing_secret
+    type: secret
+operations:
+- id: geocode_address
+  inputs:
+  - label: Address
+    name: address
+    required: true
+    type: string
+  - label: City
+    name: city
+    type: string
+  label: Geocode an address
+  outputs:
+  - fields:
+    - label: Formatted address
+      name: address
+      required: true
+      type: string
+    - label: Country
+      name: country
+      required: true
+      type: string
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: District
+      name: district
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    - label: Longitude and latitude
+      name: location
+      required: true
+      type: string
+    - label: Match level
+      name: level
+      required: true
+      type: string
+    goType: Geocode
+    label: Address matches
+    name: matches
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_place
+  inputs:
+  - label: Place ID
+    name: place_id
+    required: true
+    type: string
+  label: Get place
+  outputs:
+  - fields:
+    - label: Place ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Address
+      name: address
+      required: true
+      type: string
+    - label: Longitude and latitude
+      name: location
+      required: true
+      type: string
+    - label: Place category
+      name: type
+      required: true
+      type: string
+    - label: Category code
+      name: typecode
+      required: true
+      type: string
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: District
+      name: district
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    goType: Place
+    label: Places
+    name: places
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_weather
+  inputs:
+  - label: Administrative code
+    name: adcode
+    required: true
+    type: string
+  label: Get current weather
+  outputs:
+  - fields:
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    - label: Weather
+      name: weather
+      required: true
+      type: string
+    - label: Temperature in Celsius
+      name: temperature_c
+      required: true
+      type: string
+    - label: Humidity percent
+      name: humidity_percent
+      required: true
+      type: string
+    - label: Wind direction
+      name: wind_direction
+      required: true
+      type: string
+    - label: Wind force
+      name: wind_power
+      required: true
+      type: string
+    - label: Reported at
+      name: reported_at
+      required: true
+      type: string
+    goType: Weather
+    label: Weather observations
+    name: weather
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_districts
+  inputs:
+  - label: District name or code
+    name: query
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Child levels
+      name: depth
+      type: number
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    goType: DistrictOptions
+    label: District query options
+    name: options
+    type: json
+  label: Find administrative districts
+  outputs:
+  - fields:
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    - label: City code
+      name: citycode
+      required: true
+      type: string
+    - label: Center coordinates
+      name: center
+      required: true
+      type: string
+    - label: Administrative level
+      name: level
+      required: true
+      type: string
+    - label: Parent administrative code
+      name: parent_adcode
+      required: true
+      type: string
+    goType: District
+    label: Districts
+    name: districts
+    required: true
+    type: array
+  - goType: int
+    label: Next page
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: plan_route
+  inputs:
+  - label: Travel mode
+    name: mode
+    required: true
+    type: string
+  - label: Origin coordinates
+    name: origin
+    required: true
+    type: string
+  - label: Destination coordinates
+    name: destination
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Driving strategy
+      name: strategy
+      type: number
+    goType: RouteOptions
+    label: Route options
+    name: options
+    type: json
+  label: Plan a route
+  outputs:
+  - fields:
+    - label: Distance in meters
+      name: distance_m
+      required: true
+      type: string
+    - label: Duration in seconds
+      name: duration_s
+      required: true
+      type: string
+    - label: Tolls in yuan
+      name: tolls_yuan
+      required: true
+      type: string
+    - fields:
+      - label: Instruction
+        name: instruction
+        required: true
+        type: string
+      - label: Road
+        name: road
+        required: true
+        type: string
+      - label: Distance in meters
+        name: distance_m
+        required: true
+        type: string
+      - label: Duration in seconds
+        name: duration_s
+        required: true
+        type: string
+      - label: Polyline
+        name: polyline
+        required: true
+        type: string
+      label: Route steps
+      name: steps
+      required: true
+      type: array
+    goType: Route
+    label: Routes
+    name: routes
+    required: true
+    type: array
+  timeoutSec: 60
+- id: reverse_geocode
+  inputs:
+  - label: Longitude and latitude
+    name: location
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Search radius in meters
+      name: radius
+      type: number
+    goType: ReverseOptions
+    label: Reverse geocoding options
+    name: options
+    type: json
+  label: Reverse geocode coordinates
+  outputs:
+  - fields:
+    - label: Formatted address
+      name: address
+      required: true
+      type: string
+    - label: Country
+      name: country
+      required: true
+      type: string
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: District
+      name: district
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    - label: Longitude and latitude
+      name: location
+      required: true
+      type: string
+    - label: Match level
+      name: level
+      required: true
+      type: string
+    goType: Geocode
+    label: Address
+    name: address
+    required: true
+    type: json
+  timeoutSec: 60
+- id: search_nearby
+  inputs:
+  - label: Longitude and latitude
+    name: location
+    required: true
+    type: string
+  - label: Search query
+    name: query
+    type: string
+  - fields:
+    - label: Region
+      name: region
+      type: string
+    - label: Limit to region
+      name: city_limit
+      type: boolean
+    - label: Category codes
+      name: types
+      type: string
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    - goType: int
+      label: Search radius in meters
+      name: radius
+      type: number
+    - label: Sort rule
+      name: sort
+      type: string
+    goType: NearbyOptions
+    label: Nearby search options
+    name: options
+    type: json
+  label: Search nearby places
+  outputs:
+  - fields:
+    - label: Place ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Address
+      name: address
+      required: true
+      type: string
+    - label: Longitude and latitude
+      name: location
+      required: true
+      type: string
+    - label: Place category
+      name: type
+      required: true
+      type: string
+    - label: Category code
+      name: typecode
+      required: true
+      type: string
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: District
+      name: district
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    goType: Place
+    label: Places
+    name: places
+    required: true
+    type: array
+  - goType: int
+    label: Returned count
+    name: returned_count
+    required: true
+    type: number
+  - goType: int
+    label: Next page
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  - label: Page limit reached
+    name: page_limit_reached
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: search_places
+  inputs:
+  - label: Search query
+    name: query
+    required: true
+    type: string
+  - fields:
+    - label: Region
+      name: region
+      type: string
+    - label: Limit to region
+      name: city_limit
+      type: boolean
+    - label: Category codes
+      name: types
+      type: string
+    - goType: int
+      label: Page number
+      name: page
+      type: number
+    - goType: int
+      label: Page size
+      name: page_size
+      type: number
+    goType: SearchOptions
+    label: Search options
+    name: options
+    type: json
+  label: Search places
+  outputs:
+  - fields:
+    - label: Place ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Address
+      name: address
+      required: true
+      type: string
+    - label: Longitude and latitude
+      name: location
+      required: true
+      type: string
+    - label: Place category
+      name: type
+      required: true
+      type: string
+    - label: Category code
+      name: typecode
+      required: true
+      type: string
+    - label: Province
+      name: province
+      required: true
+      type: string
+    - label: City
+      name: city
+      required: true
+      type: string
+    - label: District
+      name: district
+      required: true
+      type: string
+    - label: Administrative code
+      name: adcode
+      required: true
+      type: string
+    goType: Place
+    label: Places
+    name: places
+    required: true
+    type: array
+  - goType: int
+    label: Returned count
+    name: returned_count
+    required: true
+    type: number
+  - goType: int
+    label: Next page
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  - label: Page limit reached
+    name: page_limit_reached
+    required: true
+    type: boolean
+  timeoutSec: 60
+- desc: Performs one geocoding request; no automatic health check is registered
+  id: verify_credential
+  inputs:
+  - label: Probe address
+    name: address
+    required: true
+    type: string
+  label: Verify key with a quota-consuming lookup
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60

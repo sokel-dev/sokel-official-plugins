@@ -1,0 +1,256 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: google-sheets
+  label: Google Sheets
+  desc: Read, write and watch spreadsheet rows
+  version: 0.1.0
+  doc: docs/google-sheets.md
+credential:
+  auth:
+    kind: oauth
+    provider: google
+    scopes:
+    - https://www.googleapis.com/auth/spreadsheets
+    - https://www.googleapis.com/auth/userinfo.email
+  fields:
+  - label: Access token (injected by platform)
+    name: access_token
+    type: secret
+  - label: Refresh token (managed by platform)
+    name: refresh_token
+    type: secret
+  - label: Polling cursor (managed automatically)
+    name: poll_cursor
+    type: text
+  - label: Next poll time (managed automatically)
+    name: next_poll_at
+    type: text
+  - label: Watched spreadsheet ID
+    name: watch_spreadsheet_id
+    type: text
+  - label: Watched A1 range
+    name: watch_range
+    type: text
+events:
+- fields:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - label: A1 range
+    name: range
+    required: true
+    type: string
+  - goType: int
+    label: Row offset within range
+    name: row_offset
+    required: true
+    type: number
+  - desc: Cell types are defined by the spreadsheet
+    label: Cell values
+    name: values
+    opaque: true
+    required: true
+    type: array
+  id: row_added
+  label: Row appended
+operations:
+- id: append_values
+  inputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - label: A1 range
+    name: range
+    required: true
+    type: string
+  - desc: Each row is an array of string, number, boolean or null cells; columns are defined by the spreadsheet
+    label: Two-dimensional cell values
+    name: values
+    opaque: true
+    required: true
+    type: array
+  - desc: RAW or USER_ENTERED; defaults to RAW
+    label: Value input option
+    name: value_input_option
+    type: string
+  label: Append rows
+  outputs:
+  - label: Updated range
+    name: updated_range
+    required: true
+    type: string
+  - goType: int
+    label: Updated row count
+    name: updated_rows
+    required: true
+    type: number
+  - goType: int
+    label: Updated cell count
+    name: updated_cells
+    required: true
+    type: number
+  timeoutSec: 60
+- id: batch_update_values
+  inputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - fields:
+    - label: A1 range
+      name: range
+      required: true
+      type: string
+    - desc: Each row is an array; cell types are defined by the spreadsheet
+      label: Two-dimensional cell values
+      name: values
+      opaque: true
+      required: true
+      type: array
+    goType: ValueRange
+    label: Range data
+    name: data
+    required: true
+    type: array
+  - desc: RAW or USER_ENTERED; defaults to RAW
+    label: Value input option
+    name: value_input_option
+    type: string
+  label: Batch update ranges
+  outputs:
+  - goType: int
+    label: Updated row count
+    name: updated_rows
+    required: true
+    type: number
+  - goType: int
+    label: Updated cell count
+    name: updated_cells
+    required: true
+    type: number
+  timeoutSec: 60
+- id: get_spreadsheet
+  inputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  label: Get spreadsheet metadata
+  outputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - label: Title
+    name: title
+    required: true
+    type: string
+  - label: Time zone
+    name: time_zone
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Sheet ID
+      name: id
+      required: true
+      type: number
+    - label: Name
+      name: title
+      required: true
+      type: string
+    - goType: int
+      label: Grid row count
+      name: row_count
+      required: true
+      type: number
+    - goType: int
+      label: Grid column count
+      name: column_count
+      required: true
+      type: number
+    goType: Sheet
+    label: Sheets
+    name: sheets
+    required: true
+    type: array
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: read_values
+  inputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - label: A1 range
+    name: range
+    required: true
+    type: string
+  - desc: FORMATTED_VALUE, UNFORMATTED_VALUE or FORMULA
+    label: Value render option
+    name: value_render_option
+    type: string
+  label: Read cells
+  outputs:
+  - label: A1 range
+    name: range
+    required: true
+    type: string
+  - desc: Each row is an array of string, number, boolean or null cells; columns are defined by the spreadsheet
+    label: Two-dimensional cell values
+    name: values
+    opaque: true
+    required: true
+    type: array
+  timeoutSec: 60
+- id: update_values
+  inputs:
+  - label: Spreadsheet ID
+    name: spreadsheet_id
+    required: true
+    type: string
+  - label: A1 range
+    name: range
+    required: true
+    type: string
+  - desc: Each row is an array of string, number, boolean or null cells; columns are defined by the spreadsheet
+    label: Two-dimensional cell values
+    name: values
+    opaque: true
+    required: true
+    type: array
+  - desc: RAW or USER_ENTERED; defaults to RAW
+    label: Value input option
+    name: value_input_option
+    type: string
+  label: Update cells
+  outputs:
+  - label: Updated range
+    name: updated_range
+    required: true
+    type: string
+  - goType: int
+    label: Updated row count
+    name: updated_rows
+    required: true
+    type: number
+  - goType: int
+    label: Updated cell count
+    name: updated_cells
+    required: true
+    type: number
+  timeoutSec: 60

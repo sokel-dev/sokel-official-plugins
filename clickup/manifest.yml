@@ -1,0 +1,541 @@
+plugin:
+  org: sokel
+  name: clickup
+  label: ClickUp
+  desc: Discover workspaces and manage tasks and comments.
+  version: 0.1.0
+  doc: docs/clickup.md
+credential:
+  fields:
+  - label: Personal API token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: add_comment
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  - label: Comment text
+    name: text
+    required: true
+    type: string
+  - label: Notify comment author too
+    name: notify_all
+    type: boolean
+  label: Add task comment
+  outputs:
+  - label: Comment ID
+    name: comment_id
+    required: true
+    type: string
+  timeoutSec: 60
+- id: create_task
+  inputs:
+  - label: List ID
+    name: list_id
+    required: true
+    type: string
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Description
+      name: description
+      type: string
+    - label: Status name
+      name: status
+      type: string
+    - goType: int
+      label: Priority (1 to 4)
+      name: priority
+      type: number
+    - goType: int64
+      label: Due date in milliseconds
+      name: due_date_ms
+      type: number
+    - label: Archived
+      name: archived
+      type: boolean
+    - label: Include due time
+      name: due_date_time
+      type: boolean
+    goType: TaskChanges
+    label: Optional task details
+    name: details
+    type: json
+  label: Create task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - fields:
+      - label: Status
+        name: name
+        required: true
+        type: string
+      - label: Status type
+        name: type
+        required: true
+        type: string
+      label: Status
+      name: status
+      required: true
+      type: json
+    - fields:
+      - label: Priority name
+        name: name
+        required: true
+        type: string
+      label: Priority
+      name: priority
+      type: json
+    - fields:
+      - goType: int64
+        label: User ID
+        name: id
+        required: true
+        type: number
+      - label: Username
+        name: username
+        required: true
+        type: string
+      label: Assignees
+      name: assignees
+      required: true
+      type: array
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Due date in milliseconds
+      name: due_date_ms
+      required: true
+      type: string
+    - label: Updated at in milliseconds
+      name: updated_at_ms
+      required: true
+      type: string
+    - label: Archived
+      name: archived
+      required: true
+      type: boolean
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_task
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  label: Get task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - fields:
+      - label: Status
+        name: name
+        required: true
+        type: string
+      - label: Status type
+        name: type
+        required: true
+        type: string
+      label: Status
+      name: status
+      required: true
+      type: json
+    - fields:
+      - label: Priority name
+        name: name
+        required: true
+        type: string
+      label: Priority
+      name: priority
+      type: json
+    - fields:
+      - goType: int64
+        label: User ID
+        name: id
+        required: true
+        type: number
+      - label: Username
+        name: username
+        required: true
+        type: string
+      label: Assignees
+      name: assignees
+      required: true
+      type: array
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Due date in milliseconds
+      name: due_date_ms
+      required: true
+      type: string
+    - label: Updated at in milliseconds
+      name: updated_at_ms
+      required: true
+      type: string
+    - label: Archived
+      name: archived
+      required: true
+      type: boolean
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_folders
+  inputs:
+  - label: Space ID
+    name: space_id
+    required: true
+    type: string
+  label: List folders
+  outputs:
+  - fields:
+    - label: ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Folders
+    name: folders
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_lists
+  inputs:
+  - desc: space lists only folderless lists; folder lists lists inside a folder
+    label: Parent type
+    name: parent_type
+    required: true
+    type: string
+  - label: Parent ID
+    name: parent_id
+    required: true
+    type: string
+  label: List task lists
+  outputs:
+  - fields:
+    - label: ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Lists
+    name: lists
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_spaces
+  inputs:
+  - label: Workspace ID
+    name: workspace_id
+    required: true
+    type: string
+  label: List spaces
+  outputs:
+  - fields:
+    - label: ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Spaces
+    name: spaces
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_tasks
+  inputs:
+  - label: List ID
+    name: list_id
+    required: true
+    type: string
+  - fields:
+    - label: Archived
+      name: archived
+      type: boolean
+    - label: Include closed tasks
+      name: include_closed
+      type: boolean
+    - label: Include tasks from other home lists
+      name: include_timl
+      type: boolean
+    - label: Include subtasks
+      name: subtasks
+      type: boolean
+    - goType: int
+      label: Zero-based page
+      name: page
+      type: number
+    goType: QueryOptions
+    label: Query options
+    name: options
+    type: json
+  label: List tasks
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - fields:
+      - label: Status
+        name: name
+        required: true
+        type: string
+      - label: Status type
+        name: type
+        required: true
+        type: string
+      label: Status
+      name: status
+      required: true
+      type: json
+    - fields:
+      - label: Priority name
+        name: name
+        required: true
+        type: string
+      label: Priority
+      name: priority
+      type: json
+    - fields:
+      - goType: int64
+        label: User ID
+        name: id
+        required: true
+        type: number
+      - label: Username
+        name: username
+        required: true
+        type: string
+      label: Assignees
+      name: assignees
+      required: true
+      type: array
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Due date in milliseconds
+      name: due_date_ms
+      required: true
+      type: string
+    - label: Updated at in milliseconds
+      name: updated_at_ms
+      required: true
+      type: string
+    - label: Archived
+      name: archived
+      required: true
+      type: boolean
+    goType: Task
+    label: Tasks
+    name: tasks
+    required: true
+    type: array
+  - goType: int
+    label: Next page
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_workspaces
+  label: List workspaces
+  outputs:
+  - fields:
+    - label: ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Workspaces
+    name: workspaces
+    required: true
+    type: array
+  timeoutSec: 60
+- id: update_task
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Description
+      name: description
+      type: string
+    - label: Status name
+      name: status
+      type: string
+    - goType: int
+      label: Priority (1 to 4)
+      name: priority
+      type: number
+    - goType: int64
+      label: Due date in milliseconds
+      name: due_date_ms
+      type: number
+    - label: Archived
+      name: archived
+      type: boolean
+    - label: Include due time
+      name: due_date_time
+      type: boolean
+    goType: TaskChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - fields:
+      - label: Status
+        name: name
+        required: true
+        type: string
+      - label: Status type
+        name: type
+        required: true
+        type: string
+      label: Status
+      name: status
+      required: true
+      type: json
+    - fields:
+      - label: Priority name
+        name: name
+        required: true
+        type: string
+      label: Priority
+      name: priority
+      type: json
+    - fields:
+      - goType: int64
+        label: User ID
+        name: id
+        required: true
+        type: number
+      - label: Username
+        name: username
+        required: true
+        type: string
+      label: Assignees
+      name: assignees
+      required: true
+      type: array
+    - label: URL
+      name: url
+      required: true
+      type: string
+    - label: Due date in milliseconds
+      name: due_date_ms
+      required: true
+      type: string
+    - label: Updated at in milliseconds
+      name: updated_at_ms
+      required: true
+      type: string
+    - label: Archived
+      name: archived
+      required: true
+      type: boolean
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
