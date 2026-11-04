@@ -1,0 +1,555 @@
+{
+  "plugin": {
+    "name": "airtable",
+    "org": "sokel",
+    "label": "Airtable tables",
+    "desc": "Base schemas, record operations and change polling",
+    "version": "0.1.0",
+    "doc": "docs/airtable.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "token",
+        "type": "secret",
+        "label": "Personal access token",
+        "required": true,
+        "desc": "Requires data.records:read/write and schema.bases:read, with access to the target base"
+      },
+      {
+        "name": "watch_base",
+        "type": "text",
+        "label": "Watched base ID",
+        "required": false
+      },
+      {
+        "name": "watch_table",
+        "type": "text",
+        "label": "Watched table ID",
+        "required": false,
+        "desc": "The first complete scan establishes a baseline; maximum 500 records; detects additions and content changes only"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "type": "boolean",
+          "label": "Credential valid",
+          "required": true
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "label": "Status message",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "airtable_bases",
+      "label": "List bases",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "offset",
+          "type": "string",
+          "label": "Pagination cursor",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bases",
+          "type": "array",
+          "label": "Bases",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Base ID",
+              "required": true
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "label": "Name",
+              "required": true
+            },
+            {
+              "name": "permissionLevel",
+              "type": "string",
+              "label": "Permission level",
+              "required": true
+            }
+          ],
+          "goType": "Base"
+        },
+        {
+          "name": "offset",
+          "type": "string",
+          "label": "Next cursor",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "airtable_tables",
+      "label": "Get table schemas",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tables",
+          "type": "array",
+          "label": "Tables",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Table ID",
+              "required": true
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "label": "Name",
+              "required": true
+            },
+            {
+              "name": "primaryFieldId",
+              "type": "string",
+              "label": "Primary field ID",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "array",
+              "label": "Fields",
+              "required": true,
+              "fields": [
+                {
+                  "name": "id",
+                  "type": "string",
+                  "label": "Field ID",
+                  "required": true
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "label": "Name",
+                  "required": true
+                },
+                {
+                  "name": "type",
+                  "type": "string",
+                  "label": "Field type",
+                  "required": true
+                },
+                {
+                  "name": "options",
+                  "type": "json",
+                  "label": "Field options",
+                  "required": false,
+                  "opaque": true,
+                  "desc": "Each field type has its own options structure"
+                }
+              ],
+              "goType": "TableField"
+            }
+          ],
+          "goType": "Table"
+        }
+      ]
+    },
+    {
+      "id": "airtable_records",
+      "label": "List records",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "string",
+          "label": "Pagination cursor",
+          "required": false
+        },
+        {
+          "name": "view",
+          "type": "string",
+          "label": "View name or ID",
+          "required": false
+        },
+        {
+          "name": "filter_formula",
+          "type": "text",
+          "label": "Filter formula",
+          "required": false
+        },
+        {
+          "name": "fields",
+          "type": "array",
+          "label": "Returned fields",
+          "required": false,
+          "itemType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "records",
+          "type": "array",
+          "label": "Records",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Record ID",
+              "required": true
+            },
+            {
+              "name": "createdTime",
+              "type": "string",
+              "label": "Created time",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "json",
+              "label": "Field values",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by the user’s table schema"
+            }
+          ],
+          "goType": "Record"
+        },
+        {
+          "name": "offset",
+          "type": "string",
+          "label": "Next cursor",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "airtable_get",
+      "label": "Get record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "record_id",
+          "type": "string",
+          "label": "Record ID",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "type": "json",
+          "label": "Record",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Record ID",
+              "required": true
+            },
+            {
+              "name": "createdTime",
+              "type": "string",
+              "label": "Created time",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "json",
+              "label": "Field values",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by the user’s table schema"
+            }
+          ],
+          "goType": "Record"
+        }
+      ]
+    },
+    {
+      "id": "airtable_create",
+      "label": "Create record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "type": "json",
+          "label": "Field values",
+          "required": true,
+          "opaque": true,
+          "desc": "Column names and value types are defined by the user’s table schema"
+        },
+        {
+          "name": "typecast",
+          "type": "boolean",
+          "label": "Allow type conversion",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "type": "json",
+          "label": "Record",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Record ID",
+              "required": true
+            },
+            {
+              "name": "createdTime",
+              "type": "string",
+              "label": "Created time",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "json",
+              "label": "Field values",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by the user’s table schema"
+            }
+          ],
+          "goType": "Record"
+        }
+      ]
+    },
+    {
+      "id": "airtable_update",
+      "label": "Update record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "record_id",
+          "type": "string",
+          "label": "Record ID",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "type": "json",
+          "label": "Field values",
+          "required": true,
+          "opaque": true,
+          "desc": "Column names and value types are defined by the user’s table schema"
+        },
+        {
+          "name": "typecast",
+          "type": "boolean",
+          "label": "Allow type conversion",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "type": "json",
+          "label": "Record",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Record ID",
+              "required": true
+            },
+            {
+              "name": "createdTime",
+              "type": "string",
+              "label": "Created time",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "json",
+              "label": "Field values",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by the user’s table schema"
+            }
+          ],
+          "goType": "Record"
+        }
+      ]
+    },
+    {
+      "id": "airtable_delete",
+      "label": "Delete record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "record_id",
+          "type": "string",
+          "label": "Record ID",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "id",
+          "type": "string",
+          "label": "Record ID",
+          "required": true
+        },
+        {
+          "name": "deleted",
+          "type": "boolean",
+          "label": "Deleted",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "record_changed",
+      "label": "Record changed",
+      "fields": [
+        {
+          "name": "base_id",
+          "type": "string",
+          "label": "Base ID",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "label": "Table ID",
+          "required": true
+        },
+        {
+          "name": "change",
+          "type": "string",
+          "label": "Change type",
+          "required": true
+        },
+        {
+          "name": "record",
+          "type": "json",
+          "label": "Record",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "label": "Record ID",
+              "required": true
+            },
+            {
+              "name": "createdTime",
+              "type": "string",
+              "label": "Created time",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "type": "json",
+              "label": "Field values",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by the user’s table schema"
+            }
+          ],
+          "goType": "Record"
+        }
+      ]
+    }
+  ],
+  "events_common": [
+    "base_id",
+    "table_id"
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

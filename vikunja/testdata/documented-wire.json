@@ -1,0 +1,124 @@
+[
+  {
+    "op": "health_check",
+    "input": {},
+    "method": "GET",
+    "path": "/api/v2/projects",
+    "query": "page=1&per_page=1",
+    "body": "",
+    "status": 200,
+    "response": "{\"items\":[{\"id\":8,\"title\":\"Books\",\"description\":\"<p>Read</p>\",\"is_archived\":false}],\"total\":2,\"page\":1,\"per_page\":1,\"total_pages\":2}"
+  },
+  {
+    "op": "list_projects",
+    "input": {
+      "page": {
+        "size": 1
+      }
+    },
+    "method": "GET",
+    "path": "/api/v2/projects",
+    "query": "page=1&per_page=1",
+    "body": "",
+    "status": 200,
+    "response": "{\"items\":[{\"id\":8,\"title\":\"Books\",\"description\":\"<p>Read</p>\",\"is_archived\":false}],\"total\":2,\"page\":1,\"per_page\":1,\"total_pages\":2}"
+  },
+  {
+    "op": "get_project",
+    "input": {
+      "project_id": "8"
+    },
+    "method": "GET",
+    "path": "/api/v2/projects/8",
+    "query": "",
+    "body": "",
+    "status": 200,
+    "response": "{\"id\":8,\"title\":\"Books\",\"description\":\"<p>Read</p>\",\"is_archived\":false}"
+  },
+  {
+    "op": "create_project",
+    "input": {
+      "title": "Books",
+      "description": "<p>Read</p>"
+    },
+    "method": "POST",
+    "path": "/api/v2/projects",
+    "query": "",
+    "body": "{\"description\":\"\\u003cp\\u003eRead\\u003c/p\\u003e\",\"title\":\"Books\"}",
+    "status": 201,
+    "response": "{\"id\":8,\"title\":\"Books\",\"description\":\"<p>Read</p>\",\"is_archived\":false}"
+  },
+  {
+    "op": "list_tasks",
+    "input": {
+      "project_id": "8",
+      "page": {
+        "size": 1
+      }
+    },
+    "method": "GET",
+    "path": "/api/v2/projects/8/tasks",
+    "query": "page=1&per_page=1",
+    "body": "",
+    "status": 200,
+    "response": "{\"items\":[{\"id\":9007199254740993,\"project_id\":8,\"title\":\"Read\",\"description\":\"<p>A book</p>\",\"done\":false,\"priority\":0,\"due_date\":\"0001-01-01T00:00:00Z\"}],\"total\":2,\"page\":1,\"per_page\":1,\"total_pages\":2}"
+  },
+  {
+    "op": "get_task",
+    "input": {
+      "task_id": "9007199254740993"
+    },
+    "method": "GET",
+    "path": "/api/v2/tasks/9007199254740993",
+    "query": "",
+    "body": "",
+    "status": 200,
+    "response": "{\"id\":9007199254740993,\"project_id\":8,\"title\":\"Read\",\"description\":\"<p>A book</p>\",\"done\":false,\"priority\":0,\"due_date\":\"0001-01-01T00:00:00Z\"}"
+  },
+  {
+    "op": "create_task",
+    "input": {
+      "project_id": "8",
+      "title": "Read",
+      "fields": {
+        "done": false,
+        "priority": 0
+      }
+    },
+    "method": "POST",
+    "path": "/api/v2/projects/8/tasks",
+    "query": "",
+    "body": "{\"done\":false,\"priority\":0,\"title\":\"Read\"}",
+    "status": 201,
+    "response": "{\"id\":9007199254740993,\"project_id\":8,\"title\":\"Read\",\"description\":\"<p>A book</p>\",\"done\":false,\"priority\":0,\"due_date\":\"0001-01-01T00:00:00Z\"}"
+  },
+  {
+    "op": "update_task",
+    "input": {
+      "task_id": "9007199254740993",
+      "fields": {
+        "done": false,
+        "priority": 0
+      }
+    },
+    "method": "PATCH",
+    "path": "/api/v2/tasks/9007199254740993",
+    "query": "",
+    "body": "{\"done\":false,\"priority\":0}",
+    "status": 200,
+    "response": "{\"id\":9007199254740993,\"project_id\":8,\"title\":\"Read\",\"description\":\"<p>A book</p>\",\"done\":false,\"priority\":0,\"due_date\":\"0001-01-01T00:00:00Z\"}"
+  },
+  {
+    "op": "add_comment",
+    "input": {
+      "task_id": "9007199254740993",
+      "comment": "<p>Good</p>"
+    },
+    "method": "POST",
+    "path": "/api/v2/tasks/9007199254740993/comments",
+    "query": "",
+    "body": "{\"comment\":\"\\u003cp\\u003eGood\\u003c/p\\u003e\"}",
+    "status": 201,
+    "response": "{\"id\":12,\"comment\":\"<p>Good</p>\",\"created\":\"2026-11-04T01:02:03Z\"}"
+  }
+]

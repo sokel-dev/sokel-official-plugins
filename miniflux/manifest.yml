@@ -1,0 +1,489 @@
+{
+  "plugin": {
+    "name": "miniflux",
+    "org": "sokel",
+    "label": "Miniflux",
+    "desc": "Manage subscriptions, stored articles and reading state on a self-hosted Miniflux service",
+    "version": "0.1.0",
+    "doc": "docs/miniflux.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Create a per-application key in your own Miniflux settings. The service address is configured with SOKEL_MINIFLUX_URL.",
+        "label": "API key",
+        "name": "api_key",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_category",
+      "inputs": [
+        {
+          "label": "Category title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Create category",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Category ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Category title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Category",
+          "label": "Category",
+          "name": "category",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_feed",
+      "inputs": [
+        {
+          "label": "Feed URL",
+          "name": "feed_url",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Category ID",
+          "name": "category_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Subscribe to feed",
+      "outputs": [
+        {
+          "label": "Feed ID",
+          "name": "feed_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_current_user",
+      "label": "Get current user",
+      "outputs": [
+        {
+          "label": "User ID",
+          "name": "user_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Username",
+          "name": "username",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_entry",
+      "inputs": [
+        {
+          "label": "Entry ID",
+          "name": "entry_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get stored entry",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entry ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Feed ID",
+              "name": "feed_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Article URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Author",
+              "name": "author",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Stored HTML content",
+              "name": "content",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Reading status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Starred",
+              "name": "starred",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Published at",
+              "name": "published_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Entry",
+          "name": "entry",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_categories",
+      "label": "List categories",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Category ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Category title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Category",
+          "label": "Categories",
+          "name": "categories",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_entries",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "label": "After entry ID",
+              "name": "after_id",
+              "type": "string"
+            },
+            {
+              "label": "Reading status",
+              "name": "status",
+              "type": "string"
+            },
+            {
+              "label": "Starred",
+              "name": "starred",
+              "type": "boolean"
+            },
+            {
+              "label": "Search text",
+              "name": "search",
+              "type": "string"
+            },
+            {
+              "label": "Category ID",
+              "name": "category_id",
+              "type": "string"
+            }
+          ],
+          "goType": "EntryOptions",
+          "label": "Entry filters",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List stored entries",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Entry ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Feed ID",
+              "name": "feed_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Article URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Author",
+              "name": "author",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Stored HTML content",
+              "name": "content",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Reading status",
+              "name": "status",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Starred",
+              "name": "starred",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Published at",
+              "name": "published_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Entry",
+          "label": "Entries",
+          "name": "entries",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "May have more",
+          "name": "may_have_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Next after entry ID",
+          "name": "next_after_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_feeds",
+      "label": "List feeds",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Feed ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Feed title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Feed URL",
+              "name": "feed_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Website URL",
+              "name": "site_url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "fields": [
+                {
+                  "label": "Category ID",
+                  "name": "id",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "label": "Category title",
+                  "name": "title",
+                  "required": true,
+                  "type": "string"
+                }
+              ],
+              "label": "Category",
+              "name": "category",
+              "required": true,
+              "type": "json"
+            },
+            {
+              "label": "Last checked at",
+              "name": "checked_at",
+              "type": "string"
+            },
+            {
+              "label": "Disabled",
+              "name": "disabled",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int64",
+              "label": "Parsing error count",
+              "name": "parsing_error_count",
+              "required": true,
+              "type": "number"
+            }
+          ],
+          "goType": "Feed",
+          "label": "Feeds",
+          "name": "feeds",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "refresh_feed",
+      "inputs": [
+        {
+          "label": "Feed ID",
+          "name": "feed_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Request feed refresh",
+      "outputs": [
+        {
+          "label": "Refresh accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_entries",
+      "inputs": [
+        {
+          "itemType": "string",
+          "label": "Entry IDs",
+          "name": "entry_ids",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "label": "Reading status",
+              "name": "status",
+              "type": "string"
+            },
+            {
+              "label": "Starred",
+              "name": "starred",
+              "type": "boolean"
+            }
+          ],
+          "goType": "EntryChanges",
+          "label": "Reading state changes",
+          "name": "changes",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Update reading state",
+      "outputs": [
+        {
+          "label": "Update accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-miniflux:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_MINIFLUX_URL",
+        "desc": "HTTP(S) installation root for your self-hosted Miniflux service.",
+        "required": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,418 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: zoom
+  org: sokel
+  version: 0.1.0
+  label: Zoom
+  desc: Read users and schedule or update Zoom meetings
+  doc: docs/zoom.md
+credential:
+  fields:
+  - label: OAuth access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: create_meeting
+  inputs:
+  - label: User ID or email
+    name: user_id
+    type: string
+  - label: Topic
+    name: topic
+    required: true
+    type: string
+  - label: Start time
+    name: start_time
+    required: true
+    type: string
+  - goType: int
+    label: Duration in minutes
+    name: duration
+    required: true
+    type: number
+  - fields:
+    - label: Agenda
+      name: agenda
+      type: string
+    - fields:
+      - label: Host video
+        name: host_video
+        type: boolean
+      - label: Participant video
+        name: participant_video
+        type: boolean
+      - label: Join before host
+        name: join_before_host
+        type: boolean
+      - label: Mute upon entry
+        name: mute_upon_entry
+        type: boolean
+      - label: Waiting room
+        name: waiting_room
+        type: boolean
+      label: Meeting settings
+      name: settings
+      type: json
+    goType: CreateDetails
+    label: Meeting details
+    name: details
+    type: json
+  label: Create scheduled meeting
+  outputs:
+  - fields:
+    - label: Meeting ID
+      name: id
+      required: true
+      type: string
+    - label: Meeting UUID
+      name: uuid
+      required: true
+      type: string
+    - label: Host ID
+      name: host_id
+      required: true
+      type: string
+    - label: Topic
+      name: topic
+      required: true
+      type: string
+    - label: Agenda
+      name: agenda
+      required: true
+      type: string
+    - goType: int
+      label: Meeting type
+      name: type
+      required: true
+      type: number
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      required: true
+      type: number
+    - label: Timezone
+      name: timezone
+      required: true
+      type: string
+    - label: Join URL
+      name: join_url
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Meeting
+    label: Meeting
+    name: meeting
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_meeting
+  inputs:
+  - label: Meeting ID
+    name: meeting_id
+    required: true
+    type: string
+  label: Get meeting
+  outputs:
+  - fields:
+    - label: Meeting ID
+      name: id
+      required: true
+      type: string
+    - label: Meeting UUID
+      name: uuid
+      required: true
+      type: string
+    - label: Host ID
+      name: host_id
+      required: true
+      type: string
+    - label: Topic
+      name: topic
+      required: true
+      type: string
+    - label: Agenda
+      name: agenda
+      required: true
+      type: string
+    - goType: int
+      label: Meeting type
+      name: type
+      required: true
+      type: number
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      required: true
+      type: number
+    - label: Timezone
+      name: timezone
+      required: true
+      type: string
+    - label: Join URL
+      name: join_url
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Meeting
+    label: Meeting
+    name: meeting
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_user
+  inputs:
+  - label: User ID or email
+    name: user_id
+    type: string
+  label: Get user
+  outputs:
+  - fields:
+    - label: User ID
+      name: id
+      required: true
+      type: string
+    - label: Email
+      name: email
+      required: true
+      type: string
+    - label: First name
+      name: first_name
+      required: true
+      type: string
+    - label: Last name
+      name: last_name
+      required: true
+      type: string
+    - label: Display name
+      name: display_name
+      required: true
+      type: string
+    - goType: int
+      label: User type
+      name: type
+      required: true
+      type: number
+    - label: Status
+      name: status
+      required: true
+      type: string
+    goType: User
+    label: User
+    name: user
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_meetings
+  inputs:
+  - label: User ID or email
+    name: user_id
+    type: string
+  - goType: int
+    label: Page size
+    name: page_size
+    type: number
+  - label: Pagination token
+    name: next_page_token
+    type: string
+  - label: Meeting list type
+    name: type
+    type: string
+  label: List meetings
+  outputs:
+  - fields:
+    - label: Meeting ID
+      name: id
+      required: true
+      type: string
+    - label: Meeting UUID
+      name: uuid
+      required: true
+      type: string
+    - label: Host ID
+      name: host_id
+      required: true
+      type: string
+    - label: Topic
+      name: topic
+      required: true
+      type: string
+    - label: Agenda
+      name: agenda
+      required: true
+      type: string
+    - goType: int
+      label: Meeting type
+      name: type
+      required: true
+      type: number
+    - label: Start time
+      name: start_time
+      required: true
+      type: string
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      required: true
+      type: number
+    - label: Timezone
+      name: timezone
+      required: true
+      type: string
+    - label: Join URL
+      name: join_url
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Meeting
+    label: Meetings
+    name: meetings
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_users
+  inputs:
+  - goType: int
+    label: Page size
+    name: page_size
+    type: number
+  - label: Pagination token
+    name: next_page_token
+    type: string
+  - label: User status
+    name: status
+    type: string
+  label: List users
+  outputs:
+  - fields:
+    - label: User ID
+      name: id
+      required: true
+      type: string
+    - label: Email
+      name: email
+      required: true
+      type: string
+    - label: First name
+      name: first_name
+      required: true
+      type: string
+    - label: Last name
+      name: last_name
+      required: true
+      type: string
+    - label: Display name
+      name: display_name
+      required: true
+      type: string
+    - goType: int
+      label: User type
+      name: type
+      required: true
+      type: number
+    - label: Status
+      name: status
+      required: true
+      type: string
+    goType: User
+    label: Users
+    name: users
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_meeting
+  inputs:
+  - label: Meeting ID
+    name: meeting_id
+    required: true
+    type: string
+  - fields:
+    - label: Topic
+      name: topic
+      type: string
+    - label: Agenda
+      name: agenda
+      type: string
+    - label: Start time
+      name: start_time
+      type: string
+    - goType: int
+      label: Duration in minutes
+      name: duration
+      type: number
+    - fields:
+      - label: Host video
+        name: host_video
+        type: boolean
+      - label: Participant video
+        name: participant_video
+        type: boolean
+      - label: Join before host
+        name: join_before_host
+        type: boolean
+      - label: Mute upon entry
+        name: mute_upon_entry
+        type: boolean
+      - label: Waiting room
+        name: waiting_room
+        type: boolean
+      label: Meeting settings
+      name: settings
+      type: json
+    goType: MeetingChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update meeting
+  outputs:
+  - label: Updated
+    name: updated
+    required: true
+    type: boolean
+  timeoutSec: 60

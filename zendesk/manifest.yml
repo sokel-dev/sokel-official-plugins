@@ -1,0 +1,526 @@
+# Exported from schema/ with SDK v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: zendesk
+  org: sokel
+  label: Zendesk
+  desc: Read, search and manage Zendesk Support tickets and comments
+  version: 0.1.0
+  doc: docs/zendesk.md
+credential:
+  fields:
+  - desc: Use the account name before .zendesk.com, without a URL
+    label: Zendesk subdomain
+    name: subdomain
+    required: true
+    type: text
+  - desc: Email of an agent or administrator with access to the target tickets
+    label: Agent email
+    name: email
+    required: true
+    type: text
+  - desc: Create an API token in Zendesk Admin Center; API token access must be enabled
+    label: API token
+    name: api_token
+    required: true
+    type: secret
+operations:
+- id: add_comment
+  inputs:
+  - label: Ticket ID
+    name: ticket_id
+    required: true
+    type: string
+  - label: Comment body
+    name: body
+    required: true
+    type: string
+  - label: Public reply
+    name: public
+    required: true
+    type: boolean
+  - label: Expected updated_at timestamp
+    name: updated_stamp
+    type: string
+  label: Add ticket comment
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Updated ticket
+    name: ticket
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_ticket
+  inputs:
+  - label: Subject
+    name: subject
+    required: true
+    type: string
+  - label: Initial comment
+    name: body
+    required: true
+    type: string
+  - label: Requester ID
+    name: requester_id
+    required: true
+    type: string
+  - label: Public reply
+    name: public
+    required: true
+    type: boolean
+  - fields:
+    - label: Subject
+      name: subject
+      type: string
+    - label: Status
+      name: status
+      type: string
+    - label: Priority (empty clears)
+      name: priority
+      type: string
+    - label: Assignee ID (empty clears)
+      name: assignee_id
+      type: string
+    - itemType: string
+      label: Tags (replaces all)
+      name: tags
+      type: array
+    goType: TicketChanges
+    label: Optional ticket fields
+    name: details
+    type: json
+  label: Create ticket
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Ticket
+    name: ticket
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_ticket
+  inputs:
+  - label: Ticket ID
+    name: ticket_id
+    required: true
+    type: string
+  label: Get ticket
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Ticket
+    name: ticket
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_comments
+  inputs:
+  - label: Ticket ID
+    name: ticket_id
+    required: true
+    type: string
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  label: List ticket comments
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Author ID
+      name: author_id
+      required: true
+      type: string
+    - label: Comment body
+      name: body
+      required: true
+      type: string
+    - label: Public reply
+      name: public
+      required: true
+      type: boolean
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    goType: Comment
+    label: Comments
+    name: comments
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_tickets
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  label: List tickets
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Tickets
+    name: tickets
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: search_tickets
+  inputs:
+  - label: Ticket search query
+    name: query
+    required: true
+    type: string
+  - goType: int
+    label: Page number
+    name: page
+    type: number
+  label: Search tickets
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Tickets
+    name: tickets
+    required: true
+    type: array
+  - goType: int
+    label: Next page number
+    name: next_page
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  - goType: int
+    label: Total matches
+    name: total_count
+    required: true
+    type: number
+  - label: More than 1000 matches
+    name: truncated
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_ticket
+  inputs:
+  - label: Ticket ID
+    name: ticket_id
+    required: true
+    type: string
+  - fields:
+    - label: Subject
+      name: subject
+      type: string
+    - label: Status
+      name: status
+      type: string
+    - label: Priority (empty clears)
+      name: priority
+      type: string
+    - label: Assignee ID (empty clears)
+      name: assignee_id
+      type: string
+    - itemType: string
+      label: Tags (replaces all)
+      name: tags
+      type: array
+    goType: TicketChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  - label: Expected updated_at timestamp
+    name: updated_stamp
+    type: string
+  label: Update ticket
+  outputs:
+  - fields:
+    - label: Ticket ID
+      name: id
+      required: true
+      type: string
+    - label: Subject
+      name: subject
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Priority
+      name: priority
+      required: true
+      type: string
+    - label: Requester ID
+      name: requester_id
+      required: true
+      type: string
+    - label: Assignee ID
+      name: assignee_id
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Ticket
+    label: Ticket
+    name: ticket
+    required: true
+    type: json
+  timeoutSec: 60

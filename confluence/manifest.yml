@@ -1,0 +1,402 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: confluence
+  org: sokel
+  version: 0.1.0
+  label: Confluence Cloud
+  desc: Read spaces and publish version-checked Confluence Cloud pages
+  doc: docs/confluence.md
+credential:
+  fields:
+  - desc: 'For tokens without scopes: https://your-site.atlassian.net'
+    label: Atlassian Cloud site
+    name: site
+    type: text
+  - desc: Scoped tokens use the fixed api.atlassian.com gateway; takes precedence
+      over site
+    label: Cloud ID for scoped tokens
+    name: cloud_id
+    type: text
+  - label: Atlassian account email
+    name: email
+    required: true
+    type: text
+  - label: Atlassian API token
+    name: api_token
+    required: true
+    type: secret
+operations:
+- id: create_page
+  inputs:
+  - label: Space ID
+    name: space_id
+    required: true
+    type: string
+  - label: Title
+    name: title
+    required: true
+    type: string
+  - label: Page body
+    name: body
+    required: true
+    type: string
+  - desc: storage or atlas_doc_format; defaults to storage
+    label: Body representation
+    name: representation
+    type: string
+  - label: Parent page ID
+    name: parent_id
+    type: string
+  label: Create page
+  outputs:
+  - fields:
+    - label: Page ID
+      name: id
+      required: true
+      type: string
+    - label: Space ID
+      name: space_id
+      required: true
+      type: string
+    - label: Parent page ID
+      name: parent_id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - goType: int
+      label: Current version
+      name: version
+      required: true
+      type: number
+    - label: Page body
+      name: body
+      required: true
+      type: string
+    - label: Body representation
+      name: representation
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Web UI path
+      name: web_path
+      required: true
+      type: string
+    goType: Page
+    label: Page
+    name: page
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_page
+  inputs:
+  - label: Page ID
+    name: page_id
+    required: true
+    type: string
+  - desc: storage or atlas_doc_format; defaults to storage
+    label: Body representation
+    name: representation
+    type: string
+  label: Get page
+  outputs:
+  - fields:
+    - label: Page ID
+      name: id
+      required: true
+      type: string
+    - label: Space ID
+      name: space_id
+      required: true
+      type: string
+    - label: Parent page ID
+      name: parent_id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - goType: int
+      label: Current version
+      name: version
+      required: true
+      type: number
+    - label: Page body
+      name: body
+      required: true
+      type: string
+    - label: Body representation
+      name: representation
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Web UI path
+      name: web_path
+      required: true
+      type: string
+    goType: Page
+    label: Page
+    name: page
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_space
+  inputs:
+  - label: Space ID
+    name: space_id
+    required: true
+    type: string
+  label: Get space
+  outputs:
+  - fields:
+    - label: Space ID
+      name: id
+      required: true
+      type: string
+    - label: Space key
+      name: key
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Space type
+      name: type
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    goType: Space
+    label: Space
+    name: space
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_pages
+  inputs:
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Space ID
+    name: space_id
+    type: string
+  - label: Exact page title
+    name: title
+    type: string
+  - desc: storage or atlas_doc_format; defaults to storage
+    label: Body representation
+    name: representation
+    type: string
+  label: List pages
+  outputs:
+  - fields:
+    - label: Page ID
+      name: id
+      required: true
+      type: string
+    - label: Space ID
+      name: space_id
+      required: true
+      type: string
+    - label: Parent page ID
+      name: parent_id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - goType: int
+      label: Current version
+      name: version
+      required: true
+      type: number
+    - label: Page body
+      name: body
+      required: true
+      type: string
+    - label: Body representation
+      name: representation
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Web UI path
+      name: web_path
+      required: true
+      type: string
+    goType: Page
+    label: Pages
+    name: pages
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_spaces
+  inputs:
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Space key
+    name: key
+    type: string
+  label: List spaces
+  outputs:
+  - fields:
+    - label: Space ID
+      name: id
+      required: true
+      type: string
+    - label: Space key
+      name: key
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Space type
+      name: type
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    goType: Space
+    label: Spaces
+    name: spaces
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  timeoutSec: 60
+- id: update_page
+  inputs:
+  - label: Page ID
+    name: page_id
+    required: true
+    type: string
+  - goType: int
+    label: Expected current version
+    name: expected_version
+    required: true
+    type: number
+  - label: Title
+    name: title
+    required: true
+    type: string
+  - label: Page body
+    name: body
+    required: true
+    type: string
+  - desc: storage or atlas_doc_format; defaults to storage
+    label: Body representation
+    name: representation
+    type: string
+  - label: Version message
+    name: version_message
+    type: string
+  label: Update page with version check
+  outputs:
+  - fields:
+    - label: Page ID
+      name: id
+      required: true
+      type: string
+    - label: Space ID
+      name: space_id
+      required: true
+      type: string
+    - label: Parent page ID
+      name: parent_id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - goType: int
+      label: Current version
+      name: version
+      required: true
+      type: number
+    - label: Page body
+      name: body
+      required: true
+      type: string
+    - label: Body representation
+      name: representation
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Web UI path
+      name: web_path
+      required: true
+      type: string
+    goType: Page
+    label: Page
+    name: page
+    required: true
+    type: json
+  timeoutSec: 60

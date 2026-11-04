@@ -1,0 +1,201 @@
+plugin:
+  org: sokel
+  name: searxng
+  label: SearXNG
+  desc: Search the web through a self-hosted SearXNG instance
+  version: 0.1.0
+  doc: docs/searxng.md
+credential:
+  fields:
+  - desc: Optional HTTP Basic authentication at your reverse proxy; SearXNG has no API key requirement.
+    label: Proxy username
+    name: username
+    type: text
+  - label: Proxy password
+    name: password
+    type: secret
+operations:
+- desc: Read engine names and supported search features from your instance.
+  id: get_config
+  label: List search engines
+  outputs:
+  - label: Instance name
+    name: instance_name
+    required: true
+    type: string
+  - label: Service version
+    name: version
+    required: true
+    type: string
+  - itemType: string
+    label: Categories
+    name: categories
+    required: true
+    type: array
+  - fields:
+    - label: Engine
+      name: name
+      required: true
+      type: string
+    - label: Shortcut
+      name: shortcut
+      required: true
+      type: string
+    - itemType: string
+      label: Categories
+      name: categories
+      required: true
+      type: array
+    - label: Enabled
+      name: enabled
+      required: true
+      type: boolean
+    - label: Supports pagination
+      name: paging
+      required: true
+      type: boolean
+    - label: Supports safe search
+      name: safesearch
+      required: true
+      type: boolean
+    - label: Supports time range
+      name: time_range_support
+      required: true
+      type: boolean
+    goType: Engine
+    label: Engines
+    name: engines
+    required: true
+    type: array
+  timeoutSec: 30
+- desc: Check the process only; this does not verify engine access or JSON search availability.
+  id: health
+  label: Check service health
+  outputs:
+  - label: Healthy
+    name: healthy
+    required: true
+    type: boolean
+  timeoutSec: 30
+- desc: Search through your SearXNG instance. JSON output must be enabled; external engines may return partial results.
+  id: search
+  inputs:
+  - label: Query
+    name: query
+    required: true
+    type: text
+  - fields:
+    - desc: Starts at 1; engines may not support further pages.
+      goType: int
+      label: Page number
+      name: page
+      type: number
+    - desc: Maximum results from this page, 1–100; default 20. Clipping does not fetch subsequent pages.
+      goType: int
+      label: Maximum results
+      name: limit
+      type: number
+    - itemType: string
+      label: Engines
+      name: engines
+      type: array
+    - itemType: string
+      label: Categories
+      name: categories
+      type: array
+    - label: Language
+      name: language
+      type: string
+    - desc: 0 off, 1 moderate, 2 strict; omitted uses the instance setting.
+      goType: int
+      label: Safe search
+      name: safe_search
+      type: number
+    - desc: day, month, or year; omitted uses no time filter.
+      label: Time range
+      name: time_range
+      type: string
+    goType: SearchOptions
+    label: Search options
+    name: options
+    type: json
+  label: Search the web
+  outputs:
+  - label: Query
+    name: query
+    required: true
+    type: string
+  - fields:
+    - label: Title
+      name: title
+      type: string
+    - label: Result URL
+      name: url
+      type: string
+    - label: Snippet
+      name: content
+      type: string
+    - label: Engine
+      name: engine
+      type: string
+    - itemType: string
+      label: Engines
+      name: engines
+      type: array
+    - label: Category
+      name: category
+      type: string
+    - label: Score
+      name: score
+      type: number
+    goType: Result
+    label: Results
+    name: results
+    required: true
+    type: array
+  - itemType: string
+    label: Suggestions
+    name: suggestions
+    required: true
+    type: array
+  - itemType: string
+    label: Corrections
+    name: corrections
+    required: true
+    type: array
+  - fields:
+    - label: Engine
+      name: engine
+      required: true
+      type: string
+    - label: Failure reason
+      name: reason
+      required: true
+      type: string
+    goType: EngineError
+    label: Engine failures
+    name: engine_errors
+    required: true
+    type: array
+  - label: Partial results
+    name: partial
+    required: true
+    type: boolean
+  - label: Page results clipped
+    name: clipped
+    required: true
+    type: boolean
+  - goType: int
+    label: Page number
+    name: page
+    required: true
+    type: number
+  timeoutSec: 90
+deployment:
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-searxng:0.1.0
+  env:
+  - name: SOKEL_SEARXNG_URL
+    desc: HTTP(S) URL of your SearXNG service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.
+    required: true

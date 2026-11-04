@@ -1,0 +1,362 @@
+{
+  "plugin": {
+    "name": "nextcloud",
+    "org": "sokel",
+    "label": "Nextcloud",
+    "desc": "Read, upload, download and organize files on a self-hosted Nextcloud service",
+    "version": "0.1.0",
+    "doc": "docs/nextcloud.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Use the canonical Nextcloud user ID shown for WebDAV, not a display name or email alias.",
+        "label": "User ID",
+        "name": "user_id",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "desc": "Create an app password in personal security settings. Configure the installation URL with SOKEL_NEXTCLOUD_URL.",
+        "label": "App password",
+        "name": "app_password",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_directory",
+      "inputs": [
+        {
+          "label": "Directory path",
+          "name": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Create directory",
+      "outputs": [
+        {
+          "label": "Created",
+          "name": "created",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "download_file",
+      "inputs": [
+        {
+          "label": "File path",
+          "name": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Output filename",
+          "name": "output_name",
+          "type": "string"
+        }
+      ],
+      "label": "Download file",
+      "outputs": [
+        {
+          "label": "Platform file",
+          "name": "file",
+          "required": true,
+          "type": "file"
+        }
+      ],
+      "timeoutSec": 180
+    },
+    {
+      "id": "get_info",
+      "inputs": [
+        {
+          "label": "Path",
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "label": "Get file or folder metadata",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Path",
+              "name": "path",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is directory",
+              "name": "is_directory",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Nextcloud file ID",
+              "name": "file_id",
+              "type": "string"
+            },
+            {
+              "label": "ETag",
+              "name": "etag",
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Size in bytes",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Content type",
+              "name": "content_type",
+              "type": "string"
+            },
+            {
+              "label": "Last modified",
+              "name": "modified_at",
+              "type": "string"
+            }
+          ],
+          "goType": "Resource",
+          "label": "Resource",
+          "name": "resource",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_directory",
+      "inputs": [
+        {
+          "label": "Directory path",
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "label": "List directory",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Path",
+              "name": "path",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is directory",
+              "name": "is_directory",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Nextcloud file ID",
+              "name": "file_id",
+              "type": "string"
+            },
+            {
+              "label": "ETag",
+              "name": "etag",
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Size in bytes",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Content type",
+              "name": "content_type",
+              "type": "string"
+            },
+            {
+              "label": "Last modified",
+              "name": "modified_at",
+              "type": "string"
+            }
+          ],
+          "goType": "Resource",
+          "label": "Directory",
+          "name": "directory",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "fields": [
+            {
+              "label": "Path",
+              "name": "path",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Is directory",
+              "name": "is_directory",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Nextcloud file ID",
+              "name": "file_id",
+              "type": "string"
+            },
+            {
+              "label": "ETag",
+              "name": "etag",
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Size in bytes",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Content type",
+              "name": "content_type",
+              "type": "string"
+            },
+            {
+              "label": "Last modified",
+              "name": "modified_at",
+              "type": "string"
+            }
+          ],
+          "goType": "Resource",
+          "label": "Children",
+          "name": "children",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "move_resource",
+      "inputs": [
+        {
+          "label": "Source path",
+          "name": "source_path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Destination path",
+          "name": "destination_path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Expected ETag",
+          "name": "if_match",
+          "type": "string"
+        }
+      ],
+      "label": "Move file or directory",
+      "outputs": [
+        {
+          "label": "Moved",
+          "name": "moved",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "upload_file",
+      "inputs": [
+        {
+          "label": "Destination path",
+          "name": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Platform file",
+          "name": "file",
+          "required": true,
+          "type": "file"
+        },
+        {
+          "label": "Allow overwrite",
+          "name": "overwrite",
+          "type": "boolean"
+        },
+        {
+          "label": "Expected ETag",
+          "name": "if_match",
+          "type": "string"
+        }
+      ],
+      "label": "Upload file",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Created new file",
+              "name": "created",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "ETag",
+              "name": "etag",
+              "type": "string"
+            }
+          ],
+          "goType": "WriteReceipt",
+          "label": "Upload receipt",
+          "name": "receipt",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 180
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-nextcloud:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_NEXTCLOUD_URL",
+        "desc": "HTTP(S) installation root for your self-hosted Nextcloud service.",
+        "required": true
+      }
+    ]
+  }
+}

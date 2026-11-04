@@ -1,0 +1,3 @@
+# Fixture provenance
+
+The inline `sourceExample` in tests derives from the two `MainResult` objects in official [tests/unit/test_webapp.py](https://github.com/searxng/searxng/blob/master/tests/unit/test_webapp.py) and the object shape in [get_json_response](https://github.com/searxng/searxng/blob/master/searx/webutils.py), consulted 2026-11-04. It is not an upstream HTTP capture. Instance configuration, partial failure, explicit zero, Unicode and malformed payload cases are purpose-built test data based on the documented protocol. No live SearXNG query was issued and no production search results or credentials were captured.

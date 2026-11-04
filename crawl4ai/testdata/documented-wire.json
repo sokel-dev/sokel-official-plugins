@@ -1,0 +1,77 @@
+[
+  {
+    "Op": "health_check",
+    "Input": {},
+    "Method": "GET",
+    "Path": "/health",
+    "Query": "",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"status\":\"ok\",\"version\":\"0.9.5\",\"timestamp\":1793750400}"
+  },
+  {
+    "Op": "crawl",
+    "Input": {
+      "urls": [
+        "https://example.com/"
+      ],
+      "options": {
+        "page_timeout_ms": 30000,
+        "word_count_threshold": 0,
+        "only_text": false,
+        "css_selector": "main"
+      }
+    },
+    "Method": "POST",
+    "Path": "/crawl",
+    "Query": "",
+    "Body": "{\"urls\":[\"https://example.com/\"],\"browser_config\":{},\"crawler_config\":{\"page_timeout\":30000,\"stream\":false,\"word_count_threshold\":0,\"only_text\":false,\"css_selector\":\"main\"}}",
+    "Status": 200,
+    "Response": "{\"success\":true,\"results\":[{\"url\":\"https://example.com/\",\"success\":true,\"status_code\":200,\"metadata\":{\"title\":\"Example\"},\"markdown\":{\"raw_markdown\":\"# Example\\n\\nHello.\"},\"html\":\"omitted from typed output\",\"error_message\":\"\",\"internal_trace\":\"must not escape\"}]}"
+  },
+  {
+    "Op": "submit_crawl",
+    "Input": {
+      "urls": [
+        "https://example.com/"
+      ],
+      "options": {
+        "page_timeout_ms": 30000,
+        "word_count_threshold": 0,
+        "only_text": false,
+        "css_selector": "main"
+      }
+    },
+    "Method": "POST",
+    "Path": "/crawl/job",
+    "Query": "",
+    "Body": "{\"urls\":[\"https://example.com/\"],\"browser_config\":{},\"crawler_config\":{\"page_timeout\":30000,\"stream\":false,\"word_count_threshold\":0,\"only_text\":false,\"css_selector\":\"main\"}}",
+    "Status": 202,
+    "Response": "{\"task_id\":\"crawl_a1b2c3d4\"}"
+  },
+  {
+    "Op": "get_task",
+    "Input": {
+      "task_id": "crawl_a1b2c3d4"
+    },
+    "Method": "GET",
+    "Path": "/crawl/job/crawl_a1b2c3d4",
+    "Query": "",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"task_id\":\"crawl_a1b2c3d4\",\"status\":\"completed\",\"created_at\":\"2026-11-04T00:00:00\",\"url\":\"[\\\"https://example.com/\\\"]\",\"result\":{\"success\":true,\"results\":[{\"url\":\"https://example.com/\",\"success\":true,\"status_code\":200,\"metadata\":{\"title\":\"Example\"},\"markdown\":{\"raw_markdown\":\"# Example\\n\\nHello.\"},\"html\":\"omitted from typed output\",\"error_message\":\"\",\"internal_trace\":\"must not escape\"}]},\"_links\":{\"self\":{\"href\":\"https://evil.example/ignore\"}}}"
+  },
+  {
+    "Op": "markdown",
+    "Input": {
+      "url": "https://example.com/",
+      "use_cache": false
+    },
+    "Method": "POST",
+    "Path": "/md",
+    "Query": "",
+    "Body": "{\"url\":\"https://example.com/\",\"f\":\"raw\",\"c\":\"0\"}",
+    "Status": 200,
+    "Response": "{\"url\":\"https://example.com/\",\"filter\":\"raw\",\"query\":null,\"cache\":\"0\",\"markdown\":\"# Example\",\"success\":true}"
+  }
+]

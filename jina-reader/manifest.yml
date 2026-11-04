@@ -1,0 +1,89 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: jina-reader
+  label: Jina Reader
+  desc: Convert pages into content and structured metadata
+  version: 0.1.0
+  doc: docs/jina-reader.md
+credential:
+  fields:
+  - desc: Create a key in the official service dashboard; do not enter deployment
+      URLs.
+    label: API key
+    name: api_key
+    type: secret
+operations:
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: read
+  inputs:
+  - label: Page URL
+    name: url
+    required: true
+    type: string
+  - label: Content format
+    name: format
+    options:
+    - label: markdown
+      value: markdown
+    - label: text
+      value: text
+    - label: html
+      value: html
+    type: enum
+  - label: Target selector
+    name: target_selector
+    type: string
+  - label: Remove selector
+    name: remove_selector
+    type: string
+  - fields:
+    - label: Bypass cache
+      name: no_cache
+      type: boolean
+    goType: ReadOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Read page
+  outputs:
+  - label: Source URL
+    name: url
+    required: true
+    type: string
+  - label: Final URL
+    name: final_url
+    type: string
+  - label: Title
+    name: title
+    type: string
+  - label: Description
+    name: description
+    type: string
+  - label: Content
+    name: content
+    required: true
+    type: text
+  - label: Published time
+    name: published_time
+    type: string
+  - desc: Custom page metadata keys and values are defined by the target website.
+    label: Page metadata
+    name: metadata
+    opaque: true
+    type: json
+  - label: Upstream warning
+    name: warning
+    type: string
+  timeoutSec: 180

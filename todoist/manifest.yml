@@ -1,0 +1,610 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: todoist
+  org: sokel
+  version: 0.1.0
+  label: Sokel for Todoist
+  desc: Manage Todoist projects and tasks; not created by, affiliated with, or supported
+    by Todoist
+  doc: docs/todoist.md
+credential:
+  fields:
+  - label: Personal API token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: close_task
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  label: Complete task occurrence
+  outputs:
+  - label: Accepted
+    name: accepted
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: create_project
+  inputs:
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: Description
+      name: description
+      type: string
+    - label: Parent project ID
+      name: parent_id
+      type: string
+    - label: Favorite
+      name: is_favorite
+      type: boolean
+    - label: View style
+      name: view_style
+      type: string
+    goType: ProjectDetails
+    label: Project details
+    name: details
+    type: json
+  label: Create project
+  outputs:
+  - fields:
+    - label: Project ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Color
+      name: color
+      required: true
+      type: string
+    - label: Favorite
+      name: is_favorite
+      required: true
+      type: boolean
+    - label: Archived
+      name: is_archived
+      required: true
+      type: boolean
+    - label: View style
+      name: view_style
+      required: true
+      type: string
+    - label: Parent project ID
+      name: parent_id
+      type: string
+    goType: Project
+    label: Project
+    name: project
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_task
+  inputs:
+  - label: Task content
+    name: content
+    required: true
+    type: string
+  - fields:
+    - label: Description
+      name: description
+      type: string
+    - label: Project ID
+      name: project_id
+      type: string
+    - label: Section ID
+      name: section_id
+      type: string
+    - label: Parent task ID
+      name: parent_id
+      type: string
+    - goType: int
+      label: Order
+      name: order
+      type: number
+    - itemType: string
+      label: Labels
+      name: labels
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - label: Due date
+      name: due_date
+      type: string
+    - label: Due timestamp
+      name: due_datetime
+      type: string
+    goType: TaskDetails
+    label: Task details
+    name: details
+    type: json
+  label: Create task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Project ID
+      name: project_id
+      required: true
+      type: string
+    - label: Section ID
+      name: section_id
+      type: string
+    - label: Parent task ID
+      name: parent_id
+      type: string
+    - label: Task content
+      name: content
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Completed
+      name: checked
+      required: true
+      type: boolean
+    - fields:
+      - label: Due date
+        name: date
+        required: true
+        type: string
+      - label: Recurring
+        name: is_recurring
+        required: true
+        type: boolean
+      - label: Due text
+        name: string
+        required: true
+        type: string
+      - label: Timezone
+        name: timezone
+        type: string
+      label: Due
+      name: due
+      type: json
+    - label: Created at
+      name: added_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_project
+  inputs:
+  - label: Project ID
+    name: project_id
+    required: true
+    type: string
+  label: Get project
+  outputs:
+  - fields:
+    - label: Project ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Color
+      name: color
+      required: true
+      type: string
+    - label: Favorite
+      name: is_favorite
+      required: true
+      type: boolean
+    - label: Archived
+      name: is_archived
+      required: true
+      type: boolean
+    - label: View style
+      name: view_style
+      required: true
+      type: string
+    - label: Parent project ID
+      name: parent_id
+      type: string
+    goType: Project
+    label: Project
+    name: project
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_task
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  label: Get active task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Project ID
+      name: project_id
+      required: true
+      type: string
+    - label: Section ID
+      name: section_id
+      type: string
+    - label: Parent task ID
+      name: parent_id
+      type: string
+    - label: Task content
+      name: content
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Completed
+      name: checked
+      required: true
+      type: boolean
+    - fields:
+      - label: Due date
+        name: date
+        required: true
+        type: string
+      - label: Recurring
+        name: is_recurring
+        required: true
+        type: boolean
+      - label: Due text
+        name: string
+        required: true
+        type: string
+      - label: Timezone
+        name: timezone
+        type: string
+      label: Due
+      name: due
+      type: json
+    - label: Created at
+      name: added_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_projects
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  label: List projects
+  outputs:
+  - fields:
+    - label: Project ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Color
+      name: color
+      required: true
+      type: string
+    - label: Favorite
+      name: is_favorite
+      required: true
+      type: boolean
+    - label: Archived
+      name: is_archived
+      required: true
+      type: boolean
+    - label: View style
+      name: view_style
+      required: true
+      type: string
+    - label: Parent project ID
+      name: parent_id
+      type: string
+    goType: Project
+    label: Projects
+    name: projects
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_tasks
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Project ID
+    name: project_id
+    type: string
+  - label: Section ID
+    name: section_id
+    type: string
+  - label: Parent task ID
+    name: parent_id
+    type: string
+  - label: Label
+    name: label
+    type: string
+  label: List active tasks
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Project ID
+      name: project_id
+      required: true
+      type: string
+    - label: Section ID
+      name: section_id
+      type: string
+    - label: Parent task ID
+      name: parent_id
+      type: string
+    - label: Task content
+      name: content
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Completed
+      name: checked
+      required: true
+      type: boolean
+    - fields:
+      - label: Due date
+        name: date
+        required: true
+        type: string
+      - label: Recurring
+        name: is_recurring
+        required: true
+        type: boolean
+      - label: Due text
+        name: string
+        required: true
+        type: string
+      - label: Timezone
+        name: timezone
+        type: string
+      label: Due
+      name: due
+      type: json
+    - label: Created at
+      name: added_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Task
+    label: Tasks
+    name: tasks
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_task
+  inputs:
+  - label: Task ID
+    name: task_id
+    required: true
+    type: string
+  - fields:
+    - label: Task content
+      name: content
+      type: string
+    - label: Description
+      name: description
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - label: Due date
+      name: due_date
+      type: string
+    - label: Due timestamp
+      name: due_datetime
+      type: string
+    - goType: int
+      label: Order
+      name: child_order
+      type: number
+    - label: Collapsed
+      name: is_collapsed
+      type: boolean
+    goType: TaskChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update task
+  outputs:
+  - fields:
+    - label: Task ID
+      name: id
+      required: true
+      type: string
+    - label: Project ID
+      name: project_id
+      required: true
+      type: string
+    - label: Section ID
+      name: section_id
+      type: string
+    - label: Parent task ID
+      name: parent_id
+      type: string
+    - label: Task content
+      name: content
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - goType: int
+      label: Priority
+      name: priority
+      required: true
+      type: number
+    - label: Completed
+      name: checked
+      required: true
+      type: boolean
+    - fields:
+      - label: Due date
+        name: date
+        required: true
+        type: string
+      - label: Recurring
+        name: is_recurring
+        required: true
+        type: boolean
+      - label: Due text
+        name: string
+        required: true
+        type: string
+      - label: Timezone
+        name: timezone
+        type: string
+      label: Due
+      name: due
+      type: json
+    - label: Created at
+      name: added_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60

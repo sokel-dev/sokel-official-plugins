@@ -1,0 +1,429 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: jira
+  org: sokel
+  version: 0.1.0
+  label: Jira Cloud
+  desc: Search and manage Jira Cloud issues, transitions and comments
+  doc: docs/jira.md
+credential:
+  fields:
+  - desc: 'For tokens without scopes: https://your-site.atlassian.net'
+    label: Atlassian Cloud site
+    name: site
+    type: text
+  - desc: Scoped tokens use the fixed api.atlassian.com gateway; takes precedence
+      over site
+    label: Cloud ID for scoped tokens
+    name: cloud_id
+    type: text
+  - label: Atlassian account email
+    name: email
+    required: true
+    type: text
+  - label: Atlassian API token
+    name: api_token
+    required: true
+    type: secret
+operations:
+- id: add_comment
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  - label: Plain text comment
+    name: text
+    required: true
+    type: string
+  label: Add comment
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Comment ADF JSON
+      name: body_adf
+      required: true
+      type: string
+    - label: Author account ID
+      name: author_account_id
+      required: true
+      type: string
+    - label: Created at
+      name: created
+      required: true
+      type: string
+    - label: Updated at
+      name: updated
+      required: true
+      type: string
+    goType: Comment
+    label: Comment
+    name: comment
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_issue
+  inputs:
+  - label: Project key
+    name: project_key
+    required: true
+    type: string
+  - label: Issue type ID
+    name: issue_type_id
+    required: true
+    type: string
+  - label: Summary
+    name: summary
+    required: true
+    type: string
+  - fields:
+    - label: Summary
+      name: summary
+      type: string
+    - label: Plain text description
+      name: description
+      type: string
+    - label: Assignee account ID
+      name: assignee_account_id
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      type: array
+    - label: Due date
+      name: due_date
+      type: string
+    - label: Priority ID
+      name: priority_id
+      type: string
+    goType: IssueChanges
+    label: Optional issue details
+    name: details
+    type: json
+  - desc: Custom field IDs and value schemas are configured independently by each
+      Jira project
+    label: Custom field values
+    name: custom_fields
+    opaque: true
+    type: json
+  label: Create issue
+  outputs:
+  - label: Issue ID
+    name: id
+    required: true
+    type: string
+  - label: Issue key
+    name: key
+    required: true
+    type: string
+  timeoutSec: 60
+- id: get_issue
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  label: Get issue
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Issue key
+      name: key
+      required: true
+      type: string
+    - label: Summary
+      name: summary
+      required: true
+      type: string
+    - label: Description ADF JSON
+      name: description_adf
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Status ID
+      name: status_id
+      required: true
+      type: string
+    - label: Assignee account ID
+      name: assignee_account_id
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - label: Updated at
+      name: updated
+      required: true
+      type: string
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Priority ID
+      name: priority_id
+      required: true
+      type: string
+    goType: Issue
+    label: Issue
+    name: issue
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_comments
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  - goType: int
+    label: Start offset
+    name: start_at
+    type: number
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  label: List comments
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Comment ADF JSON
+      name: body_adf
+      required: true
+      type: string
+    - label: Author account ID
+      name: author_account_id
+      required: true
+      type: string
+    - label: Created at
+      name: created
+      required: true
+      type: string
+    - label: Updated at
+      name: updated
+      required: true
+      type: string
+    goType: Comment
+    label: Comments
+    name: comments
+    required: true
+    type: array
+  - goType: int
+    label: Total comments
+    name: total
+    required: true
+    type: number
+  - goType: int
+    label: Next offset
+    name: next_start_at
+    required: true
+    type: number
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_transitions
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  label: List available transitions
+  outputs:
+  - fields:
+    - label: Transition ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Destination status ID
+      name: to_id
+      required: true
+      type: string
+    - label: Destination status
+      name: to_name
+      required: true
+      type: string
+    - label: Required field metadata JSON
+      name: fields_json
+      required: true
+      type: string
+    goType: Transition
+    label: Transitions
+    name: transitions
+    required: true
+    type: array
+  timeoutSec: 60
+- id: search_issues
+  inputs:
+  - label: JQL query
+    name: jql
+    required: true
+    type: string
+  - desc: 1 to 100; defaults to 50
+    goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination token
+    name: next_page_token
+    type: string
+  label: Search issues with JQL
+  outputs:
+  - fields:
+    - label: Issue ID
+      name: id
+      required: true
+      type: string
+    - label: Issue key
+      name: key
+      required: true
+      type: string
+    - label: Summary
+      name: summary
+      required: true
+      type: string
+    - label: Description ADF JSON
+      name: description_adf
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Status ID
+      name: status_id
+      required: true
+      type: string
+    - label: Assignee account ID
+      name: assignee_account_id
+      required: true
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      required: true
+      type: array
+    - label: Updated at
+      name: updated
+      required: true
+      type: string
+    - label: Due date
+      name: due_date
+      required: true
+      type: string
+    - label: Priority ID
+      name: priority_id
+      required: true
+      type: string
+    goType: Issue
+    label: Issues
+    name: issues
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    required: true
+    type: string
+  - label: Last page
+    name: is_last
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: transition_issue
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  - label: Transition ID
+    name: transition_id
+    required: true
+    type: string
+  - desc: Fields required by the selected transition depend on Jira project configuration
+    label: Transition field values
+    name: fields
+    opaque: true
+    type: json
+  label: Transition issue
+  outputs:
+  - label: Transition applied
+    name: ok
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_issue
+  inputs:
+  - label: Issue key or ID
+    name: issue_key
+    required: true
+    type: string
+  - fields:
+    - label: Summary
+      name: summary
+      type: string
+    - label: Plain text description
+      name: description
+      type: string
+    - label: Assignee account ID
+      name: assignee_account_id
+      type: string
+    - itemType: string
+      label: Labels
+      name: labels
+      type: array
+    - label: Due date
+      name: due_date
+      type: string
+    - label: Priority ID
+      name: priority_id
+      type: string
+    goType: IssueChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  - desc: Custom field IDs and value schemas are configured independently by each
+      Jira project
+    label: Custom field values
+    name: custom_fields
+    opaque: true
+    type: json
+  label: Update issue
+  outputs:
+  - label: Updated
+    name: ok
+    required: true
+    type: boolean
+  timeoutSec: 60

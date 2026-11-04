@@ -1,0 +1,679 @@
+{
+  "plugin": {
+    "name": "vikunja",
+    "org": "sokel",
+    "label": "Vikunja",
+    "desc": "Manage projects, tasks and comments on a self-hosted Vikunja API v2 service",
+    "version": "0.1.0",
+    "doc": "docs/vikunja.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Use a scoped API token with permission to read projects and perform the requested task operations. Manage expiry and rotation outside this plugin.",
+        "label": "API token",
+        "name": "access_token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "add_comment",
+      "inputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Comment HTML",
+          "name": "comment",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Add task comment",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Comment ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Comment HTML",
+              "name": "comment",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Created at",
+              "name": "created",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Comment",
+          "label": "Created comment",
+          "name": "comment",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_project",
+      "inputs": [
+        {
+          "label": "Title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Description HTML",
+          "name": "description",
+          "type": "string"
+        }
+      ],
+      "label": "Create project",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Project ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Project",
+          "label": "Created project",
+          "name": "project",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "create_task",
+      "inputs": [
+        {
+          "label": "Project ID",
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Title",
+          "name": "title",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "type": "string"
+            }
+          ],
+          "goType": "TaskOptions",
+          "label": "Optional task fields",
+          "name": "fields",
+          "type": "json"
+        }
+      ],
+      "label": "Create task",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Project ID",
+              "name": "project_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Task",
+          "label": "Created task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_project",
+      "inputs": [
+        {
+          "label": "Project ID",
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get project",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Project ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Project",
+          "label": "Project",
+          "name": "project",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_task",
+      "inputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get task",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Project ID",
+              "name": "project_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Task",
+          "label": "Task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check connection and token",
+      "outputs": [
+        {
+          "label": "Usable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_projects",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "number",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Requested page size",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Search text",
+              "name": "query",
+              "type": "string"
+            }
+          ],
+          "goType": "Page",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List projects",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Project ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "Project",
+          "label": "Projects",
+          "name": "projects",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total result count",
+          "name": "total",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means complete",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_tasks",
+      "inputs": [
+        {
+          "label": "Project ID",
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "number",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Requested page size",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Search text",
+              "name": "query",
+              "type": "string"
+            }
+          ],
+          "goType": "Page",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List project tasks",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Project ID",
+              "name": "project_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Task",
+          "label": "Tasks",
+          "name": "tasks",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total result count",
+          "name": "total",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means complete",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_task",
+      "inputs": [
+        {
+          "label": "Task ID",
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "type": "string"
+            }
+          ],
+          "goType": "TaskFields",
+          "label": "Fields to change",
+          "name": "fields",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Update task fields",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Task ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Project ID",
+              "name": "project_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description HTML",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Completed",
+              "name": "done",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "goType": "int",
+              "label": "Priority",
+              "name": "priority",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "label": "Due date",
+              "name": "due_date",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Task",
+          "label": "Updated task",
+          "name": "task",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-vikunja:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_VIKUNJA_URL",
+        "desc": "HTTP(S) root URL of your Vikunja service; internal hosts and reverse-proxy prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

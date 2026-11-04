@@ -1,0 +1,637 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: google-calendar
+  label: Google Calendar
+  desc: Manage calendar events, query availability and watch changes
+  version: 0.1.0
+  doc: docs/google-calendar.md
+credential:
+  auth:
+    kind: oauth
+    provider: google
+    scopes:
+    - https://www.googleapis.com/auth/calendar.events
+    - https://www.googleapis.com/auth/calendar.freebusy
+    - https://www.googleapis.com/auth/userinfo.email
+  fields:
+  - label: Access token (injected by platform)
+    name: access_token
+    type: secret
+  - label: Refresh token (managed by platform)
+    name: refresh_token
+    type: secret
+  - label: Polling cursor (managed automatically)
+    name: poll_cursor
+    type: text
+  - label: Next poll time (managed automatically)
+    name: next_poll_at
+    type: text
+  - desc: Leave empty to disable polling; primary selects the main calendar
+    label: Watched calendar ID
+    name: watch_calendar_id
+    type: text
+events:
+- fields:
+  - label: Calendar ID
+    name: calendar_id
+    required: true
+    type: string
+  - fields:
+    - label: Event ID
+      name: id
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Title
+      name: summary
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Location
+      name: location
+      required: true
+      type: string
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: Start
+      name: start
+      required: true
+      type: json
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: End
+      name: end
+      required: true
+      type: json
+    - label: Updated time
+      name: updated
+      required: true
+      type: string
+    - label: ETag
+      name: etag
+      required: true
+      type: string
+    - label: Web view link
+      name: html_link
+      required: true
+      type: string
+    - fields:
+      - label: Email
+        name: email
+        required: true
+        type: string
+      - label: Response status
+        name: response_status
+        type: string
+      label: Attendees
+      name: attendees
+      required: true
+      type: array
+    goType: CalendarEvent
+    label: Event
+    name: event
+    required: true
+    type: json
+  id: event_changed
+  label: Event changed
+operations:
+- id: create_event
+  inputs:
+  - desc: Leave empty to use primary
+    label: Calendar ID
+    name: calendar_id
+    type: string
+  - label: Title
+    name: summary
+    required: true
+    type: string
+  - label: Description
+    name: description
+    type: string
+  - label: Location
+    name: location
+    type: string
+  - label: Start time or date
+    name: start
+    required: true
+    type: string
+  - label: End time or date
+    name: end
+    required: true
+    type: string
+  - label: All-day event
+    name: all_day
+    type: boolean
+  - label: IANA time zone
+    name: time_zone
+    type: string
+  - itemType: string
+    label: Attendee emails
+    name: attendees
+    type: array
+  - desc: none, all or externalOnly; defaults to none
+    label: Invitation notifications
+    name: send_updates
+    type: string
+  label: Create event
+  outputs:
+  - fields:
+    - label: Event ID
+      name: id
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Title
+      name: summary
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Location
+      name: location
+      required: true
+      type: string
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: Start
+      name: start
+      required: true
+      type: json
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: End
+      name: end
+      required: true
+      type: json
+    - label: Updated time
+      name: updated
+      required: true
+      type: string
+    - label: ETag
+      name: etag
+      required: true
+      type: string
+    - label: Web view link
+      name: html_link
+      required: true
+      type: string
+    - fields:
+      - label: Email
+        name: email
+        required: true
+        type: string
+      - label: Response status
+        name: response_status
+        type: string
+      label: Attendees
+      name: attendees
+      required: true
+      type: array
+    goType: CalendarEvent
+    label: Event
+    name: event
+    required: true
+    type: json
+  timeoutSec: 60
+- id: delete_event
+  inputs:
+  - desc: Leave empty to use primary
+    label: Calendar ID
+    name: calendar_id
+    type: string
+  - label: Event ID
+    name: event_id
+    required: true
+    type: string
+  - label: Invitation notifications
+    name: send_updates
+    type: string
+  label: Delete event
+  outputs:
+  - label: Success
+    name: ok
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: free_busy
+  inputs:
+  - label: Start time
+    name: time_min
+    required: true
+    type: string
+  - label: End time
+    name: time_max
+    required: true
+    type: string
+  - itemType: string
+    label: Calendar IDs
+    name: calendar_ids
+    required: true
+    type: array
+  label: Query free/busy
+  outputs:
+  - fields:
+    - label: Calendar ID
+      name: calendar_id
+      required: true
+      type: string
+    - fields:
+      - label: Start
+        name: start
+        required: true
+        type: string
+      - label: End
+        name: end
+        required: true
+        type: string
+      label: Busy periods
+      name: busy
+      required: true
+      type: array
+    - itemType: string
+      label: Upstream error codes
+      name: errors
+      required: true
+      type: array
+    goType: FreeBusyCalendar
+    label: Calendar availability
+    name: calendars
+    required: true
+    type: array
+  timeoutSec: 60
+- id: get_event
+  inputs:
+  - desc: Leave empty to use primary
+    label: Calendar ID
+    name: calendar_id
+    type: string
+  - label: Event ID
+    name: event_id
+    required: true
+    type: string
+  label: Get event
+  outputs:
+  - fields:
+    - label: Event ID
+      name: id
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Title
+      name: summary
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Location
+      name: location
+      required: true
+      type: string
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: Start
+      name: start
+      required: true
+      type: json
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: End
+      name: end
+      required: true
+      type: json
+    - label: Updated time
+      name: updated
+      required: true
+      type: string
+    - label: ETag
+      name: etag
+      required: true
+      type: string
+    - label: Web view link
+      name: html_link
+      required: true
+      type: string
+    - fields:
+      - label: Email
+        name: email
+        required: true
+        type: string
+      - label: Response status
+        name: response_status
+        type: string
+      label: Attendees
+      name: attendees
+      required: true
+      type: array
+    goType: CalendarEvent
+    label: Event
+    name: event
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_events
+  inputs:
+  - desc: Leave empty to use primary
+    label: Calendar ID
+    name: calendar_id
+    type: string
+  - label: Start time
+    name: time_min
+    type: string
+  - label: End time
+    name: time_max
+    type: string
+  - label: Search query
+    name: query
+    type: string
+  - label: Page token
+    name: page_token
+    type: string
+  - goType: int
+    label: Page size
+    name: page_size
+    type: number
+  label: List events
+  outputs:
+  - fields:
+    - label: Event ID
+      name: id
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Title
+      name: summary
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Location
+      name: location
+      required: true
+      type: string
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: Start
+      name: start
+      required: true
+      type: json
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: End
+      name: end
+      required: true
+      type: json
+    - label: Updated time
+      name: updated
+      required: true
+      type: string
+    - label: ETag
+      name: etag
+      required: true
+      type: string
+    - label: Web view link
+      name: html_link
+      required: true
+      type: string
+    - fields:
+      - label: Email
+        name: email
+        required: true
+        type: string
+      - label: Response status
+        name: response_status
+        type: string
+      label: Attendees
+      name: attendees
+      required: true
+      type: array
+    goType: CalendarEvent
+    label: Events
+    name: events
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    type: string
+  timeoutSec: 60
+- id: update_event
+  inputs:
+  - desc: Leave empty to use primary
+    label: Calendar ID
+    name: calendar_id
+    type: string
+  - label: Event ID
+    name: event_id
+    required: true
+    type: string
+  - label: Title
+    name: summary
+    required: true
+    type: string
+  - label: Description
+    name: description
+    type: string
+  - label: Location
+    name: location
+    type: string
+  - label: Start time or date
+    name: start
+    required: true
+    type: string
+  - label: End time or date
+    name: end
+    required: true
+    type: string
+  - label: All-day event
+    name: all_day
+    type: boolean
+  - label: IANA time zone
+    name: time_zone
+    type: string
+  - itemType: string
+    label: Attendee emails
+    name: attendees
+    type: array
+  - desc: none, all or externalOnly; defaults to none
+    label: Invitation notifications
+    name: send_updates
+    type: string
+  label: Update event
+  outputs:
+  - fields:
+    - label: Event ID
+      name: id
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Title
+      name: summary
+      required: true
+      type: string
+    - label: Description
+      name: description
+      required: true
+      type: string
+    - label: Location
+      name: location
+      required: true
+      type: string
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: Start
+      name: start
+      required: true
+      type: json
+    - fields:
+      - label: All-day date
+        name: date
+        type: string
+      - label: Date and time with offset
+        name: date_time
+        type: string
+      - label: Time zone
+        name: time_zone
+        type: string
+      label: End
+      name: end
+      required: true
+      type: json
+    - label: Updated time
+      name: updated
+      required: true
+      type: string
+    - label: ETag
+      name: etag
+      required: true
+      type: string
+    - label: Web view link
+      name: html_link
+      required: true
+      type: string
+    - fields:
+      - label: Email
+        name: email
+        required: true
+        type: string
+      - label: Response status
+        name: response_status
+        type: string
+      label: Attendees
+      name: attendees
+      required: true
+      type: array
+    goType: CalendarEvent
+    label: Event
+    name: event
+    required: true
+    type: json
+  timeoutSec: 60

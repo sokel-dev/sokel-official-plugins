@@ -1,0 +1,325 @@
+# Exported from schema/ with SDK v0.7.7; plugin metadata is maintained here.
+plugin:
+  org: sokel
+  name: apify
+  label: Apify
+  desc: Asynchronous Actor runs and paginated dataset access
+  version: 0.1.0
+  doc: docs/apify.md
+credential:
+  fields:
+  - desc: Create a token in the Apify console. Deployment URLs belong in environment
+      configuration.
+    label: API token
+    name: api_key
+    required: true
+    type: secret
+operations:
+- id: get_dataset
+  inputs:
+  - label: Dataset ID
+    name: dataset_id
+    required: true
+    type: string
+  label: Get dataset metadata
+  outputs:
+  - fields:
+    - label: Dataset ID
+      name: id
+      required: true
+      type: string
+    - label: Dataset name
+      name: name
+      type: string
+    - goType: int
+      label: Item count
+      name: item_count
+      required: true
+      type: number
+    - goType: int
+      label: Clean item count
+      name: clean_item_count
+      required: true
+      type: number
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Modified at
+      name: modified_at
+      required: true
+      type: string
+    goType: Dataset
+    label: Dataset metadata
+    name: dataset
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_run
+  inputs:
+  - label: Run ID
+    name: run_id
+    required: true
+    type: string
+  label: Get Actor run
+  outputs:
+  - fields:
+    - label: Run ID
+      name: id
+      required: true
+      type: string
+    - label: Actor ID
+      name: actor_id
+      required: true
+      type: string
+    - label: Run status
+      name: status
+      required: true
+      type: string
+    - label: Started at
+      name: started_at
+      required: true
+      type: string
+    - label: Finished at
+      name: finished_at
+      type: string
+    - label: Default dataset ID
+      name: default_dataset_id
+      type: string
+    - label: Default key-value store ID
+      name: default_key_value_store_id
+      type: string
+    - label: Status message
+      name: status_message
+      type: string
+    goType: Run
+    label: Actor run
+    name: run
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_dataset_items
+  inputs:
+  - label: Dataset ID
+    name: dataset_id
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page offset
+      name: offset
+      type: number
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Descending order
+      name: desc
+      type: boolean
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: Read dataset items
+  outputs:
+  - desc: Dataset rows are arbitrary JSON objects defined by the Actor that produced
+      them.
+    label: Dataset items
+    name: items
+    opaque: true
+    required: true
+    type: json
+    types:
+    - json
+    - array
+    - string
+    - number
+    - boolean
+  - goType: int
+    label: Page offset
+    name: offset
+    required: true
+    type: number
+  - goType: int
+    label: Returned count
+    name: count
+    required: true
+    type: number
+  - goType: int
+    label: Total count
+    name: total
+    required: true
+    type: number
+  - goType: int
+    label: Next offset
+    name: next_offset
+    required: true
+    type: number
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_runs
+  inputs:
+  - label: Actor ID or owner~name
+    name: actor_id
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page offset
+      name: offset
+      type: number
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Descending order
+      name: desc
+      type: boolean
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List Actor runs
+  outputs:
+  - fields:
+    - label: Run ID
+      name: id
+      required: true
+      type: string
+    - label: Actor ID
+      name: actor_id
+      required: true
+      type: string
+    - label: Run status
+      name: status
+      required: true
+      type: string
+    - label: Started at
+      name: started_at
+      required: true
+      type: string
+    - label: Finished at
+      name: finished_at
+      type: string
+    - label: Default dataset ID
+      name: default_dataset_id
+      type: string
+    - label: Default key-value store ID
+      name: default_key_value_store_id
+      type: string
+    - label: Status message
+      name: status_message
+      type: string
+    goType: Run
+    label: Actor runs
+    name: runs
+    required: true
+    type: array
+  - goType: int
+    label: Page offset
+    name: offset
+    required: true
+    type: number
+  - goType: int
+    label: Returned count
+    name: count
+    required: true
+    type: number
+  - goType: int
+    label: Total count
+    name: total
+    required: true
+    type: number
+  - goType: int
+    label: Next offset
+    name: next_offset
+    required: true
+    type: number
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: run_actor
+  inputs:
+  - label: Actor ID or owner~name
+    name: actor_id
+    required: true
+    type: string
+  - desc: Each Actor defines its own input JSON schema.
+    label: Actor input
+    name: input
+    opaque: true
+    type: json
+  - label: Actor build tag or number
+    name: build
+    type: string
+  - desc: max_items limits paid result charges, not the number of returned records.
+    fields:
+    - goType: int
+      label: Actor timeout in seconds
+      name: timeout_seconds
+      type: number
+    - goType: int
+      label: Maximum paid dataset items
+      name: max_items
+      type: number
+    - label: Maximum total charge in USD
+      name: max_total_charge_usd
+      type: number
+    goType: RunOptions
+    label: Run limits
+    name: options
+    type: json
+  label: Start Actor run
+  outputs:
+  - fields:
+    - label: Run ID
+      name: id
+      required: true
+      type: string
+    - label: Actor ID
+      name: actor_id
+      required: true
+      type: string
+    - label: Run status
+      name: status
+      required: true
+      type: string
+    - label: Started at
+      name: started_at
+      required: true
+      type: string
+    - label: Finished at
+      name: finished_at
+      type: string
+    - label: Default dataset ID
+      name: default_dataset_id
+      type: string
+    - label: Default key-value store ID
+      name: default_key_value_store_id
+      type: string
+    - label: Status message
+      name: status_message
+      type: string
+    goType: Run
+    label: Actor run
+    name: run
+    required: true
+    type: json
+  timeoutSec: 60

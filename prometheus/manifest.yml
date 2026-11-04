@@ -1,0 +1,461 @@
+{
+  "plugin": {
+    "name": "prometheus",
+    "org": "sokel",
+    "label": "Prometheus",
+    "desc": "Query metrics, inspect label metadata and read active alerts from a self-hosted Prometheus server.",
+    "version": "0.1.0",
+    "doc": "docs/prometheus.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Optional HTTP Basic username. Use either Basic authentication or a bearer token.",
+        "label": "Username",
+        "name": "username",
+        "type": "text"
+      },
+      {
+        "label": "Password",
+        "name": "password",
+        "type": "secret"
+      },
+      {
+        "desc": "Optional reverse-proxy bearer token. Leave all credential fields empty for an unprotected private service.",
+        "label": "Bearer token",
+        "name": "bearer_token",
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "find_series",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "label": "Start time",
+              "name": "start",
+              "type": "string"
+            },
+            {
+              "label": "End time",
+              "name": "end",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Series selectors",
+              "name": "matches",
+              "type": "array"
+            },
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "MetadataOptions",
+          "label": "Metadata filters",
+          "name": "options",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Find series",
+      "outputs": [
+        {
+          "desc": "Each JSON string contains one dynamic metric label set, preserving user-defined label names.",
+          "itemType": "string",
+          "label": "Series label sets JSON",
+          "name": "series_json",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_build_info",
+      "label": "Get build information",
+      "outputs": [
+        {
+          "label": "Version",
+          "name": "version",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Revision",
+          "name": "revision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Build date",
+          "name": "build_date",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Read pending and firing alert instances from Prometheus; this does not manage Alertmanager silences or alert rules.",
+      "id": "list_alerts",
+      "label": "List active alerts",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Labels JSON",
+              "name": "labels_json",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Annotations JSON",
+              "name": "annotations_json",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Alert state",
+              "name": "state",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Active since",
+              "name": "active_at",
+              "type": "string"
+            },
+            {
+              "label": "Sample value",
+              "name": "value",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Alert",
+          "label": "Alerts",
+          "name": "alerts",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_label_names",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "label": "Start time",
+              "name": "start",
+              "type": "string"
+            },
+            {
+              "label": "End time",
+              "name": "end",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Series selectors",
+              "name": "matches",
+              "type": "array"
+            },
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "MetadataOptions",
+          "label": "Metadata filters",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List label names",
+      "outputs": [
+        {
+          "itemType": "string",
+          "label": "Label names",
+          "name": "names",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_label_values",
+      "inputs": [
+        {
+          "label": "Label name",
+          "name": "label",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Start time",
+              "name": "start",
+              "type": "string"
+            },
+            {
+              "label": "End time",
+              "name": "end",
+              "type": "string"
+            },
+            {
+              "itemType": "string",
+              "label": "Series selectors",
+              "name": "matches",
+              "type": "array"
+            },
+            {
+              "goType": "int",
+              "label": "Result limit",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "MetadataOptions",
+          "label": "Metadata filters",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List label values",
+      "outputs": [
+        {
+          "itemType": "string",
+          "label": "Label values",
+          "name": "values",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "query",
+      "inputs": [
+        {
+          "label": "PromQL expression",
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Evaluation time",
+              "name": "time",
+              "type": "string"
+            },
+            {
+              "goType": "int",
+              "label": "Series limit",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "QueryOptions",
+          "label": "Query options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Run instant query",
+      "outputs": [
+        {
+          "label": "Result type",
+          "name": "result_type",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "PromQL returns dynamic label sets, scalar tuples or native histograms; JSON text preserves their structure and sample precision.",
+          "label": "Result JSON",
+          "name": "result_json",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "query_range",
+      "inputs": [
+        {
+          "label": "PromQL expression",
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Start time",
+          "name": "start",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "End time",
+          "name": "end",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Step in seconds",
+          "name": "step_seconds",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Series limit",
+              "name": "limit",
+              "type": "number"
+            }
+          ],
+          "goType": "RangeOptions",
+          "label": "Query options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Run range query",
+      "outputs": [
+        {
+          "label": "Result type",
+          "name": "result_type",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "PromQL returns dynamic label sets, scalar tuples or native histograms; JSON text preserves their structure and sample precision.",
+          "label": "Result JSON",
+          "name": "result_json",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "itemType": "string",
+          "label": "Warnings",
+          "name": "warnings",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "itemType": "string",
+          "label": "Information annotations",
+          "name": "infos",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-prometheus:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_PROMETHEUS_URL",
+        "desc": "Required self-hosted Prometheus installation root, including any reverse-proxy path prefix; HTTP and HTTPS are supported.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

@@ -1,0 +1,645 @@
+{
+  "plugin": {
+    "name": "hubspot",
+    "org": "sokel",
+    "label": "HubSpot CRM",
+    "desc": "Read and manage contacts, companies and deals with a private-app token",
+    "version": "0.1.0",
+    "doc": "docs/hubspot.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "token",
+        "label": "Private-app access token",
+        "type": "secret",
+        "required": true
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "desc": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_records",
+      "label": "List CRM records",
+      "desc": "List CRM records",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        },
+        {
+          "name": "after",
+          "label": "Pagination cursor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "properties",
+          "label": "Returned properties",
+          "type": "array",
+          "required": false,
+          "itemType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "records",
+          "label": "Records",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Record ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "properties",
+              "label": "Property values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "HubSpot properties are account-defined string or null values"
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "archived",
+              "label": "Archived",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "CRMRecord"
+        },
+        {
+          "name": "next_after",
+          "label": "Next cursor",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "search_records",
+      "label": "Search CRM records",
+      "desc": "Search CRM records",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        },
+        {
+          "name": "after",
+          "label": "Pagination cursor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "properties",
+          "label": "Returned properties",
+          "type": "array",
+          "required": false,
+          "itemType": "string"
+        },
+        {
+          "name": "query",
+          "label": "Search query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "filters",
+          "label": "All conditions",
+          "type": "array",
+          "required": false,
+          "fields": [
+            {
+              "name": "property_name",
+              "label": "Property name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "operator",
+              "label": "Filter operator",
+              "type": "enum",
+              "required": true,
+              "options": [
+                {
+                  "value": "EQ"
+                },
+                {
+                  "value": "NEQ"
+                },
+                {
+                  "value": "LT"
+                },
+                {
+                  "value": "LTE"
+                },
+                {
+                  "value": "GT"
+                },
+                {
+                  "value": "GTE"
+                },
+                {
+                  "value": "IN"
+                },
+                {
+                  "value": "NOT_IN"
+                },
+                {
+                  "value": "HAS_PROPERTY"
+                },
+                {
+                  "value": "NOT_HAS_PROPERTY"
+                },
+                {
+                  "value": "CONTAINS_TOKEN"
+                },
+                {
+                  "value": "NOT_CONTAINS_TOKEN"
+                }
+              ]
+            },
+            {
+              "name": "value",
+              "label": "Filter value",
+              "type": "string",
+              "required": false
+            },
+            {
+              "name": "values",
+              "label": "Filter values",
+              "type": "array",
+              "required": false,
+              "itemType": "string"
+            }
+          ],
+          "goType": "SearchFilter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "records",
+          "label": "Records",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Record ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "properties",
+              "label": "Property values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "HubSpot properties are account-defined string or null values"
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "archived",
+              "label": "Archived",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "CRMRecord"
+        },
+        {
+          "name": "next_after",
+          "label": "Next cursor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "total",
+          "label": "Matching record count",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        }
+      ]
+    },
+    {
+      "id": "get_record",
+      "label": "Get CRM record",
+      "desc": "Get CRM record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        },
+        {
+          "name": "record_id",
+          "label": "Record ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "properties",
+          "label": "Returned properties",
+          "type": "array",
+          "required": false,
+          "itemType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "label": "Record",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Record ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "properties",
+              "label": "Property values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "HubSpot properties are account-defined string or null values"
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "archived",
+              "label": "Archived",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "CRMRecord"
+        }
+      ]
+    },
+    {
+      "id": "create_record",
+      "label": "Create CRM record",
+      "desc": "Create CRM record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        },
+        {
+          "name": "properties",
+          "label": "Property values",
+          "type": "json",
+          "required": true,
+          "opaque": true,
+          "desc": "HubSpot property names are defined by each account; values must be strings and an empty string clears a property"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "label": "Record",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Record ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "properties",
+              "label": "Property values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "HubSpot properties are account-defined string or null values"
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "archived",
+              "label": "Archived",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "CRMRecord"
+        }
+      ]
+    },
+    {
+      "id": "update_record",
+      "label": "Update CRM record",
+      "desc": "Update CRM record",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        },
+        {
+          "name": "record_id",
+          "label": "Record ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "properties",
+          "label": "Property values",
+          "type": "json",
+          "required": true,
+          "opaque": true,
+          "desc": "HubSpot property names are defined by each account; values must be strings and an empty string clears a property"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "record",
+          "label": "Record",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Record ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "properties",
+              "label": "Property values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "HubSpot properties are account-defined string or null values"
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "archived",
+              "label": "Archived",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "CRMRecord"
+        }
+      ]
+    },
+    {
+      "id": "list_properties",
+      "label": "List property metadata",
+      "desc": "List property metadata",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "object_type",
+          "label": "Object type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            {
+              "value": "contacts"
+            },
+            {
+              "value": "companies"
+            },
+            {
+              "value": "deals"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "properties",
+          "label": "Property definitions",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "name",
+              "label": "Property name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "label",
+              "label": "Property label",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "Data type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "field_type",
+              "label": "Field type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "group_name",
+              "label": "Property group",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "options",
+              "label": "Options",
+              "type": "array",
+              "required": true,
+              "fields": [
+                {
+                  "name": "label",
+                  "label": "Option label",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "value",
+                  "label": "Option value",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "hidden",
+                  "label": "Hidden",
+                  "type": "boolean",
+                  "required": true
+                }
+              ],
+              "goType": "PropertyOption"
+            }
+          ],
+          "goType": "PropertyDefinition"
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

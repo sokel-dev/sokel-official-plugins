@@ -1,0 +1,419 @@
+{
+  "plugin": {
+    "name": "baserow",
+    "org": "sokel",
+    "label": "Baserow",
+    "desc": "Discover tables and manage dynamic rows on a self-hosted Baserow service",
+    "version": "0.1.0",
+    "doc": "docs/baserow.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Use a database token with the required table permissions; JWT account tokens are not supported.",
+        "label": "Database token",
+        "name": "access_token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_row",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Field values as a JSON object string",
+          "name": "data_json",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Use field names instead of field IDs",
+          "name": "user_field_names",
+          "type": "boolean"
+        }
+      ],
+      "label": "Create row",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Row ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete row JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Row",
+          "label": "Created row",
+          "name": "row",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "delete_row",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Row ID",
+          "name": "row_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Delete row",
+      "outputs": [
+        {
+          "label": "Deleted",
+          "name": "deleted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_row",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Row ID",
+          "name": "row_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Use field names instead of field IDs",
+          "name": "user_field_names",
+          "type": "boolean"
+        }
+      ],
+      "label": "Get row",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Row ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete row JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Row",
+          "label": "Row",
+          "name": "row",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check connection and token",
+      "outputs": [
+        {
+          "label": "Usable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_fields",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "List table fields",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Field ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Field name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Field type",
+              "name": "type",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Primary field",
+              "name": "primary",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Complete field definition JSON",
+              "name": "definition_json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "TableField",
+          "label": "Fields",
+          "name": "fields",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_rows",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "size",
+              "type": "number"
+            },
+            {
+              "label": "Search text",
+              "name": "search",
+              "type": "string"
+            },
+            {
+              "label": "Sort fields",
+              "name": "order_by",
+              "type": "string"
+            },
+            {
+              "label": "Filter tree JSON",
+              "name": "filters_json",
+              "type": "string"
+            },
+            {
+              "label": "Use field names instead of field IDs",
+              "name": "user_field_names",
+              "type": "boolean"
+            }
+          ],
+          "goType": "RowOptions",
+          "label": "Row query options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List rows",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Row ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete row JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Row",
+          "label": "Rows",
+          "name": "rows",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total row count",
+          "name": "total",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means complete",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_tables",
+      "label": "List accessible tables",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Table ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Table name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Database ID",
+              "name": "database_id",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Table",
+          "label": "Tables",
+          "name": "tables",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_row",
+      "inputs": [
+        {
+          "label": "Table ID",
+          "name": "table_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Row ID",
+          "name": "row_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Field values as a JSON object string",
+          "name": "data_json",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Use field names instead of field IDs",
+          "name": "user_field_names",
+          "type": "boolean"
+        }
+      ],
+      "label": "Update row fields",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Row ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete row JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Row",
+          "label": "Updated row",
+          "name": "row",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-baserow:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_BASEROW_URL",
+        "desc": "HTTP(S) root URL of your Baserow service; internal hosts and reverse-proxy prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

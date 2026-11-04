@@ -1,0 +1,418 @@
+# Exported from schema/ with SDK v0.7.7; plugin metadata is maintained here.
+plugin:
+  org: sokel
+  name: exa
+  label: Exa
+  desc: Web search, cited answers and asynchronous research
+  version: 0.1.0
+  doc: docs/exa.md
+credential:
+  fields:
+  - desc: Create an API key in the Exa dashboard. Deployment URLs belong in environment
+      configuration.
+    label: API key
+    name: api_key
+    required: true
+    type: secret
+operations:
+- id: agent_start
+  inputs:
+  - label: Research instructions
+    name: query
+    required: true
+    type: text
+  - label: Research effort
+    name: effort
+    type: string
+  - label: Agent instructions
+    name: system_prompt
+    type: text
+  - desc: The caller defines the object fields returned by the research agent.
+    label: Output JSON Schema
+    name: output_schema
+    opaque: true
+    type: json
+  - desc: 'USD cap: 1-100 for auto/ultra; duration: 300-10800 seconds for ultra only.'
+    fields:
+    - label: Maximum cost in USD
+      name: max_cost_dollars
+      type: number
+    - goType: int
+      label: Maximum duration in seconds
+      name: max_duration_seconds
+      type: number
+    goType: Budget
+    label: Research budget
+    name: budget
+    type: json
+  label: Start research agent
+  outputs:
+  - fields:
+    - label: Run ID
+      name: id
+      required: true
+      type: string
+    - label: Run status
+      name: status
+      required: true
+      type: string
+    - label: Stop reason
+      name: stop_reason
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Completed at
+      name: completed_at
+      type: string
+    goType: Agent
+    label: Agent run
+    name: run
+    required: true
+    type: json
+  timeoutSec: 60
+- id: agent_status
+  inputs:
+  - label: Run ID
+    name: run_id
+    required: true
+    type: string
+  label: Get research status
+  outputs:
+  - fields:
+    - label: Run ID
+      name: id
+      required: true
+      type: string
+    - label: Run status
+      name: status
+      required: true
+      type: string
+    - label: Stop reason
+      name: stop_reason
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Completed at
+      name: completed_at
+      type: string
+    goType: Agent
+    label: Agent run
+    name: run
+    required: true
+    type: json
+  - label: Research text
+    name: text
+    type: text
+  - desc: Object fields follow the schema of the submitted agent run.
+    label: Structured research
+    name: structured
+    opaque: true
+    type: json
+  - label: Failure code
+    name: error_code
+    type: string
+  - fields:
+    - label: Estimated USD cost
+      name: total
+      type: number
+    goType: Cost
+    label: Estimated cost
+    name: cost
+    type: json
+  timeoutSec: 60
+- id: answer
+  inputs:
+  - label: Question
+    name: query
+    required: true
+    type: text
+  - label: Answer model
+    name: model
+    type: string
+  - label: Answer instructions
+    name: system_prompt
+    type: text
+  - desc: The caller defines the object fields returned by Exa.
+    label: Output JSON Schema
+    name: output_schema
+    opaque: true
+    type: json
+  - fields:
+    - label: Include citation text
+      name: text
+      type: boolean
+    goType: AnswerOptions
+    label: Answer options
+    name: options
+    type: json
+  label: Answer with citations
+  outputs:
+  - label: Request ID
+    name: request_id
+    required: true
+    type: string
+  - label: Answer text
+    name: answer
+    type: text
+  - desc: Object fields follow the submitted output JSON Schema.
+    label: Structured answer
+    name: answer_data
+    opaque: true
+    type: json
+  - fields:
+    - label: Document ID
+      name: id
+      required: true
+      type: string
+    - label: Page URL
+      name: url
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: Published date
+      name: published_date
+      type: string
+    - label: Author
+      name: author
+      type: string
+    - label: Page text
+      name: text
+      type: string
+    - itemType: string
+      label: Highlights
+      name: highlights
+      type: array
+    - label: Summary
+      name: summary
+      type: string
+    goType: Result
+    label: Citations
+    name: citations
+    required: true
+    type: array
+  - fields:
+    - label: Estimated USD cost
+      name: total
+      type: number
+    goType: Cost
+    label: Estimated cost
+    name: cost
+    type: json
+  timeoutSec: 180
+- id: get_contents
+  inputs:
+  - itemType: string
+    label: Page URLs
+    name: urls
+    type: array
+  - itemType: string
+    label: Document IDs
+    name: ids
+    type: array
+  - desc: Supply exactly one of urls or ids; highlights are requested when no content
+      format is specified.
+    fields:
+    - label: Include page text
+      name: text
+      type: boolean
+    - label: Include highlights
+      name: highlights
+      type: boolean
+    - goType: int
+      label: Maximum cache age in hours
+      name: max_age_hours
+      type: number
+    goType: ContentOptions
+    label: Content options
+    name: options
+    type: json
+  label: Get page contents
+  outputs:
+  - label: Request ID
+    name: request_id
+    required: true
+    type: string
+  - fields:
+    - label: Document ID
+      name: id
+      required: true
+      type: string
+    - label: Page URL
+      name: url
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: Published date
+      name: published_date
+      type: string
+    - label: Author
+      name: author
+      type: string
+    - label: Page text
+      name: text
+      type: string
+    - itemType: string
+      label: Highlights
+      name: highlights
+      type: array
+    - label: Summary
+      name: summary
+      type: string
+    goType: Result
+    label: Page contents
+    name: results
+    required: true
+    type: array
+  - fields:
+    - label: Document ID
+      name: id
+      required: true
+      type: string
+    - label: Fetch status
+      name: status
+      required: true
+      type: string
+    - label: Content source
+      name: source
+      type: string
+    - fields:
+      - label: Error tag
+        name: tag
+        type: string
+      - goType: int
+        label: HTTP status code
+        name: http_status_code
+        type: number
+      label: Fetch error
+      name: error
+      type: json
+    goType: ContentStatus
+    label: Per-document status
+    name: statuses
+    required: true
+    type: array
+  - fields:
+    - label: Estimated USD cost
+      name: total
+      type: number
+    goType: Cost
+    label: Estimated cost
+    name: cost
+    type: json
+  timeoutSec: 180
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: search
+  inputs:
+  - label: Search query
+    name: query
+    required: true
+    type: text
+  - desc: auto, lite, deep-lite or deep; omitted uses auto.
+    label: Search mode
+    name: search_type
+    type: string
+  - itemType: string
+    label: Include domains
+    name: include_domains
+    type: array
+  - itemType: string
+    label: Exclude domains
+    name: exclude_domains
+    type: array
+  - label: Published after
+    name: start_published_date
+    type: string
+  - label: Published before
+    name: end_published_date
+    type: string
+  - fields:
+    - goType: int
+      label: Number of results
+      name: num_results
+      type: number
+    goType: SearchOptions
+    label: Search options
+    name: options
+    type: json
+  - fields:
+    - label: Include page text
+      name: text
+      type: boolean
+    - label: Include highlights
+      name: highlights
+      type: boolean
+    - goType: int
+      label: Maximum cache age in hours
+      name: max_age_hours
+      type: number
+    goType: ContentOptions
+    label: Content options
+    name: contents
+    type: json
+  label: Search the web
+  outputs:
+  - label: Request ID
+    name: request_id
+    required: true
+    type: string
+  - fields:
+    - label: Document ID
+      name: id
+      required: true
+      type: string
+    - label: Page URL
+      name: url
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: Published date
+      name: published_date
+      type: string
+    - label: Author
+      name: author
+      type: string
+    - label: Page text
+      name: text
+      type: string
+    - itemType: string
+      label: Highlights
+      name: highlights
+      type: array
+    - label: Summary
+      name: summary
+      type: string
+    goType: Result
+    label: Search results
+    name: results
+    required: true
+    type: array
+  - fields:
+    - label: Estimated USD cost
+      name: total
+      type: number
+    goType: Cost
+    label: Estimated cost
+    name: cost
+    type: json
+  timeoutSec: 180

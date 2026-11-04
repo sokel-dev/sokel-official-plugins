@@ -1,0 +1,550 @@
+{
+  "plugin": {
+    "name": "microsoft-sharepoint",
+    "org": "sokel",
+    "label": "Microsoft SharePoint",
+    "desc": "Discover sites and lists, inspect columns and read or write list item fields",
+    "version": "0.1.0",
+    "doc": "docs/microsoft-sharepoint.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "access_token",
+        "label": "Delegated access token",
+        "type": "secret",
+        "required": true,
+        "desc": "Obtain and refresh externally; include User.Read for health checks"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check delegated credentials",
+      "desc": "Check delegated credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "search_sites",
+      "label": "Search sites",
+      "desc": "Search sites",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "query",
+          "label": "Search query",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "sites",
+          "label": "Sites",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Site ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "display_name",
+              "label": "Display name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Site"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_site",
+      "label": "Get site",
+      "desc": "Get site",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "site",
+          "label": "Site",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Site ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "display_name",
+              "label": "Display name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Site"
+        }
+      ]
+    },
+    {
+      "id": "list_drives",
+      "label": "List site drives",
+      "desc": "List site drives",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "drives",
+          "label": "Drives",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_type",
+              "label": "Drive type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Drive"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_lists",
+      "label": "List site lists",
+      "desc": "List site lists",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "lists",
+          "label": "Lists",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "List ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "display_name",
+              "label": "Display name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "SPList"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_columns",
+      "label": "List column definitions",
+      "desc": "List column definitions",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "list_id",
+          "label": "List ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "columns",
+          "label": "Columns",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Column ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Internal column name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "display_name",
+              "label": "Display name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "kind",
+              "label": "Column kind",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "required",
+              "label": "Required",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "read_only",
+              "label": "Read only",
+              "type": "boolean",
+              "required": true
+            }
+          ],
+          "goType": "Column"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_items",
+      "label": "List list items",
+      "desc": "List list items",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "list_id",
+          "label": "List ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "next_link",
+          "label": "Continuation URL",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "items",
+          "label": "List items",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "List item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "label": "Column values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by each SharePoint list"
+            }
+          ],
+          "goType": "ListItem"
+        },
+        {
+          "name": "next_link",
+          "label": "Next page URL",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "create_item",
+      "label": "Create list item",
+      "desc": "Create list item",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "list_id",
+          "label": "List ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "label": "Column values",
+          "type": "json",
+          "required": true,
+          "opaque": true,
+          "desc": "Column names and value types are defined by each SharePoint list"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "item",
+          "label": "List item",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "List item ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "etag",
+              "label": "ETag",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "web_url",
+              "label": "Web URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "fields",
+              "label": "Column values",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "Column names and value types are defined by each SharePoint list"
+            }
+          ],
+          "goType": "ListItem"
+        }
+      ]
+    },
+    {
+      "id": "update_fields",
+      "label": "Update list item fields",
+      "desc": "Update list item fields",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "site_id",
+          "label": "Site ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "list_id",
+          "label": "List ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "item_id",
+          "label": "List item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "label": "Column values",
+          "type": "json",
+          "required": true,
+          "opaque": true,
+          "desc": "Column names and value types are defined by each SharePoint list"
+        },
+        {
+          "name": "if_match",
+          "label": "Existing ETag",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "item_id",
+          "label": "List item ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fields",
+          "label": "Column values",
+          "type": "json",
+          "required": true,
+          "opaque": true,
+          "desc": "Column names and value types are defined by each SharePoint list"
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

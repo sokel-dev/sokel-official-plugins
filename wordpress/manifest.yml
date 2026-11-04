@@ -1,0 +1,691 @@
+{
+  "plugin": {
+    "name": "wordpress",
+    "org": "sokel",
+    "label": "WordPress",
+    "desc": "Read posts and categories, create drafts, update content and upload media",
+    "version": "0.1.0",
+    "doc": "docs/wordpress.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "username",
+        "label": "Username",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "application_password",
+        "label": "Application password",
+        "type": "secret",
+        "required": true
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "desc": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_posts",
+      "label": "List posts",
+      "desc": "List posts",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "page",
+          "label": "Page number",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "search",
+          "label": "Search text",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "label": "Post status",
+          "type": "enum",
+          "required": false,
+          "options": [
+            {
+              "value": "publish"
+            },
+            {
+              "value": "draft"
+            },
+            {
+              "value": "pending"
+            },
+            {
+              "value": "private"
+            },
+            {
+              "value": "future"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "posts",
+          "label": "Posts",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Post ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Post status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "label": "Slug",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "link",
+              "label": "Post URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "content_html",
+              "label": "Rendered content",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "excerpt_html",
+              "label": "Rendered excerpt",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "modified_gmt",
+              "label": "Modified at (UTC)",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "categories",
+              "label": "Category IDs",
+              "type": "array",
+              "required": true,
+              "itemType": "string"
+            }
+          ],
+          "goType": "Post"
+        },
+        {
+          "name": "total",
+          "label": "Total items",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "total_pages",
+          "label": "Total pages",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "next_page",
+          "label": "Next page",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_post",
+      "label": "Get post",
+      "desc": "Get post",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "post_id",
+          "label": "Post ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "post",
+          "label": "Post",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Post ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Post status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "label": "Slug",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "link",
+              "label": "Post URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "content_html",
+              "label": "Rendered content",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "excerpt_html",
+              "label": "Rendered excerpt",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "modified_gmt",
+              "label": "Modified at (UTC)",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "categories",
+              "label": "Category IDs",
+              "type": "array",
+              "required": true,
+              "itemType": "string"
+            }
+          ],
+          "goType": "Post"
+        }
+      ]
+    },
+    {
+      "id": "create_draft",
+      "label": "Create draft post",
+      "desc": "Create draft post",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "content",
+          "label": "Content HTML",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "excerpt",
+          "label": "Excerpt HTML",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "categories",
+          "label": "Category IDs",
+          "type": "array",
+          "required": false,
+          "itemType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "post",
+          "label": "Post",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Post ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Post status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "label": "Slug",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "link",
+              "label": "Post URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "content_html",
+              "label": "Rendered content",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "excerpt_html",
+              "label": "Rendered excerpt",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "modified_gmt",
+              "label": "Modified at (UTC)",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "categories",
+              "label": "Category IDs",
+              "type": "array",
+              "required": true,
+              "itemType": "string"
+            }
+          ],
+          "goType": "Post"
+        }
+      ]
+    },
+    {
+      "id": "update_post",
+      "label": "Update post content",
+      "desc": "Replace title, content and excerpt; preserve publication status and omit categories to preserve them",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "post_id",
+          "label": "Post ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "content",
+          "label": "Content HTML",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "excerpt",
+          "label": "Excerpt HTML",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "categories",
+          "label": "Category IDs",
+          "type": "array",
+          "required": false,
+          "itemType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "post",
+          "label": "Post",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Post ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Post status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "label": "Slug",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "link",
+              "label": "Post URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "content_html",
+              "label": "Rendered content",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "excerpt_html",
+              "label": "Rendered excerpt",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "modified_gmt",
+              "label": "Modified at (UTC)",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "categories",
+              "label": "Category IDs",
+              "type": "array",
+              "required": true,
+              "itemType": "string"
+            }
+          ],
+          "goType": "Post"
+        }
+      ]
+    },
+    {
+      "id": "list_categories",
+      "label": "List categories",
+      "desc": "List categories",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "page",
+          "label": "Page number",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "search",
+          "label": "Search text",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "categories",
+          "label": "Categories",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Category ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Category name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "label": "Slug",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "parent_id",
+              "label": "Parent category ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "count",
+              "label": "Published post count",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            }
+          ],
+          "goType": "Category"
+        },
+        {
+          "name": "total",
+          "label": "Total items",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "total_pages",
+          "label": "Total pages",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "next_page",
+          "label": "Next page",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_media",
+      "label": "List media",
+      "desc": "List media",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "page",
+          "label": "Page number",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "search",
+          "label": "Search text",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "media",
+          "label": "Media items",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Media ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "source_url",
+              "label": "Media URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "alt_text",
+              "label": "Alternative text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Media"
+        },
+        {
+          "name": "total",
+          "label": "Total items",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "total_pages",
+          "label": "Total pages",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "next_page",
+          "label": "Next page",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "upload_media",
+      "label": "Upload media",
+      "desc": "Upload media",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "file",
+          "label": "Platform file",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "alt_text",
+          "label": "Alternative text",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "media",
+          "label": "Media item",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Media ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "source_url",
+              "label": "Media URL",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "mime_type",
+              "label": "MIME type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "alt_text",
+              "label": "Alternative text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title_html",
+              "label": "Rendered title",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Media"
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

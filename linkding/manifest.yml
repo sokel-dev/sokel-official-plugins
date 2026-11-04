@@ -1,0 +1,723 @@
+{
+  "plugin": {
+    "name": "linkding",
+    "org": "sokel",
+    "label": "linkding",
+    "desc": "Search, save and organize bookmarks on a self-hosted linkding service",
+    "version": "0.1.0",
+    "doc": "docs/linkding.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Copy the token from your own linkding settings. Configure the service address with SOKEL_LINKDING_URL.",
+        "label": "API token",
+        "name": "api_token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "archive_bookmark",
+      "inputs": [
+        {
+          "label": "Bookmark ID",
+          "name": "bookmark_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Archive bookmark",
+      "outputs": [
+        {
+          "label": "Archive accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "delete_bookmark",
+      "inputs": [
+        {
+          "label": "Bookmark ID",
+          "name": "bookmark_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Delete bookmark",
+      "outputs": [
+        {
+          "label": "Deleted",
+          "name": "deleted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_bookmark",
+      "inputs": [
+        {
+          "label": "Bookmark ID",
+          "name": "bookmark_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get bookmark",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Bookmark ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "date_modified",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Bookmark",
+          "label": "Bookmark",
+          "name": "bookmark",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check connection",
+      "outputs": [
+        {
+          "label": "Connected",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Message",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_bookmarks",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            },
+            {
+              "label": "Archived list",
+              "name": "archived",
+              "type": "boolean"
+            },
+            {
+              "label": "Search text",
+              "name": "search",
+              "type": "string"
+            },
+            {
+              "label": "Modified since",
+              "name": "modified_since",
+              "type": "string"
+            },
+            {
+              "label": "Added since",
+              "name": "added_since",
+              "type": "string"
+            }
+          ],
+          "goType": "BookmarkOptions",
+          "label": "List options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List bookmarks",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Bookmark ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "date_modified",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Bookmark",
+          "label": "Bookmarks",
+          "name": "bookmarks",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "label": "Total count",
+              "name": "total",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "goType": "int",
+              "label": "Next offset",
+              "name": "next_offset",
+              "type": "number"
+            },
+            {
+              "label": "Has more",
+              "name": "has_more",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "PageInfo",
+          "label": "Page",
+          "name": "page",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_tags",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Page options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List tags",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Tag ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Tag name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Tag",
+          "label": "Tags",
+          "name": "tags",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "label": "Total count",
+              "name": "total",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "goType": "int",
+              "label": "Next offset",
+              "name": "next_offset",
+              "type": "number"
+            },
+            {
+              "label": "Has more",
+              "name": "has_more",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "goType": "PageInfo",
+          "label": "Page",
+          "name": "page",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Saving an existing URL may replace bookmark fields. The request disables synchronous metadata scraping and automatic HTML snapshots; server background integrations have separate settings.",
+      "id": "save_bookmark",
+      "inputs": [
+        {
+          "label": "URL",
+          "name": "url",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "type": "array"
+            }
+          ],
+          "goType": "BookmarkFields",
+          "label": "Bookmark fields",
+          "name": "fields",
+          "type": "json"
+        }
+      ],
+      "label": "Save bookmark",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Bookmark ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "date_modified",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Bookmark",
+          "label": "Bookmark",
+          "name": "bookmark",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "unarchive_bookmark",
+      "inputs": [
+        {
+          "label": "Bookmark ID",
+          "name": "bookmark_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Unarchive bookmark",
+      "outputs": [
+        {
+          "label": "Unarchive accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_bookmark",
+      "inputs": [
+        {
+          "label": "Bookmark ID",
+          "name": "bookmark_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "URL",
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "type": "array"
+            }
+          ],
+          "goType": "BookmarkChanges",
+          "label": "Bookmark changes",
+          "name": "changes",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "label": "Update bookmark",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Bookmark ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "URL",
+              "name": "url",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Title",
+              "name": "title",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Description",
+              "name": "description",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Notes",
+              "name": "notes",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Archived",
+              "name": "is_archived",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Unread",
+              "name": "unread",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "Shared",
+              "name": "shared",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "Tag names",
+              "name": "tag_names",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "label": "Added at",
+              "name": "date_added",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "date_modified",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Bookmark",
+          "label": "Bookmark",
+          "name": "bookmark",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-linkding:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_LINKDING_URL",
+        "desc": "HTTP(S) installation root of your self-hosted linkding service.",
+        "required": true
+      }
+    ]
+  }
+}

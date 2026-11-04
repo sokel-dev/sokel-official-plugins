@@ -1,0 +1,103 @@
+[
+  {
+    "op": "health_check",
+    "input": {},
+    "method": "GET",
+    "path": "/api/database/tables/all-tables/",
+    "query": "",
+    "body": "",
+    "status": 200,
+    "response": "[{\"id\":9007199254740993,\"name\":\"Books\",\"database_id\":8,\"order\":1}]"
+  },
+  {
+    "op": "list_tables",
+    "input": {},
+    "method": "GET",
+    "path": "/api/database/tables/all-tables/",
+    "query": "",
+    "body": "",
+    "status": 200,
+    "response": "[{\"id\":9007199254740993,\"name\":\"Books\",\"database_id\":8,\"order\":1}]"
+  },
+  {
+    "op": "list_fields",
+    "input": {
+      "table_id": "8"
+    },
+    "method": "GET",
+    "path": "/api/database/fields/table/8/",
+    "query": "",
+    "body": "",
+    "status": 200,
+    "response": "[{\"id\":11,\"table_id\":8,\"name\":\"Done\",\"type\":\"boolean\",\"primary\":false}]"
+  },
+  {
+    "op": "list_rows",
+    "input": {
+      "table_id": "8",
+      "options": {
+        "size": 1,
+        "user_field_names": false
+      }
+    },
+    "method": "GET",
+    "path": "/api/database/rows/table/8/",
+    "query": "page=1&size=1&user_field_names=false",
+    "body": "",
+    "status": 200,
+    "response": "{\"count\":2,\"next\":\"http://service.internal/prefix/api/database/rows/table/8/?page=2&size=1&user_field_names=false\",\"previous\":null,\"results\":[{\"id\":9007199254740993,\"order\":\"1.00000000000000000000\",\"field_1\":false,\"field_2\":9007199254740993}]}"
+  },
+  {
+    "op": "get_row",
+    "input": {
+      "table_id": "8",
+      "row_id": "9007199254740993"
+    },
+    "method": "GET",
+    "path": "/api/database/rows/table/8/9007199254740993/",
+    "query": "user_field_names=false",
+    "body": "",
+    "status": 200,
+    "response": "{\"id\":9007199254740993,\"order\":\"1.00000000000000000000\",\"field_1\":false,\"field_2\":9007199254740993}"
+  },
+  {
+    "op": "create_row",
+    "input": {
+      "table_id": "8",
+      "data_json": "{\"field_1\":false,\"field_2\":9007199254740993}"
+    },
+    "method": "POST",
+    "path": "/api/database/rows/table/8/",
+    "query": "user_field_names=false",
+    "body": "{\"field_1\":false,\"field_2\":9007199254740993}",
+    "status": 200,
+    "response": "{\"id\":9007199254740993,\"order\":\"1.00000000000000000000\",\"field_1\":false,\"field_2\":9007199254740993}"
+  },
+  {
+    "op": "update_row",
+    "input": {
+      "table_id": "8",
+      "row_id": "9007199254740993",
+      "data_json": "{\"field_1\":false}"
+    },
+    "method": "PATCH",
+    "path": "/api/database/rows/table/8/9007199254740993/",
+    "query": "user_field_names=false",
+    "body": "{\"field_1\":false}",
+    "status": 200,
+    "response": "{\"id\":9007199254740993,\"order\":\"1.00000000000000000000\",\"field_1\":false,\"field_2\":9007199254740993}"
+  },
+  {
+    "op": "delete_row",
+    "input": {
+      "table_id": "8",
+      "row_id": "9007199254740993"
+    },
+    "method": "DELETE",
+    "path": "/api/database/rows/table/8/9007199254740993/",
+    "query": "",
+    "body": "",
+    "status": 204,
+    "response": ""
+  }
+]

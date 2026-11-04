@@ -1,0 +1,177 @@
+{
+  "$schema": "http://127.0.0.1:13456/api/v2/schemas/PaginatedProject.json",
+  "items": [
+    {
+      "id": 1,
+      "title": "Inbox",
+      "description": "",
+      "identifier": "",
+      "hex_color": "",
+      "parent_project_id": 0,
+      "owner": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "is_archived": false,
+      "background_information": null,
+      "background_blur_hash": "",
+      "is_favorite": false,
+      "position": 65536,
+      "views": [
+        {
+          "id": 1,
+          "title": "List",
+          "project_id": 1,
+          "view_kind": "list",
+          "filter": {
+            "s": "",
+            "sort_by": null,
+            "order_by": null,
+            "filter": "done = false",
+            "filter_include_nulls": false
+          },
+          "position": 100,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 2,
+          "title": "Gantt",
+          "project_id": 1,
+          "view_kind": "gantt",
+          "filter": null,
+          "position": 200,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 3,
+          "title": "Table",
+          "project_id": 1,
+          "view_kind": "table",
+          "filter": null,
+          "position": 300,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 4,
+          "title": "Kanban",
+          "project_id": 1,
+          "view_kind": "kanban",
+          "filter": null,
+          "position": 400,
+          "bucket_configuration_mode": "manual",
+          "bucket_configuration": null,
+          "default_bucket_id": 1,
+          "done_bucket_id": 3,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        }
+      ],
+      "max_permission": null,
+      "created": "2026-11-03T18:09:43Z",
+      "updated": "2026-11-03T18:09:43Z"
+    },
+    {
+      "id": -2,
+      "title": "My Open Tasks",
+      "description": "",
+      "identifier": "",
+      "hex_color": "",
+      "parent_project_id": 0,
+      "owner": {
+        "id": 1,
+        "name": "",
+        "username": "wave7admin",
+        "created": "2026-11-03T18:09:43Z",
+        "updated": "2026-11-03T18:09:43Z"
+      },
+      "is_archived": false,
+      "background_information": null,
+      "background_blur_hash": "",
+      "is_favorite": false,
+      "position": 0,
+      "views": [
+        {
+          "id": 5,
+          "title": "List",
+          "project_id": -2,
+          "view_kind": "list",
+          "filter": null,
+          "position": 100,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 6,
+          "title": "Gantt",
+          "project_id": -2,
+          "view_kind": "gantt",
+          "filter": null,
+          "position": 200,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 7,
+          "title": "Table",
+          "project_id": -2,
+          "view_kind": "table",
+          "filter": null,
+          "position": 300,
+          "bucket_configuration_mode": "none",
+          "bucket_configuration": null,
+          "default_bucket_id": 0,
+          "done_bucket_id": 0,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        },
+        {
+          "id": 8,
+          "title": "Kanban",
+          "project_id": -2,
+          "view_kind": "kanban",
+          "filter": null,
+          "position": 400,
+          "bucket_configuration_mode": "manual",
+          "bucket_configuration": null,
+          "default_bucket_id": 4,
+          "done_bucket_id": 6,
+          "updated": "2026-11-03T18:09:43Z",
+          "created": "2026-11-03T18:09:43Z"
+        }
+      ],
+      "max_permission": null,
+      "created": "2026-11-03T18:09:43Z",
+      "updated": "2026-11-03T18:09:43Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "per_page": 1,
+  "total_pages": 1
+}

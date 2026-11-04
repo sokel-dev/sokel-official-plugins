@@ -1,0 +1,328 @@
+plugin:
+  org: sokel
+  name: microsoft-outlook
+  label: Microsoft Outlook
+  desc: Read and send mail, download attachments and manage calendar events
+  version: 0.1.0
+  doc: docs/microsoft-outlook.md
+credential:
+  fields:
+  - name: access_token
+    label: Delegated Microsoft Graph access token
+    type: secret
+    required: true
+    desc: Global Microsoft Graph delegated token; refresh externally and replace before
+      expiration
+operations:
+- id: health_check
+  label: Check delegated credential
+  timeoutSec: 60
+  inputs: []
+  outputs:
+  - name: ok
+    label: Available
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+- id: list_messages
+  label: List mail messages
+  timeoutSec: 60
+  inputs:
+  - name: folder_id
+    label: Folder ID or well-known name
+    type: string
+    desc: Defaults to the whole mailbox; for example inbox or sentitems
+  - &id005
+    name: limit
+    label: Page size
+    type: int
+    default: 50
+  - &id003
+    name: next_link
+    label: Next-page URL
+    type: string
+    desc: Use the exact next_link returned by the previous call; keep resource inputs
+      unchanged
+  - name: filter
+    label: OData filter
+    type: string
+    desc: Optional Microsoft Graph mail $filter expression; no $search in this version
+  outputs:
+  - name: messages
+    label: Messages
+    type: array
+    required: true
+    goType: MailMessage
+    fields: &id001
+    - name: id
+      label: Message ID
+      type: string
+      required: true
+    - name: subject
+      label: Subject
+      type: string
+      required: true
+    - name: sender
+      label: Sender address
+      type: string
+      required: true
+    - name: to
+      label: To addresses
+      type: strings
+      required: true
+    - name: received_at
+      label: Received at
+      type: string
+      required: true
+    - name: body
+      label: Body
+      type: string
+      required: true
+    - name: body_type
+      label: Body type
+      type: string
+      required: true
+    - name: body_preview
+      label: Body preview
+      type: string
+      required: true
+    - name: is_read
+      label: Read
+      type: boolean
+      required: true
+    - name: has_attachments
+      label: Has attachments
+      type: boolean
+      required: true
+    - name: web_url
+      label: Web URL
+      type: string
+      required: true
+    - name: internet_message_id
+      label: Internet message ID
+      type: string
+      required: true
+  - &id004
+    name: next_link
+    label: Next-page URL
+    type: string
+    required: true
+- id: get_message
+  label: Get mail message
+  timeoutSec: 60
+  inputs:
+  - &id002
+    name: message_id
+    label: Message ID
+    type: string
+    required: true
+  outputs:
+  - name: message
+    label: Message
+    type: json
+    required: true
+    goType: MailMessage
+    fields: *id001
+- id: send_mail
+  label: Send mail
+  timeoutSec: 60
+  inputs:
+  - name: to
+    label: To addresses
+    type: strings
+    required: true
+  - name: subject
+    label: Subject
+    type: string
+    required: true
+  - name: body
+    label: Body
+    type: string
+    required: true
+  - name: body_type
+    label: Body type
+    type: string
+    desc: text or html; defaults to text
+  - name: cc
+    label: CC addresses
+    type: strings
+  - name: bcc
+    label: BCC addresses
+    type: strings
+  outputs:
+  - name: accepted
+    label: Accepted for delivery
+    type: boolean
+    required: true
+  - name: message
+    label: Message
+    type: string
+    required: true
+- id: list_attachments
+  label: List mail attachments
+  timeoutSec: 60
+  inputs:
+  - *id002
+  - *id003
+  outputs:
+  - name: attachments
+    label: Attachments
+    type: array
+    required: true
+    goType: MailAttachment
+    fields:
+    - name: id
+      label: Attachment ID
+      type: string
+      required: true
+    - name: name
+      label: File name
+      type: string
+      required: true
+    - name: content_type
+      label: Content type
+      type: string
+      required: true
+    - name: size
+      label: Size in bytes
+      type: int
+      required: true
+    - name: is_inline
+      label: Inline
+      type: boolean
+      required: true
+    - name: attachment_type
+      label: Attachment type
+      type: string
+      required: true
+  - *id004
+- id: download_attachment
+  label: Download a file attachment
+  timeoutSec: 60
+  inputs:
+  - *id002
+  - name: attachment_id
+    label: Attachment ID
+    type: string
+    required: true
+  outputs:
+  - name: file
+    label: Downloaded file
+    type: file
+    required: true
+- id: calendar_view
+  label: List calendar occurrences
+  timeoutSec: 60
+  inputs:
+  - &id006
+    name: start
+    label: Start time
+    type: string
+    required: true
+    desc: RFC3339 with explicit timezone offset
+  - &id007
+    name: end
+    label: End time
+    type: string
+    required: true
+    desc: RFC3339 with explicit timezone offset; later than start
+  - name: calendar_id
+    label: Calendar ID
+    type: string
+    desc: Defaults to the signed-in user calendar
+  - *id005
+  - *id003
+  outputs:
+  - name: events
+    label: Events
+    type: array
+    required: true
+    goType: CalendarEvent
+    fields: &id008
+    - name: id
+      label: Event ID
+      type: string
+      required: true
+    - name: subject
+      label: Subject
+      type: string
+      required: true
+    - name: body_preview
+      label: Body preview
+      type: string
+      required: true
+    - name: start
+      label: Start time
+      type: string
+      required: true
+    - name: start_timezone
+      label: Start timezone
+      type: string
+      required: true
+    - name: end
+      label: End time
+      type: string
+      required: true
+    - name: end_timezone
+      label: End timezone
+      type: string
+      required: true
+    - name: location
+      label: Location
+      type: string
+      required: true
+    - name: web_url
+      label: Web URL
+      type: string
+      required: true
+    - name: is_cancelled
+      label: Cancelled
+      type: boolean
+      required: true
+    - name: is_all_day
+      label: All day
+      type: boolean
+      required: true
+  - *id004
+- id: create_event
+  label: Create calendar event
+  timeoutSec: 60
+  inputs:
+  - name: subject
+    label: Subject
+    type: string
+    required: true
+  - *id006
+  - *id007
+  - name: calendar_id
+    label: Calendar ID
+    type: string
+  - name: body
+    label: Body
+    type: string
+  - name: body_type
+    label: Body type
+    type: string
+    desc: text or html; defaults to text
+  - name: location
+    label: Location
+    type: string
+  - name: attendees
+    label: Required attendee addresses
+    type: strings
+  - name: transaction_id
+    label: Transaction ID
+    type: string
+    desc: Optional stable client ID for Graph duplicate-request handling
+  outputs:
+  - name: event
+    label: Event
+    type: json
+    required: true
+    goType: CalendarEvent
+    fields: *id008
+codegen:
+  lang: go

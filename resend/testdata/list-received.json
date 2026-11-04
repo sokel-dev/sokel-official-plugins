@@ -1,0 +1,29 @@
+{
+  "object": "list",
+  "has_more": true,
+  "data": [
+    {
+      "id": "a39999a6-88e3-48b1-888b-beaabcde1b33",
+      "to": [
+        "recipient@example.com"
+      ],
+      "from": "sender@example.com",
+      "created_at": "2026-10-09T14:37:40.951Z",
+      "subject": "Hello World",
+      "bcc": [],
+      "cc": [],
+      "reply_to": [],
+      "message_id": "<111-222-333@email.example.com>",
+      "attachments": [
+        {
+          "filename": "example.txt",
+          "content_type": "text/plain",
+          "content_id": null,
+          "content_disposition": "attachment",
+          "id": "47e999c7-c89c-4999-bf32-aaaaa1c3ff21",
+          "size": 13
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,411 @@
+plugin:
+  org: sokel
+  name: dropbox
+  label: Dropbox
+  desc: Read, search and transfer Dropbox files with explicit cursors
+  version: 0.1.0
+  doc: docs/dropbox.md
+credential:
+  fields:
+  - desc: Supply a current access token. Refresh it outside this plugin before expiry.
+    label: Access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: continue_list
+  inputs:
+  - label: List cursor
+    name: cursor
+    required: true
+    type: string
+  label: Continue listing or read changes
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Entries
+    name: entries
+    required: true
+    type: array
+  - label: Cursor
+    name: cursor
+    required: true
+    type: string
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: continue_search
+  inputs:
+  - label: Search cursor
+    name: cursor
+    required: true
+    type: string
+  label: Continue search
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Entries
+    name: entries
+    required: true
+    type: array
+  - label: Cursor
+    name: cursor
+    required: true
+    type: string
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: download_file
+  inputs:
+  - label: File path or ID
+    name: path
+    required: true
+    type: string
+  label: Download file
+  outputs:
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: File metadata
+    name: entry
+    required: true
+    type: json
+  timeoutSec: 180
+- id: get_metadata
+  inputs:
+  - label: Path or item ID
+    name: path
+    required: true
+    type: string
+  label: Get file or folder metadata
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Entry
+    name: entry
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_folder
+  inputs:
+  - label: Folder path; empty means root
+    name: path
+    type: string
+  - fields:
+    - label: Include subfolders
+      name: recursive
+      type: boolean
+    - label: Include deleted entries
+      name: include_deleted
+      type: boolean
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    goType: ListOptions
+    label: List options
+    name: options
+    type: json
+  label: List folder
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Entries
+    name: entries
+    required: true
+    type: array
+  - label: Cursor
+    name: cursor
+    required: true
+    type: string
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: search
+  inputs:
+  - label: Search query
+    name: query
+    required: true
+    type: string
+  - fields:
+    - label: Search folder path
+      name: path
+      type: string
+    - label: Match filenames only
+      name: filename_only
+      type: boolean
+    - goType: int
+      label: Page size
+      name: max_results
+      type: number
+    goType: SearchOptions
+    label: Search options
+    name: options
+    type: json
+  label: Search files and folders
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Entries
+    name: entries
+    required: true
+    type: array
+  - label: Cursor
+    name: cursor
+    required: true
+    type: string
+  - label: More results available
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: upload_file
+  inputs:
+  - label: Destination file path
+    name: path
+    required: true
+    type: string
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  label: Upload file without overwriting
+  outputs:
+  - fields:
+    - label: Item kind
+      name: kind
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Item ID
+      name: id
+      type: string
+    - label: Lowercase path
+      name: path_lower
+      type: string
+    - label: Display path
+      name: path_display
+      type: string
+    - goType: int64
+      label: Size in bytes
+      name: size
+      type: number
+    - label: Revision
+      name: rev
+      type: string
+    - label: Server modification time
+      name: server_modified
+      type: string
+    - label: Downloadable
+      name: is_downloadable
+      type: boolean
+    goType: Entry
+    label: Uploaded file
+    name: entry
+    required: true
+    type: json
+  timeoutSec: 180

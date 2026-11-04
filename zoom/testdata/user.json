@@ -1,0 +1,8 @@
+{
+  "id": "person",
+  "email": "person@example.invalid",
+  "first_name": "Example",
+  "last_name": "User",
+  "type": 1,
+  "status": "active"
+}

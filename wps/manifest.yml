@@ -1,0 +1,556 @@
+{
+  "plugin": {
+    "name": "wps",
+    "org": "sokel",
+    "label": "WPS365 Cloud Documents",
+    "desc": "Manage WPS365 cloud file metadata and folders",
+    "version": "0.1.0",
+    "doc": "docs/wps.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "access_token",
+        "label": "Access token",
+        "type": "secret",
+        "required": true,
+        "desc": "WPS365 application or user token; obtain and refresh outside this plugin"
+      },
+      {
+        "name": "app_id",
+        "label": "Application ID for signing",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "app_key",
+        "label": "Application key for signing",
+        "type": "secret",
+        "required": false,
+        "desc": "Set both signing fields only when API signing is enabled in WPS; otherwise leave both empty"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "desc": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_files",
+      "label": "List folder children",
+      "desc": "List folder children",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "parent_id",
+          "label": "Parent folder ID",
+          "type": "string",
+          "required": true,
+          "desc": "Use 0 for the root folder"
+        },
+        {
+          "name": "page_size",
+          "label": "Page size",
+          "type": "number",
+          "required": false,
+          "goType": "int64"
+        },
+        {
+          "name": "page_token",
+          "label": "Page token",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "files",
+          "label": "Files",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "File ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "parent_id",
+              "label": "Parent folder ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "File type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "version",
+              "label": "Version",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "ctime",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "mtime",
+              "label": "Modified timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            }
+          ],
+          "goType": "File"
+        },
+        {
+          "name": "next_page_token",
+          "label": "Next page token",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "get_file",
+      "label": "Get file metadata",
+      "desc": "Get file metadata",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file_id",
+          "label": "File ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "file",
+          "label": "File metadata",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "File ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "parent_id",
+              "label": "Parent folder ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "File type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "version",
+              "label": "Version",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "ctime",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "mtime",
+              "label": "Modified timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            }
+          ],
+          "goType": "File"
+        }
+      ]
+    },
+    {
+      "id": "create_folder",
+      "label": "Create folder",
+      "desc": "Create a folder and fail on an existing name; no automatic retries",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "parent_id",
+          "label": "Parent folder ID",
+          "type": "string",
+          "required": true,
+          "desc": "Use 0 for the root folder"
+        },
+        {
+          "name": "name",
+          "label": "Folder name",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "file",
+          "label": "File metadata",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "File ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "parent_id",
+              "label": "Parent folder ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "File type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "version",
+              "label": "Version",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "ctime",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "mtime",
+              "label": "Modified timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            }
+          ],
+          "goType": "File"
+        }
+      ]
+    },
+    {
+      "id": "rename_file",
+      "label": "Rename file or folder",
+      "desc": "Rename file or folder",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file_id",
+          "label": "File ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "label": "New name",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "file",
+          "label": "File metadata",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "File ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "drive_id",
+              "label": "Drive ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "parent_id",
+              "label": "Parent folder ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "File type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "size",
+              "label": "Size in bytes",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "version",
+              "label": "Version",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "ctime",
+              "label": "Created timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "mtime",
+              "label": "Modified timestamp",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            }
+          ],
+          "goType": "File"
+        }
+      ]
+    },
+    {
+      "id": "get_file_path",
+      "label": "Get file path",
+      "desc": "Get file path",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file_id",
+          "label": "File ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "location_id",
+          "label": "Location ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "location_type",
+          "label": "Location type",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "paths",
+          "label": "Path segments",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "file_id",
+              "label": "File ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "PathSegment"
+        }
+      ]
+    },
+    {
+      "id": "get_download_info",
+      "label": "Get download information",
+      "desc": "Get download information",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "drive_id",
+          "label": "Drive ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file_id",
+          "label": "File ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "url",
+          "label": "Temporary download URL",
+          "type": "string",
+          "required": true,
+          "desc": "Sensitive download metadata only; the plugin never fetches this URL"
+        },
+        {
+          "name": "hashes",
+          "label": "Content hashes",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "type",
+              "label": "Hash algorithm",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "sum",
+              "label": "Hash value",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "ContentHash"
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

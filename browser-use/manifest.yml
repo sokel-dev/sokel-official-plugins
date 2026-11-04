@@ -1,0 +1,576 @@
+{
+  "plugin": {
+    "name": "browser-use",
+    "org": "sokel",
+    "label": "Browser Use Cloud",
+    "desc": "Run and inspect asynchronous Browser Use V4 agents",
+    "version": "0.1.0",
+    "doc": "docs/browser-use.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API key",
+        "type": "secret",
+        "required": true,
+        "desc": "Browser Use Cloud project API key; sent only to api.browser-use.com"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "desc": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "label": "Available",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "create_run",
+      "label": "Create cloud run",
+      "desc": "Start asynchronous browser work that can incur charges and change external websites",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "task",
+          "label": "Task",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_cost_usd",
+          "label": "Run cost cap in USD",
+          "type": "number",
+          "required": true,
+          "desc": "Positive service-side run cap; usage and external actions may already occur before cancellation"
+        },
+        {
+          "name": "model",
+          "label": "Model",
+          "type": "string",
+          "required": false,
+          "desc": "Omit to use the service default; supported models depend on the project"
+        },
+        {
+          "name": "session_id",
+          "label": "Session ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace_id",
+          "label": "Workspace ID",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_schema",
+          "label": "Output JSON Schema",
+          "type": "json",
+          "required": false,
+          "opaque": true,
+          "desc": "Arbitrary JSON Schema object defining structured output; validated by Browser Use"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "run",
+          "label": "Created run",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Run ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "label": "Session ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "workspace_id",
+              "label": "Workspace ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "model",
+              "label": "Model",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "RunReceipt"
+        }
+      ]
+    },
+    {
+      "id": "get_run",
+      "label": "Get run and result",
+      "desc": "Get run and result",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "run_id",
+          "label": "Run ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "run",
+          "label": "Run",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Run ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "label": "Session ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "workspace_id",
+              "label": "Workspace ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "terminal",
+              "label": "Terminal",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "model",
+              "label": "Model",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "result",
+              "label": "Result text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "error",
+              "label": "Run error",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "output_json",
+              "label": "Structured output JSON",
+              "type": "string",
+              "required": true,
+              "desc": "Serialized arbitrary JSON; null when no structured output is available"
+            },
+            {
+              "name": "total_cost_usd",
+              "label": "Reported total cost in USD",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Run"
+        }
+      ]
+    },
+    {
+      "id": "get_run_status",
+      "label": "Get run status",
+      "desc": "Get run status",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "run_id",
+          "label": "Run ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "terminal",
+          "label": "Terminal",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "list_runs",
+      "label": "List runs",
+      "desc": "List runs",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "limit",
+          "label": "Page size",
+          "type": "number",
+          "required": false,
+          "goType": "int64"
+        },
+        {
+          "name": "cursor",
+          "label": "Page cursor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "session_id",
+          "label": "Session ID",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "runs",
+          "label": "Runs",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Run ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "label": "Session ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "workspace_id",
+              "label": "Workspace ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "terminal",
+              "label": "Terminal",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "model",
+              "label": "Model",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "result",
+              "label": "Result text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "error",
+              "label": "Run error",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "output_json",
+              "label": "Structured output JSON",
+              "type": "string",
+              "required": true,
+              "desc": "Serialized arbitrary JSON; null when no structured output is available"
+            },
+            {
+              "name": "total_cost_usd",
+              "label": "Reported total cost in USD",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Run"
+        },
+        {
+          "name": "next_cursor",
+          "label": "Next page cursor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "has_more",
+          "label": "More pages available",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "cancel_run",
+      "label": "Cancel run",
+      "desc": "Request cancellation; completed external actions are not rolled back",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "run_id",
+          "label": "Run ID",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "run",
+          "label": "Run",
+          "type": "json",
+          "required": true,
+          "fields": [
+            {
+              "name": "id",
+              "label": "Run ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "label": "Session ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "workspace_id",
+              "label": "Workspace ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "terminal",
+              "label": "Terminal",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "model",
+              "label": "Model",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "result",
+              "label": "Result text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "error",
+              "label": "Run error",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "output_json",
+              "label": "Structured output JSON",
+              "type": "string",
+              "required": true,
+              "desc": "Serialized arbitrary JSON; null when no structured output is available"
+            },
+            {
+              "name": "total_cost_usd",
+              "label": "Reported total cost in USD",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "created_at",
+              "label": "Created at",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated at",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "goType": "Run"
+        }
+      ]
+    },
+    {
+      "id": "list_run_events",
+      "label": "List run events",
+      "desc": "List run events",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "run_id",
+          "label": "Run ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "after",
+          "label": "After event ID",
+          "type": "number",
+          "required": false,
+          "goType": "int64"
+        },
+        {
+          "name": "limit",
+          "label": "Page size",
+          "type": "number",
+          "required": false,
+          "goType": "int64"
+        },
+        {
+          "name": "include_output",
+          "label": "Include output events",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "events",
+          "label": "Events",
+          "type": "array",
+          "required": true,
+          "fields": [
+            {
+              "name": "run_id",
+              "label": "Run ID",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "id",
+              "label": "Event ID",
+              "type": "number",
+              "required": true,
+              "goType": "int64"
+            },
+            {
+              "name": "timestamp",
+              "label": "Timestamp",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "Event type",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "data",
+              "label": "Event data",
+              "type": "json",
+              "required": true,
+              "opaque": true,
+              "desc": "Event-specific JSON object whose fields vary by event type"
+            }
+          ],
+          "goType": "RunEvent"
+        },
+        {
+          "name": "next_after",
+          "label": "Next event cursor",
+          "type": "number",
+          "required": true,
+          "goType": "int64"
+        },
+        {
+          "name": "has_more",
+          "label": "More pages available",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

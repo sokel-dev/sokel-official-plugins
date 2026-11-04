@@ -14,14 +14,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ReleaseTest(unittest.TestCase):
     def release_entry(self, export, entry=None, source_manifest=None, manifest_name='manifest.yml',
-                      manifest_symlink=False, expected_error=None):
+                      manifest_symlink=False, expected_error=None, locale_files=None, source_doc="docs/demo.md"):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / 'demo'
             (source / 'docs').mkdir(parents=True)
-            (source / 'docs/demo.md').write_text('# Demo usage\n')
+            (source / source_doc).write_text('# Demo usage\n')
             (source / 'locales').mkdir()
-            (source / 'locales/en.json').write_text('{}\n')
+            for filename, content in (locale_files if locale_files is not None else {'en.json': '{}\n'}).items():
+                (source / 'locales' / filename).write_text(content)
             if source_manifest is not None:
                 manifest = source / manifest_name
                 if manifest_symlink:
@@ -48,8 +49,73 @@ class ReleaseTest(unittest.TestCase):
                 self.assertFalse(target.exists(), 'invalid source must not create a catalog entry')
                 return
             self.assertEqual(result.returncode, 0, result.stderr)
+            if entry is None:
+                for filename, content in (locale_files if locale_files is not None else {'en.json': '{}'}).items():
+                    copied = target.parent / 'locales' / filename
+                    self.assertEqual(json.loads(copied.read_text()), json.loads(content))
             text = target.read_text()
             return yaml.safe_load(text), text, image
+
+    def test_first_release_accepts_english_source_with_chinese_locale(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'label': 'Demo', 'doc': 'docs/demo.md'},
+                                 'operations': [{'id': 'read', 'label': 'Read items'}]})
+        entry, _, _ = self.release_entry(export, locale_files={
+            'zh-CN.json': json.dumps({'Demo': '示例', 'Read items': '读取条目',
+                                     '# Demo usage\n': '# 示例使用说明\n'}, ensure_ascii=False),
+        })
+        self.assertEqual(entry['plugin']['label'], 'Demo')
+        self.assertEqual(entry['operations'][0]['label'], 'Read items')
+
+    def test_first_release_validates_all_locale_json_before_writing(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'doc': 'docs/demo.md'}})
+        for invalid in ('{broken', '[]', '{"Read": 7}', '{"Read": {"nested": "value"}}',
+                        '{"": "empty key"}', '{"Read": "One", "Read": "Two"}'):
+            with self.subTest(invalid=invalid):
+                self.release_entry(export, locale_files={'en.json': '{}', 'zh-CN.json': invalid},
+                                   expected_error='invalid locale')
+
+    def test_first_release_requires_a_supported_translation_locale(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo', 'doc': 'docs/demo.md'}})
+        self.release_entry(export, locale_files={}, expected_error='en.json or locales/zh-CN.json')
+
+    def test_first_release_fills_missing_schema_export_metadata(self):
+        # Real schema exports contain a plugin name but omit distribution metadata.
+        export = {'plugin': {'name': 'demo'},
+                  'operations': [{'id': 'read', 'label': 'Exported operation'}]}
+        local = {'plugin': {'name': 'demo', 'org': 'ignored-org', 'version': '9.9.9',
+                            'label': 'Demo service', 'desc': 'Read service data',
+                            'icon': 'brand:google', 'doc': 'docs/custom.md'},
+                 'operations': [{'id': 'local_only', 'label': 'Never import local contracts'}]}
+        for filename in ('manifest.yml', 'sokel.yaml'):
+            with self.subTest(filename=filename):
+                entry, _, _ = self.release_entry(yaml.safe_dump(export), source_manifest=local,
+                                                 manifest_name=filename, source_doc='docs/custom.md', locale_files={
+                    'zh-CN.json': json.dumps({'Demo service': '示例服务', 'Read service data': '读取服务数据'}),
+                })
+                self.assertEqual(entry['plugin'], {'name': 'demo', 'org': 'sokel', 'version': 'v0.3.0',
+                    'label': 'Demo service', 'desc': 'Read service data', 'icon': 'brand:google', 'doc': 'README.md'})
+                self.assertEqual(entry['operations'], export['operations'])
+
+    def test_first_release_export_metadata_wins(self):
+        export = {'plugin': {'name': 'demo', 'label': 'Export label', 'desc': 'Export description',
+                             'icon': 'brand:github', 'doc': 'docs/demo.md'}, 'deployment': {'targets': []}}
+        local = {'plugin': {'name': 'demo', 'label': 'Local label', 'desc': 'Local description',
+                            'icon': 'brand:google', 'doc': 'missing.md'}}
+        entry, _, _ = self.release_entry(yaml.safe_dump(export), source_manifest=local)
+        self.assertEqual(entry['plugin']['label'], 'Export label')
+        self.assertEqual(entry['plugin']['desc'], 'Export description')
+        self.assertEqual(entry['plugin']['icon'], 'brand:github')
+
+    def test_first_release_validates_local_metadata_even_with_export_deployment(self):
+        export = yaml.safe_dump({'plugin': {'name': 'demo'}, 'deployment': {'targets': []}})
+        self.release_entry(export, source_manifest={'plugin': {'name': 'other'}},
+                           expected_error='local manifest is for')
+        self.release_entry(export, source_manifest={'plugin': {'name': 'demo'}},
+                           manifest_symlink=True, expected_error='inside the plugin directory')
+        self.release_entry(export, source_manifest={'plugin': {'name': 'demo', 'doc': '../outside.md'}},
+                           expected_error='local usage document')
+        self.release_entry(export, source_manifest={'plugin': {'name': 'demo', 'label': ['invalid']}},
+                           expected_error='local manifest plugin.label must be a string')
 
     def test_first_release_uses_local_deployment_when_export_omits_it(self):
         deployment = {

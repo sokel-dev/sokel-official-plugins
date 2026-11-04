@@ -1,0 +1,554 @@
+{
+  "plugin": {
+    "name": "brevo",
+    "org": "sokel",
+    "label": "Brevo",
+    "desc": "Manage contacts and lists and explicitly send transactional email",
+    "version": "0.1.0",
+    "doc": "docs/brevo.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Brevo API v3 key; SMTP passwords are not API keys",
+        "label": "API key",
+        "name": "api_key",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "desc": "Create contact",
+      "id": "create_contact",
+      "inputs": [
+        {
+          "label": "Email address",
+          "name": "email",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "Explicitly choose whether the new contact is blocked from email",
+          "label": "New contact email status",
+          "name": "email_status",
+          "options": [
+            {
+              "value": "blocked"
+            },
+            {
+              "value": "allowed"
+            }
+          ],
+          "required": true,
+          "type": "enum"
+        },
+        {
+          "desc": "Account-defined uppercase attribute names; values must match account types. EMAIL updates are not supported",
+          "label": "Contact attributes",
+          "name": "attributes",
+          "opaque": true,
+          "type": "json"
+        },
+        {
+          "desc": "Positive decimal IDs as strings; adds membership to these existing lists",
+          "itemType": "string",
+          "label": "List IDs",
+          "name": "list_ids",
+          "type": "array"
+        }
+      ],
+      "label": "Create contact",
+      "outputs": [
+        {
+          "label": "Contact ID",
+          "name": "contact_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Get contact",
+      "id": "get_contact",
+      "inputs": [
+        {
+          "label": "Contact ID",
+          "name": "contact_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get contact",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Contact ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email address",
+              "name": "email",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email blocked",
+              "name": "email_blacklisted",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "SMS blocked",
+              "name": "sms_blacklisted",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "List IDs",
+              "name": "list_ids",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "desc": "Account-defined attribute values",
+              "label": "Contact attributes",
+              "name": "attributes",
+              "opaque": true,
+              "required": true,
+              "type": "json"
+            },
+            {
+              "label": "Created at",
+              "name": "created_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "modified_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Contact",
+          "label": "Contact",
+          "name": "contact",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Get contact list",
+      "id": "get_list",
+      "inputs": [
+        {
+          "label": "List ID",
+          "name": "list_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Get contact list",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "List ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "List name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Folder ID",
+              "name": "folder_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Unique contacts",
+              "name": "unique_subscribers",
+              "required": true,
+              "type": "number"
+            }
+          ],
+          "goType": "ContactList",
+          "label": "Contact list",
+          "name": "list",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Check credentials",
+      "id": "health_check",
+      "label": "Check credentials",
+      "outputs": [
+        {
+          "label": "Available",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Message",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List contacts",
+      "id": "list_contacts",
+      "inputs": [
+        {
+          "desc": "RFC 3339 timestamp including a timezone",
+          "label": "Modified since",
+          "name": "modified_since",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List contacts",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Contact ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email address",
+              "name": "email",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Email blocked",
+              "name": "email_blacklisted",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "label": "SMS blocked",
+              "name": "sms_blacklisted",
+              "required": true,
+              "type": "boolean"
+            },
+            {
+              "itemType": "string",
+              "label": "List IDs",
+              "name": "list_ids",
+              "required": true,
+              "type": "array"
+            },
+            {
+              "desc": "Account-defined attribute values",
+              "label": "Contact attributes",
+              "name": "attributes",
+              "opaque": true,
+              "required": true,
+              "type": "json"
+            },
+            {
+              "label": "Created at",
+              "name": "created_at",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Modified at",
+              "name": "modified_at",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Contact",
+          "label": "Contacts",
+          "name": "contacts",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "List contact lists",
+      "id": "list_lists",
+      "inputs": [
+        {
+          "fields": [
+            {
+              "goType": "int64",
+              "label": "Page size",
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "goType": "int64",
+              "label": "Offset",
+              "name": "offset",
+              "type": "number"
+            }
+          ],
+          "goType": "PageOptions",
+          "label": "Pagination",
+          "name": "page",
+          "type": "json"
+        }
+      ],
+      "label": "List contact lists",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "List ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "List name",
+              "name": "name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Folder ID",
+              "name": "folder_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "goType": "int64",
+              "label": "Unique contacts",
+              "name": "unique_subscribers",
+              "required": true,
+              "type": "number"
+            }
+          ],
+          "goType": "ContactList",
+          "label": "Contact lists",
+          "name": "lists",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "goType": "int",
+          "label": "Total count",
+          "name": "total",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "goType": "int",
+          "label": "Next offset",
+          "name": "next_offset",
+          "required": true,
+          "type": "number"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Explicitly send one transactional message to up to 99 recipients; acceptance does not prove delivery",
+      "id": "send_email",
+      "inputs": [
+        {
+          "label": "Sender email",
+          "name": "sender_email",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Sender name",
+          "name": "sender_name",
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "label": "Email address",
+              "name": "email",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Display name",
+              "name": "name",
+              "type": "string"
+            }
+          ],
+          "goType": "Recipient",
+          "label": "Recipients",
+          "name": "to",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Subject",
+          "name": "subject",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Body format",
+          "name": "content_type",
+          "options": [
+            {
+              "value": "text"
+            },
+            {
+              "value": "html"
+            }
+          ],
+          "required": true,
+          "type": "enum"
+        },
+        {
+          "label": "Email body",
+          "name": "body",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Send transactional email",
+      "outputs": [
+        {
+          "label": "Message ID",
+          "name": "message_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Sending request accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "desc": "Update contact",
+      "id": "update_contact",
+      "inputs": [
+        {
+          "label": "Contact ID",
+          "name": "contact_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "desc": "Account-defined uppercase attribute names; values must match account types. EMAIL updates are not supported",
+          "label": "Contact attributes",
+          "name": "attributes",
+          "opaque": true,
+          "type": "json"
+        },
+        {
+          "desc": "Positive decimal IDs as strings; adds membership to these existing lists",
+          "itemType": "string",
+          "label": "List IDs",
+          "name": "list_ids",
+          "type": "array"
+        },
+        {
+          "fields": [
+            {
+              "desc": "Omit to preserve the current block status; false explicitly allows email",
+              "label": "Block email",
+              "name": "email_blacklisted",
+              "type": "boolean"
+            }
+          ],
+          "goType": "UpdateContactOptions",
+          "label": "Optional settings",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "Update contact",
+      "outputs": [
+        {
+          "label": "Update accepted",
+          "name": "accepted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

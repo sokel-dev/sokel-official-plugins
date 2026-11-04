@@ -1,0 +1,385 @@
+{
+  "plugin": {
+    "name": "slack",
+    "org": "sokel",
+    "label": "Slack collaboration",
+    "desc": "Channel messages, threads, files and new-message polling",
+    "version": "0.1.0",
+    "doc": "docs/slack.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "name": "token",
+        "type": "secret",
+        "label": "Access token",
+        "required": true,
+        "desc": "Enter a Slack bot token; OAuth authorization is not performed automatically"
+      },
+      {
+        "name": "watch_channel",
+        "type": "text",
+        "label": "Watched channel ID",
+        "required": false,
+        "desc": "Polls new ordinary messages in one channel; excludes thread replies, edits and deletions"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "health_check",
+      "label": "Check credentials",
+      "timeoutSec": 60,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ok",
+          "type": "boolean",
+          "label": "Credential valid",
+          "required": true
+        },
+        {
+          "name": "team_id",
+          "type": "string",
+          "label": "Workspace ID",
+          "required": true
+        },
+        {
+          "name": "user_id",
+          "type": "string",
+          "label": "Current user ID",
+          "required": true
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "label": "Status message",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "slack_history",
+      "label": "Read channel history",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "cursor",
+          "type": "string",
+          "label": "Pagination cursor",
+          "required": false
+        },
+        {
+          "name": "oldest",
+          "type": "string",
+          "label": "Oldest timestamp",
+          "required": false
+        },
+        {
+          "name": "latest",
+          "type": "string",
+          "label": "Latest timestamp",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "messages",
+          "type": "array",
+          "label": "Messages",
+          "required": true,
+          "fields": [
+            {
+              "name": "ts",
+              "type": "string",
+              "label": "Message timestamp",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "text",
+              "label": "Message text",
+              "required": true
+            },
+            {
+              "name": "user",
+              "type": "string",
+              "label": "User ID",
+              "required": false
+            },
+            {
+              "name": "bot_id",
+              "type": "string",
+              "label": "Bot ID",
+              "required": false
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "label": "Message type",
+              "required": false
+            },
+            {
+              "name": "subtype",
+              "type": "string",
+              "label": "Message subtype",
+              "required": false
+            },
+            {
+              "name": "thread_ts",
+              "type": "string",
+              "label": "Thread timestamp",
+              "required": false
+            }
+          ],
+          "goType": "Message"
+        },
+        {
+          "name": "next_cursor",
+          "type": "string",
+          "label": "Next cursor",
+          "required": true
+        },
+        {
+          "name": "has_more",
+          "type": "boolean",
+          "label": "Has more",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "slack_replies",
+      "label": "Read thread replies",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "cursor",
+          "type": "string",
+          "label": "Pagination cursor",
+          "required": false
+        },
+        {
+          "name": "oldest",
+          "type": "string",
+          "label": "Oldest timestamp",
+          "required": false
+        },
+        {
+          "name": "latest",
+          "type": "string",
+          "label": "Latest timestamp",
+          "required": false
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "label": "Message timestamp",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "messages",
+          "type": "array",
+          "label": "Messages",
+          "required": true,
+          "fields": [
+            {
+              "name": "ts",
+              "type": "string",
+              "label": "Message timestamp",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "text",
+              "label": "Message text",
+              "required": true
+            },
+            {
+              "name": "user",
+              "type": "string",
+              "label": "User ID",
+              "required": false
+            },
+            {
+              "name": "bot_id",
+              "type": "string",
+              "label": "Bot ID",
+              "required": false
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "label": "Message type",
+              "required": false
+            },
+            {
+              "name": "subtype",
+              "type": "string",
+              "label": "Message subtype",
+              "required": false
+            },
+            {
+              "name": "thread_ts",
+              "type": "string",
+              "label": "Thread timestamp",
+              "required": false
+            }
+          ],
+          "goType": "Message"
+        },
+        {
+          "name": "next_cursor",
+          "type": "string",
+          "label": "Next cursor",
+          "required": true
+        },
+        {
+          "name": "has_more",
+          "type": "boolean",
+          "label": "Has more",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "slack_send",
+      "label": "Send message",
+      "timeoutSec": 60,
+      "inputs": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "text",
+          "type": "text",
+          "label": "Message text",
+          "required": true
+        },
+        {
+          "name": "thread_ts",
+          "type": "string",
+          "label": "Thread timestamp",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "label": "Message timestamp",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "slack_upload",
+      "label": "Upload file",
+      "timeoutSec": 180,
+      "inputs": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "file",
+          "type": "file",
+          "label": "File",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "label": "File title",
+          "required": false
+        },
+        {
+          "name": "initial_comment",
+          "type": "text",
+          "label": "Initial comment",
+          "required": false
+        },
+        {
+          "name": "thread_ts",
+          "type": "string",
+          "label": "Thread timestamp",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "file_id",
+          "type": "string",
+          "label": "File ID",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "message_received",
+      "label": "New message received",
+      "fields": [
+        {
+          "name": "channel",
+          "type": "string",
+          "label": "Channel ID",
+          "required": true
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "label": "Message timestamp",
+          "required": true
+        },
+        {
+          "name": "text",
+          "type": "text",
+          "label": "Message text",
+          "required": true
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "label": "User ID",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "events_common": [
+    "channel",
+    "ts"
+  ],
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}

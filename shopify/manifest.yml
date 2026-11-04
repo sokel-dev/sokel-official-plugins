@@ -1,0 +1,397 @@
+# Exported from schema/ with SDK v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: shopify
+  org: sokel
+  label: Shopify
+  desc: Read shop, products, orders and inventory items and update product details
+  version: 0.1.0
+  doc: docs/shopify.md
+credential:
+  fields:
+  - desc: Use the shop name before .myshopify.com, without a URL
+    label: Shop subdomain
+    name: shop
+    required: true
+    type: text
+  - desc: Obtain an Admin API token for this shop with the required scopes; refresh
+      externally
+    label: Admin API access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: get_order
+  inputs:
+  - label: Order GID
+    name: order_id
+    required: true
+    type: string
+  label: Get order
+  outputs:
+  - fields:
+    - label: Order ID
+      name: id
+      required: true
+      type: string
+    - label: Order name
+      name: name
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - label: Financial status
+      name: financial_status
+      required: true
+      type: string
+    - label: Fulfillment status
+      name: fulfillment_status
+      required: true
+      type: string
+    - fields:
+      - label: Decimal amount
+        name: amount
+        required: true
+        type: string
+      - label: Currency
+        name: currency
+        required: true
+        type: string
+      label: Shop currency total
+      name: total
+      required: true
+      type: json
+    goType: Order
+    label: Order
+    name: order
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_product
+  inputs:
+  - label: Product GID
+    name: product_id
+    required: true
+    type: string
+  label: Get product
+  outputs:
+  - fields:
+    - label: Product ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Handle
+      name: handle
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Vendor
+      name: vendor
+      required: true
+      type: string
+    - label: Product type
+      name: product_type
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Product
+    label: Product
+    name: product
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_shop
+  label: Get shop
+  outputs:
+  - fields:
+    - label: Shop ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Shop domain
+      name: domain
+      required: true
+      type: string
+    - label: Currency
+      name: currency
+      required: true
+      type: string
+    goType: Shop
+    label: Shop
+    name: shop
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_inventory_items
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Shopify search query
+    name: query
+    type: string
+  label: List inventory items
+  outputs:
+  - fields:
+    - label: Inventory item ID
+      name: id
+      required: true
+      type: string
+    - label: SKU
+      name: sku
+      required: true
+      type: string
+    - label: Inventory tracked
+      name: tracked
+      required: true
+      type: boolean
+    - label: Requires shipping
+      name: requires_shipping
+      required: true
+      type: boolean
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: InventoryItem
+    label: Inventory items
+    name: items
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_orders
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Shopify search query
+    name: query
+    type: string
+  label: List orders
+  outputs:
+  - fields:
+    - label: Order ID
+      name: id
+      required: true
+      type: string
+    - label: Order name
+      name: name
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    - label: Financial status
+      name: financial_status
+      required: true
+      type: string
+    - label: Fulfillment status
+      name: fulfillment_status
+      required: true
+      type: string
+    - fields:
+      - label: Decimal amount
+        name: amount
+        required: true
+        type: string
+      - label: Currency
+        name: currency
+        required: true
+        type: string
+      label: Shop currency total
+      name: total
+      required: true
+      type: json
+    goType: Order
+    label: Orders
+    name: orders
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_products
+  inputs:
+  - goType: int
+    label: Page size
+    name: limit
+    type: number
+  - label: Pagination cursor
+    name: cursor
+    type: string
+  - label: Shopify search query
+    name: query
+    type: string
+  label: List products
+  outputs:
+  - fields:
+    - label: Product ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Handle
+      name: handle
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Vendor
+      name: vendor
+      required: true
+      type: string
+    - label: Product type
+      name: product_type
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Product
+    label: Products
+    name: products
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_product
+  inputs:
+  - label: Product GID
+    name: product_id
+    required: true
+    type: string
+  - fields:
+    - label: Title
+      name: title
+      type: string
+    - label: 'Status: ACTIVE, DRAFT or ARCHIVED'
+      name: status
+      type: string
+    goType: ProductChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update product
+  outputs:
+  - fields:
+    - label: Product ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      required: true
+      type: string
+    - label: Handle
+      name: handle
+      required: true
+      type: string
+    - label: Status
+      name: status
+      required: true
+      type: string
+    - label: Vendor
+      name: vendor
+      required: true
+      type: string
+    - label: Product type
+      name: product_type
+      required: true
+      type: string
+    - itemType: string
+      label: Tags
+      name: tags
+      required: true
+      type: array
+    - label: Updated at
+      name: updated_at
+      required: true
+      type: string
+    goType: Product
+    label: Product
+    name: product
+    required: true
+    type: json
+  timeoutSec: 60

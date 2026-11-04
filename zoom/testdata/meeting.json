@@ -1,0 +1,12 @@
+{
+  "id": 9007199254740993,
+  "uuid": "meeting-uuid",
+  "host_id": "host",
+  "topic": "Review",
+  "type": 2,
+  "start_time": "2030-01-01T02:00:00Z",
+  "duration": 30,
+  "timezone": "UTC",
+  "join_url": "https://example.invalid/join",
+  "start_url": "https://example.invalid/host-secret"
+}

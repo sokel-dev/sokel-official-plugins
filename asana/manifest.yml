@@ -1,0 +1,448 @@
+plugin:
+  org: sokel
+  name: asana
+  label: Asana
+  desc: Browse projects and manage tasks and comments.
+  version: 0.1.0
+  doc: docs/asana.md
+credential:
+  fields:
+  - label: Personal access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: add_comment
+  inputs:
+  - label: Task GID
+    name: task_gid
+    required: true
+    type: string
+  - label: Comment text
+    name: text
+    required: true
+    type: string
+  label: Add task comment
+  outputs:
+  - fields:
+    - label: Story GID
+      name: gid
+      required: true
+      type: string
+    - label: Comment text
+      name: text
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Story type
+      name: type
+      required: true
+      type: string
+    goType: Story
+    label: Comment story
+    name: story
+    required: true
+    type: json
+  timeoutSec: 60
+- id: create_task
+  inputs:
+  - label: Workspace GID
+    name: workspace_gid
+    required: true
+    type: string
+  - label: Name
+    name: name
+    required: true
+    type: string
+  - itemType: string
+    label: Project GIDs
+    name: project_gids
+    type: array
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Notes
+      name: notes
+      type: string
+    - label: Completed
+      name: completed
+      type: boolean
+    - label: Assignee GID (empty clears)
+      name: assignee_gid
+      type: string
+    - label: Due date (empty clears)
+      name: due_on
+      type: string
+    goType: TaskChanges
+    label: Optional task details
+    name: details
+    type: json
+  label: Create task
+  outputs:
+  - fields:
+    - label: Task GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Notes
+      name: notes
+      required: true
+      type: string
+    - label: Completed
+      name: completed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due_on
+      required: true
+      type: string
+    - fields:
+      - label: GID
+        name: gid
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Modified at
+      name: modified_at
+      required: true
+      type: string
+    - label: Task URL
+      name: url
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_task
+  inputs:
+  - label: Task GID
+    name: task_gid
+    required: true
+    type: string
+  label: Get task
+  outputs:
+  - fields:
+    - label: Task GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Notes
+      name: notes
+      required: true
+      type: string
+    - label: Completed
+      name: completed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due_on
+      required: true
+      type: string
+    - fields:
+      - label: GID
+        name: gid
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Modified at
+      name: modified_at
+      required: true
+      type: string
+    - label: Task URL
+      name: url
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_projects
+  inputs:
+  - label: Workspace GID
+    name: workspace_gid
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination token
+      name: offset
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List projects
+  outputs:
+  - fields:
+    - label: GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Projects
+    name: projects
+    required: true
+    type: array
+  - label: Next pagination token
+    name: next_offset
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_tasks
+  inputs:
+  - label: Project GID
+    name: project_gid
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination token
+      name: offset
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List project tasks
+  outputs:
+  - fields:
+    - label: Task GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Notes
+      name: notes
+      required: true
+      type: string
+    - label: Completed
+      name: completed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due_on
+      required: true
+      type: string
+    - fields:
+      - label: GID
+        name: gid
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Modified at
+      name: modified_at
+      required: true
+      type: string
+    - label: Task URL
+      name: url
+      required: true
+      type: string
+    goType: Task
+    label: Tasks
+    name: tasks
+    required: true
+    type: array
+  - label: Next pagination token
+    name: next_offset
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_workspaces
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination token
+      name: offset
+      type: string
+    goType: PageOptions
+    label: Pagination
+    name: page
+    type: json
+  label: List workspaces
+  outputs:
+  - fields:
+    - label: GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    goType: Named
+    label: Workspaces
+    name: workspaces
+    required: true
+    type: array
+  - label: Next pagination token
+    name: next_offset
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_task
+  inputs:
+  - label: Task GID
+    name: task_gid
+    required: true
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Notes
+      name: notes
+      type: string
+    - label: Completed
+      name: completed
+      type: boolean
+    - label: Assignee GID (empty clears)
+      name: assignee_gid
+      type: string
+    - label: Due date (empty clears)
+      name: due_on
+      type: string
+    goType: TaskChanges
+    label: Changed fields
+    name: changes
+    required: true
+    type: json
+  label: Update task
+  outputs:
+  - fields:
+    - label: Task GID
+      name: gid
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Notes
+      name: notes
+      required: true
+      type: string
+    - label: Completed
+      name: completed
+      required: true
+      type: boolean
+    - label: Due date
+      name: due_on
+      required: true
+      type: string
+    - fields:
+      - label: GID
+        name: gid
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      label: Assignee
+      name: assignee
+      type: json
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Modified at
+      name: modified_at
+      required: true
+      type: string
+    - label: Task URL
+      name: url
+      required: true
+      type: string
+    goType: Task
+    label: Task
+    name: task
+    required: true
+    type: json
+  timeoutSec: 60

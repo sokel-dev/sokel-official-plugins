@@ -1,0 +1,98 @@
+[
+  {
+    "Op": "health_check",
+    "Input": {},
+    "Method": "GET",
+    "Path": "/api/health",
+    "Query": "",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"status\":200,\"message\":\"API is healthy.\",\"data\":{}}"
+  },
+  {
+    "Op": "list_records",
+    "Input": {
+      "collection": "posts",
+      "options": {
+        "page": 1,
+        "per_page": 1,
+        "filter": "enabled=false",
+        "sort": "-created,id",
+        "expand": "author"
+      }
+    },
+    "Method": "GET",
+    "Path": "/api/collections/posts/records",
+    "Query": "expand=author&filter=enabled%3Dfalse&page=1&perPage=1&skipTotal=false&sort=-created%2Cid",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"page\":1,\"perPage\":1,\"totalItems\":2,\"totalPages\":2,\"items\":[{\"id\":\"ae40239d2bc4477\",\"collectionId\":\"a98f514eb05f454\",\"collectionName\":\"posts\",\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false}]}"
+  },
+  {
+    "Op": "find_record",
+    "Input": {
+      "collection": "posts",
+      "filter": "title=\"test1\""
+    },
+    "Method": "GET",
+    "Path": "/api/collections/posts/records",
+    "Query": "filter=title%3D%22test1%22&page=1&perPage=1&skipTotal=false",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"page\":1,\"perPage\":1,\"totalItems\":2,\"totalPages\":2,\"items\":[{\"id\":\"ae40239d2bc4477\",\"collectionId\":\"a98f514eb05f454\",\"collectionName\":\"posts\",\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false}]}"
+  },
+  {
+    "Op": "get_record",
+    "Input": {
+      "collection": "posts",
+      "record_id": "ae40239d2bc4477",
+      "expand": "author"
+    },
+    "Method": "GET",
+    "Path": "/api/collections/posts/records/ae40239d2bc4477",
+    "Query": "expand=author",
+    "Body": "",
+    "Status": 200,
+    "Response": "{\"id\":\"ae40239d2bc4477\",\"collectionId\":\"a98f514eb05f454\",\"collectionName\":\"posts\",\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false}"
+  },
+  {
+    "Op": "create_record",
+    "Input": {
+      "collection": "posts",
+      "data_json": "{\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false,\"rank\":0}"
+    },
+    "Method": "POST",
+    "Path": "/api/collections/posts/records",
+    "Query": "",
+    "Body": "{\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false,\"rank\":0}",
+    "Status": 200,
+    "Response": "{\"id\":\"ae40239d2bc4477\",\"collectionId\":\"a98f514eb05f454\",\"collectionName\":\"posts\",\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false}"
+  },
+  {
+    "Op": "update_record",
+    "Input": {
+      "collection": "posts",
+      "record_id": "ae40239d2bc4477",
+      "data_json": "{\"enabled\":false,\"rank\":0}"
+    },
+    "Method": "PATCH",
+    "Path": "/api/collections/posts/records/ae40239d2bc4477",
+    "Query": "",
+    "Body": "{\"enabled\":false,\"rank\":0}",
+    "Status": 200,
+    "Response": "{\"id\":\"ae40239d2bc4477\",\"collectionId\":\"a98f514eb05f454\",\"collectionName\":\"posts\",\"title\":\"test1\",\"amount\":9007199254740993,\"enabled\":false}"
+  },
+  {
+    "Op": "delete_record",
+    "Input": {
+      "collection": "posts",
+      "record_id": "ae40239d2bc4477"
+    },
+    "Method": "DELETE",
+    "Path": "/api/collections/posts/records/ae40239d2bc4477",
+    "Query": "",
+    "Body": "",
+    "Status": 204,
+    "Response": ""
+  }
+]

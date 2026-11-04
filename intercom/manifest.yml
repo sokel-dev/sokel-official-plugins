@@ -1,0 +1,493 @@
+plugin:
+  org: sokel
+  name: intercom
+  label: Intercom
+  desc: Manage contacts and conversations with regional Intercom API access
+  version: 0.1.0
+  doc: docs/intercom.md
+credential:
+  fields:
+  - desc: Use a private app access token with the required contact and conversation permissions.
+    label: Access token
+    name: access_token
+    required: true
+    type: secret
+  - desc: Leave blank for US. Select the region hosting your Intercom workspace; no custom URL is accepted.
+    label: 'Workspace region: us, eu or au'
+    name: region
+    type: text
+operations:
+- id: create_contact
+  inputs:
+  - label: Email
+    name: email
+    required: true
+    type: string
+  - label: Contact role
+    name: role
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      type: boolean
+    goType: ContactFields
+    label: Contact fields
+    name: fields
+    type: json
+  label: Create contact
+  outputs:
+  - fields:
+    - label: Contact ID
+      name: id
+      required: true
+      type: string
+    - label: Contact role
+      name: role
+      required: true
+      type: string
+    - label: Email
+      name: email
+      type: string
+    - label: External ID
+      name: external_id
+      type: string
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      required: true
+      type: boolean
+    goType: Contact
+    label: Created contact
+    name: contact
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_contact
+  inputs:
+  - label: Contact ID
+    name: contact_id
+    required: true
+    type: string
+  label: Get contact
+  outputs:
+  - fields:
+    - label: Contact ID
+      name: id
+      required: true
+      type: string
+    - label: Contact role
+      name: role
+      required: true
+      type: string
+    - label: Email
+      name: email
+      type: string
+    - label: External ID
+      name: external_id
+      type: string
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      required: true
+      type: boolean
+    goType: Contact
+    label: Contact
+    name: contact
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_conversation
+  inputs:
+  - label: Conversation ID
+    name: conversation_id
+    required: true
+    type: string
+  label: Get conversation
+  outputs:
+  - fields:
+    - label: Conversation ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Open
+      name: open
+      required: true
+      type: boolean
+    - label: Read
+      name: read
+      required: true
+      type: boolean
+    - goType: int64
+      label: Created at in Unix seconds
+      name: created_at
+      required: true
+      type: number
+    - goType: int64
+      label: Updated at in Unix seconds
+      name: updated_at
+      required: true
+      type: number
+    goType: Conversation
+    label: Conversation
+    name: conversation
+    required: true
+    type: json
+  - fields:
+    - label: Opening message body
+      name: body
+      type: string
+    goType: MessageSource
+    label: Opening message
+    name: source
+    required: true
+    type: json
+  - fields:
+    - label: Part ID
+      name: id
+      required: true
+      type: string
+    - label: Part type
+      name: part_type
+      required: true
+      type: string
+    - label: Part body
+      name: body
+      type: string
+    - goType: int64
+      label: Created at in Unix seconds
+      name: created_at
+      required: true
+      type: number
+    goType: Part
+    label: Conversation parts
+    name: parts
+    required: true
+    type: array
+  - goType: int
+    label: Reported part count
+    name: parts_total
+    required: true
+    type: number
+  - label: Parts may be truncated
+    name: parts_may_be_truncated
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_contacts
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List contacts
+  outputs:
+  - fields:
+    - label: Contact ID
+      name: id
+      required: true
+      type: string
+    - label: Contact role
+      name: role
+      required: true
+      type: string
+    - label: Email
+      name: email
+      type: string
+    - label: External ID
+      name: external_id
+      type: string
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      required: true
+      type: boolean
+    goType: Contact
+    label: Contacts
+    name: contacts
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: list_conversations
+  inputs:
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: List conversations
+  outputs:
+  - fields:
+    - label: Conversation ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Open
+      name: open
+      required: true
+      type: boolean
+    - label: Read
+      name: read
+      required: true
+      type: boolean
+    - goType: int64
+      label: Created at in Unix seconds
+      name: created_at
+      required: true
+      type: number
+    - goType: int64
+      label: Updated at in Unix seconds
+      name: updated_at
+      required: true
+      type: number
+    goType: Conversation
+    label: Conversations
+    name: conversations
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: reply_conversation
+  inputs:
+  - label: Conversation ID
+    name: conversation_id
+    required: true
+    type: string
+  - label: Replying admin ID
+    name: admin_id
+    required: true
+    type: string
+  - label: Reply body
+    name: body
+    required: true
+    type: string
+  - label: 'Reply type: comment or note'
+    name: message_type
+    type: string
+  label: Reply to conversation
+  outputs:
+  - fields:
+    - label: Conversation ID
+      name: id
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: State
+      name: state
+      required: true
+      type: string
+    - label: Open
+      name: open
+      required: true
+      type: boolean
+    - label: Read
+      name: read
+      required: true
+      type: boolean
+    - goType: int64
+      label: Created at in Unix seconds
+      name: created_at
+      required: true
+      type: number
+    - goType: int64
+      label: Updated at in Unix seconds
+      name: updated_at
+      required: true
+      type: number
+    goType: Conversation
+    label: Conversation
+    name: conversation
+    required: true
+    type: json
+  timeoutSec: 60
+- id: search_contacts
+  inputs:
+  - label: Email
+    name: email
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Page size
+      name: limit
+      type: number
+    - label: Pagination cursor
+      name: cursor
+      type: string
+    goType: Page
+    label: Pagination
+    name: page
+    type: json
+  label: Search contacts by email
+  outputs:
+  - fields:
+    - label: Contact ID
+      name: id
+      required: true
+      type: string
+    - label: Contact role
+      name: role
+      required: true
+      type: string
+    - label: Email
+      name: email
+      type: string
+    - label: External ID
+      name: external_id
+      type: string
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      required: true
+      type: boolean
+    goType: Contact
+    label: Contacts
+    name: contacts
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: More results
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- id: update_contact
+  inputs:
+  - label: Contact ID
+    name: contact_id
+    required: true
+    type: string
+  - fields:
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      type: boolean
+    goType: ContactFields
+    label: Contact fields
+    name: fields
+    required: true
+    type: json
+  label: Update contact
+  outputs:
+  - fields:
+    - label: Contact ID
+      name: id
+      required: true
+      type: string
+    - label: Contact role
+      name: role
+      required: true
+      type: string
+    - label: Email
+      name: email
+      type: string
+    - label: External ID
+      name: external_id
+      type: string
+    - label: Name
+      name: name
+      type: string
+    - label: Phone
+      name: phone
+      type: string
+    - label: Unsubscribed from emails
+      name: unsubscribed_from_emails
+      required: true
+      type: boolean
+    goType: Contact
+    label: Updated contact
+    name: contact
+    required: true
+    type: json
+  timeoutSec: 60

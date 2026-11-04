@@ -1,0 +1,231 @@
+plugin:
+  org: sokel
+  name: ntfy
+  label: ntfy
+  desc: Publish and poll notifications through your own ntfy server
+  version: 0.1.0
+  doc: docs/ntfy.md
+credential:
+  fields:
+  - desc: Optional ntfy token for protected topics. The service address is configured with SOKEL_NTFY_URL.
+    label: Access token
+    name: access_token
+    type: secret
+operations:
+- id: health
+  label: Check service health
+  outputs:
+  - label: Healthy
+    name: healthy
+    required: true
+    type: boolean
+  timeoutSec: 30
+- desc: Read one topic with a deduplicating cursor. Persist next_cursor between runs; cache expiry is not durable delivery.
+  id: poll
+  inputs:
+  - label: Topic
+    name: topic
+    required: true
+    type: string
+  - desc: Positive Unix timestamp, duration such as 10m, or all. Defaults to all; omit when using cursor.
+    label: Initial time window
+    name: since
+    type: string
+  - desc: Reuse next_cursor for the same topic. Do not edit it or combine it with since.
+    label: Continuation cursor
+    name: cursor
+    type: string
+  - desc: Return 1–1000 messages; default 100. Continue with next_cursor when has_more is true.
+    goType: int
+    label: Maximum messages
+    name: limit
+    type: number
+  label: Poll cached notifications
+  outputs:
+  - fields:
+    - label: Message ID
+      name: id
+      required: true
+      type: string
+    - goType: int64
+      label: Unix timestamp
+      name: time
+      required: true
+      type: number
+    - label: Event type
+      name: event
+      required: true
+      type: string
+    - label: Topic
+      name: topic
+      required: true
+      type: string
+    - label: Message body
+      name: message
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - itemType: string
+      label: Tags
+      name: tags
+      type: array
+    - label: Click URL
+      name: click
+      type: string
+    - goType: int64
+      label: Expires at
+      name: expires
+      type: number
+    - fields:
+      - label: Filename
+        name: name
+        required: true
+        type: string
+      - label: Attachment URL
+        name: url
+        required: true
+        type: string
+      - label: Content type
+        name: type
+        type: string
+      - goType: int64
+        label: Size in bytes
+        name: size
+        type: number
+      - goType: int64
+        label: Expires at
+        name: expires
+        type: number
+      label: Attachment metadata
+      name: attachment
+      type: json
+    goType: Message
+    label: Messages
+    name: messages
+    required: true
+    type: array
+  - label: Next cursor
+    name: next_cursor
+    required: true
+    type: string
+  - label: Has more
+    name: has_more
+    required: true
+    type: boolean
+  timeoutSec: 60
+- desc: Publish to your ntfy server with Firebase disabled. Acceptance does not prove device delivery.
+  id: publish
+  inputs:
+  - label: Topic
+    name: topic
+    required: true
+    type: string
+  - label: Message body
+    name: message
+    required: true
+    type: text
+  - fields:
+    - label: Title
+      name: title
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - itemType: string
+      label: Tags
+      name: tags
+      type: array
+    - label: Click URL
+      name: click
+      type: string
+    - label: Cache message
+      name: cache
+      type: boolean
+    goType: PublishOptions
+    label: Notification options
+    name: options
+    type: json
+  label: Publish notification
+  outputs:
+  - fields:
+    - label: Message ID
+      name: id
+      required: true
+      type: string
+    - goType: int64
+      label: Unix timestamp
+      name: time
+      required: true
+      type: number
+    - label: Event type
+      name: event
+      required: true
+      type: string
+    - label: Topic
+      name: topic
+      required: true
+      type: string
+    - label: Message body
+      name: message
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - goType: int
+      label: Priority
+      name: priority
+      type: number
+    - itemType: string
+      label: Tags
+      name: tags
+      type: array
+    - label: Click URL
+      name: click
+      type: string
+    - goType: int64
+      label: Expires at
+      name: expires
+      type: number
+    - fields:
+      - label: Filename
+        name: name
+        required: true
+        type: string
+      - label: Attachment URL
+        name: url
+        required: true
+        type: string
+      - label: Content type
+        name: type
+        type: string
+      - goType: int64
+        label: Size in bytes
+        name: size
+        type: number
+      - goType: int64
+        label: Expires at
+        name: expires
+        type: number
+      label: Attachment metadata
+      name: attachment
+      type: json
+    goType: Message
+    label: Published message
+    name: message
+    required: true
+    type: json
+  timeoutSec: 60
+deployment:
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-ntfy:0.1.0
+  env:
+  - name: SOKEL_NTFY_URL
+    desc: HTTP(S) URL of your ntfy service; internal hosts and reverse-proxy path prefixes are supported. No public fallback.
+    required: true

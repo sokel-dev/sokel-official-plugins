@@ -1,0 +1,106 @@
+plugin:
+  name: gotenberg
+  org: sokel
+  label: Gotenberg
+  desc: Convert HTML and office documents to PDF and merge platform PDF files with a self-hosted Gotenberg service
+  version: 0.1.0
+  doc: docs/gotenberg.md
+credential:
+  fields:
+  - desc: Optional HTTP Basic authentication for the configured service or its reverse proxy.
+    label: Basic auth username
+    name: username
+    type: text
+  - label: Basic auth password
+    name: password
+    type: secret
+operations:
+- id: health_check
+  label: Check service health
+  outputs:
+  - label: Healthy
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: html_to_pdf
+  inputs:
+  - label: HTML document
+    name: html
+    required: true
+    type: string
+  - itemType: file
+    label: Platform asset files
+    name: assets
+    type: array
+  - fields:
+    - label: Landscape
+      name: landscape
+      type: boolean
+    - label: Print background
+      name: print_background
+      type: boolean
+    - label: Prefer CSS page size
+      name: prefer_css_page_size
+      type: boolean
+    goType: HtmlOptions
+    label: Rendering options
+    name: options
+    type: json
+  - label: Output PDF filename
+    name: output_name
+    type: string
+  label: Convert HTML to PDF
+  outputs:
+  - label: PDF file
+    name: file
+    required: true
+    type: file
+  timeoutSec: 300
+- id: merge_pdfs
+  inputs:
+  - itemType: file
+    label: PDF files in order
+    name: files
+    required: true
+    type: array
+  - label: Output PDF filename
+    name: output_name
+    type: string
+  label: Merge PDFs in input order
+  outputs:
+  - label: PDF file
+    name: file
+    required: true
+    type: file
+  timeoutSec: 300
+- id: office_to_pdf
+  inputs:
+  - label: Office document
+    name: file
+    required: true
+    type: file
+  - label: Output PDF filename
+    name: output_name
+    type: string
+  label: Convert office document to PDF
+  outputs:
+  - label: PDF file
+    name: file
+    required: true
+    type: file
+  timeoutSec: 300
+deployment:
+  env:
+  - name: SOKEL_GOTENBERG_URL
+    desc: Base URL of your Gotenberg service, including an optional reverse-proxy path prefix.
+    required: true
+  targets:
+  - kind: container
+    ref: ghcr.io/sokel-dev/sokel-plugin-gotenberg:0.1.0
+codegen:
+- lang: go

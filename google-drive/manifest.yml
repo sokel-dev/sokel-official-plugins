@@ -1,0 +1,196 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: google-drive
+  label: Google Drive
+  desc: Search, transfer and watch Google Drive files
+  version: 0.1.0
+  doc: docs/google-drive.md
+credential:
+  auth:
+    kind: oauth
+    provider: google
+    scopes:
+    - https://www.googleapis.com/auth/drive.readonly
+    - https://www.googleapis.com/auth/drive.file
+    - https://www.googleapis.com/auth/userinfo.email
+  fields:
+  - label: Access token (injected by platform)
+    name: access_token
+    type: secret
+  - label: Refresh token (managed by platform)
+    name: refresh_token
+    type: secret
+  - label: Polling cursor (managed automatically)
+    name: poll_cursor
+    type: text
+  - label: Next poll time (managed automatically)
+    name: next_poll_at
+    type: text
+  - desc: Set true to enable; initial setup only records the current position
+    label: Enable change polling
+    name: watch_changes
+    type: text
+events:
+- fields:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  - label: File name
+    name: name
+    required: true
+    type: string
+  - label: MIME type
+    name: mime_type
+    required: true
+    type: string
+  - label: Change time
+    name: time
+    required: true
+    type: string
+  - label: Access removed or file deleted
+    name: removed
+    required: true
+    type: boolean
+  - label: Trashed
+    name: trashed
+    required: true
+    type: boolean
+  id: file_changed
+  label: File changed
+operations:
+- id: download_file
+  inputs:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  - label: Output file name
+    name: filename
+    type: string
+  label: Download binary file
+  outputs:
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  timeoutSec: 120
+- id: export_file
+  inputs:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  - label: Export MIME type
+    name: mime_type
+    required: true
+    type: string
+  - label: Output file name
+    name: filename
+    required: true
+    type: string
+  label: Export Workspace file
+  outputs:
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  timeoutSec: 120
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 30
+- id: list_files
+  inputs:
+  - desc: Drive v3 q syntax; defaults to trashed = false
+    label: Drive query
+    name: query
+    type: string
+  - goType: int
+    label: Page size
+    name: page_size
+    type: number
+  - label: Page token
+    name: page_token
+    type: string
+  label: List or search files
+  outputs:
+  - fields:
+    - label: File ID
+      name: id
+      required: true
+      type: string
+    - label: File name
+      name: name
+      required: true
+      type: string
+    - label: MIME type
+      name: mime_type
+      required: true
+      type: string
+    - label: Size in bytes (decimal string)
+      name: size
+      required: true
+      type: string
+    - label: Modified time
+      name: modified_time
+      required: true
+      type: string
+    - label: Web view link
+      name: web_view_link
+      required: true
+      type: string
+    - itemType: string
+      label: Parent folders
+      name: parents
+      required: true
+      type: array
+    - label: Trashed
+      name: trashed
+      required: true
+      type: boolean
+    goType: FileInfo
+    label: Files
+    name: files
+    required: true
+    type: array
+  - label: Next page token
+    name: next_page_token
+    type: string
+  timeoutSec: 60
+- id: upload_file
+  inputs:
+  - label: Platform file
+    name: file
+    required: true
+    type: file
+  - label: File name
+    name: name
+    type: string
+  - label: Destination folder ID
+    name: parent_id
+    type: string
+  label: Upload file
+  outputs:
+  - label: File ID
+    name: file_id
+    required: true
+    type: string
+  - label: File name
+    name: name
+    required: true
+    type: string
+  - label: MIME type
+    name: mime_type
+    required: true
+    type: string
+  timeoutSec: 120

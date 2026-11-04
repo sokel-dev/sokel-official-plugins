@@ -1,0 +1,415 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  name: figma
+  org: sokel
+  version: 0.1.0
+  label: Figma
+  desc: Read design metadata, render images and manage comments
+  doc: docs/figma.md
+credential:
+  fields:
+  - label: Personal access token
+    name: access_token
+    required: true
+    type: secret
+operations:
+- id: create_comment
+  inputs:
+  - label: File key
+    name: file_key
+    required: true
+    type: string
+  - label: Comment text
+    name: message
+    required: true
+    type: string
+  - label: Reply to comment ID
+    name: reply_to
+    type: string
+  label: Create comment or reply
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Comment text
+      name: message
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Resolved at
+      name: resolved_at
+      type: string
+    - label: Parent comment ID
+      name: parent_id
+      type: string
+    - fields:
+      - label: User ID
+        name: id
+        required: true
+        type: string
+      - label: Handle
+        name: handle
+        required: true
+        type: string
+      - label: Avatar URL
+        name: img_url
+        type: string
+      label: Author
+      name: user
+      required: true
+      type: json
+    goType: Comment
+    label: Comment
+    name: comment
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_file_metadata
+  inputs:
+  - label: File key
+    name: file_key
+    required: true
+    type: string
+  label: Get file metadata
+  outputs:
+  - fields:
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Folder name
+      name: folder_name
+      type: string
+    - label: Last modified
+      name: last_touched_at
+      required: true
+      type: string
+    - fields:
+      - label: User ID
+        name: id
+        required: true
+        type: string
+      - label: Handle
+        name: handle
+        required: true
+        type: string
+      - label: Avatar URL
+        name: img_url
+        type: string
+      label: Creator
+      name: creator
+      required: true
+      type: json
+    - label: Editor type
+      name: editor_type
+      required: true
+      type: string
+    - label: Version
+      name: version
+      type: string
+    - label: File URL
+      name: url
+      type: string
+    - label: Thumbnail URL
+      name: thumbnail_url
+      type: string
+    - label: Role
+      name: role
+      type: string
+    - label: Link access
+      name: link_access
+      type: string
+    goType: FileMetadata
+    label: File metadata
+    name: file
+    required: true
+    type: json
+  timeoutSec: 60
+- id: get_nodes
+  inputs:
+  - label: File key
+    name: file_key
+    required: true
+    type: string
+  - itemType: string
+    label: Node IDs
+    name: node_ids
+    required: true
+    type: array
+  - label: Version
+    name: version
+    type: string
+  label: Get node summaries
+  outputs:
+  - label: File name
+    name: file_name
+    required: true
+    type: string
+  - fields:
+    - label: Requested node ID
+      name: node_id
+      required: true
+      type: string
+    - label: Found
+      name: found
+      required: true
+      type: boolean
+    - fields:
+      - label: Node ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      - label: Node type
+        name: type
+        required: true
+        type: string
+      - label: Visible
+        name: visible
+        type: boolean
+      - label: Text content
+        name: characters
+        type: string
+      label: Node
+      name: node
+      type: json
+    - fields:
+      - label: Node ID
+        name: id
+        required: true
+        type: string
+      - label: Name
+        name: name
+        required: true
+        type: string
+      - label: Node type
+        name: type
+        required: true
+        type: string
+      - label: Visible
+        name: visible
+        type: boolean
+      - label: Text content
+        name: characters
+        type: string
+      label: Direct children
+      name: children
+      required: true
+      type: array
+    goType: NodeResult
+    label: Nodes
+    name: nodes
+    required: true
+    type: array
+  timeoutSec: 60
+- id: health_check
+  label: Check credential
+  outputs:
+  - label: Available
+    name: ok
+    required: true
+    type: boolean
+  - label: Message
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: list_comments
+  inputs:
+  - label: File key
+    name: file_key
+    required: true
+    type: string
+  label: List comments
+  outputs:
+  - fields:
+    - label: Comment ID
+      name: id
+      required: true
+      type: string
+    - label: Comment text
+      name: message
+      required: true
+      type: string
+    - label: Created at
+      name: created_at
+      required: true
+      type: string
+    - label: Resolved at
+      name: resolved_at
+      type: string
+    - label: Parent comment ID
+      name: parent_id
+      type: string
+    - fields:
+      - label: User ID
+        name: id
+        required: true
+        type: string
+      - label: Handle
+        name: handle
+        required: true
+        type: string
+      - label: Avatar URL
+        name: img_url
+        type: string
+      label: Author
+      name: user
+      required: true
+      type: json
+    goType: Comment
+    label: Comments
+    name: comments
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_folder_files
+  inputs:
+  - label: Folder ID
+    name: folder_id
+    required: true
+    type: string
+  label: List folder files
+  outputs:
+  - label: Folder name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: File key
+      name: key
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Thumbnail URL
+      name: thumbnail_url
+      type: string
+    - label: Last modified
+      name: last_modified
+      required: true
+      type: string
+    goType: File
+    label: Files
+    name: files
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_subfolders
+  inputs:
+  - label: Folder ID
+    name: folder_id
+    required: true
+    type: string
+  label: List subfolders
+  outputs:
+  - label: Folder name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: Folder ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Parent folder ID
+      name: parent_folder_id
+      type: string
+    goType: Folder
+    label: Folders
+    name: folders
+    required: true
+    type: array
+  timeoutSec: 60
+- id: list_team_folders
+  inputs:
+  - label: Team ID
+    name: team_id
+    required: true
+    type: string
+  label: List team folders
+  outputs:
+  - label: Team name
+    name: name
+    required: true
+    type: string
+  - fields:
+    - label: Folder ID
+      name: id
+      required: true
+      type: string
+    - label: Name
+      name: name
+      required: true
+      type: string
+    - label: Parent folder ID
+      name: parent_folder_id
+      type: string
+    goType: Folder
+    label: Folders
+    name: folders
+    required: true
+    type: array
+  timeoutSec: 60
+- id: render_images
+  inputs:
+  - label: File key
+    name: file_key
+    required: true
+    type: string
+  - itemType: string
+    label: Node IDs
+    name: node_ids
+    required: true
+    type: array
+  - label: Image format
+    name: format
+    type: string
+  - fields:
+    - label: Image scale
+      name: scale
+      type: number
+    - label: Contents only
+      name: contents_only
+      type: boolean
+    - label: Use absolute bounds
+      name: use_absolute_bounds
+      type: boolean
+    goType: ImageOptions
+    label: Image options
+    name: options
+    type: json
+  label: Render images
+  outputs:
+  - fields:
+    - label: Node ID
+      name: node_id
+      required: true
+      type: string
+    - label: Image URL
+      name: url
+      type: string
+    - label: Rendered
+      name: rendered
+      required: true
+      type: boolean
+    goType: Image
+    label: Images
+    name: images
+    required: true
+    type: array
+  timeoutSec: 60

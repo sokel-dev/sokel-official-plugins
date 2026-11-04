@@ -8,9 +8,11 @@ English · [简体中文](README.zh-CN.md)
 The integration plugins maintained by the Sokel project: messaging, social, developer tools, cloud, data sources and
 storage engines for the [Sokel](https://github.com/sokel-dev) workflow platform. Each directory is one plugin, written
 with the [plugin SDK](https://github.com/sokel-dev/sokel-plugin-sdk); browse them with their operations and
-credentials in the [plugin registry](https://sokel-dev.github.io/sokel-registry/).
+credentials for released versions in the [plugin registry](https://sokel-dev.github.io/sokel-registry/).
 
 ## Run one
+
+The marketplace and image instructions below apply after a plugin has been released. Build pending integrations locally from this source tree.
 
 Install the plugin from your platform's marketplace, create an access group and copy its token, then start a
 replica anywhere that can reach both the service and your platform:
@@ -27,44 +29,114 @@ README and `docs/` explain what it needs.
 
 ## Plugins
 
-| Directory | Name | What it does |
-|---|---|---|
-| [`aliyun`](aliyun) | Alibaba Cloud | Bring the Alibaba Cloud control plane into workflows: query SLS logs, check RDS status and slow SQL, update DNS records, manage ACK clusters, and query CloudMonitor metrics. |
-| [`bluesky`](bluesky) | Bluesky | Post, thread, and delete posts. Free, no approval needed, no per-call charges — one of the lowest-cost public social platforms to integrate with. |
-| [`claude-code`](claude-code) | Claude Code | Wires the locally installed Claude Code into the workflow: give it a GitLab project and a task, |
-| [`discord`](discord) | Discord | Sends messages to a channel. Free, no approval needed — a channel admin can create a webhook in a few clicks. |
-| [`elasticsearch`](elasticsearch) | Elasticsearch | Brings Elasticsearch into workflows: query logs and documents, load data, manage indices. Supports ES 7/8/9 and OpenSearch — |
-| [`feed`](feed) | Feed subscription | Pulls new entries from a source, producing uniformly shaped JSON. Switching sources requires no change to downstream nodes. |
-| [`feishu-webhook`](feishu-webhook) | Feishu group bot | The shortest path to sending a message to a Feishu group: no app to create, no admin to ask — set up in 30 seconds. |
-| [`feishu`](feishu) | Feishu | Bring Feishu into workflows: send messages/cards, trigger on incoming messages, write documents, and read/write Base records. |
-| [`github`](github) | GitHub | GitHub project maintenance automation (github.com / GitHub Enterprise Server): the full issue and PR workflow, repo read/write and branch creation, Actions triggering and failure logs, releases, Projects V2 board transitions, plus a bot-reply surface (writing back commit statuses/check runs/reactions) — auto-triage, stale cleanup, PR review, and ChatOps can all be built from these. Events support both webhook (zero latency) and polling. **Requires self-hosting the plugin process**: after installing, copy the connection command from this page's access group. |
-| [`gitlab`](gitlab) | GitLab | Brings GitLab into workflows: read and write repository files, create/comment on/merge MRs, open issues, check pipelines and failure logs, and trigger builds. |
-| [`gmail`](gmail) | Gmail | Read and write your Gmail: list emails / read emails / send emails, and it can also act as an event source — triggering a workflow when a new email arrives. |
-| [`hackernews`](hackernews) | Hacker News | Read lists, stories and comments, and search by keyword; trigger a workflow when someone comments on your story or replies to your comment. |
-| [`kbstore-es`](kbstore-es) | Knowledge base store (Elasticsearch) | Storage and retrieval backend for knowledge bases: write chunks, vector search, BM25 and hybrid search (RRF fusion). |
-| [`kbstore-pgvector`](kbstore-pgvector) | Knowledge base store (pgvector) | Knowledge base storage engine on Postgres + pgvector; implements the same storage contract as kbstore-es. |
-| [`kubernetes`](kubernetes) | Kubernetes | Operate a Kubernetes cluster from the canvas: inspect pods, view container logs, do rolling restarts, scale replicas, and check events and node health. |
-| [`linkedin`](linkedin) | LinkedIn | Post updates as the authorized account's personal profile. Self-service setup with no partner approval needed — good for reaching a professional audience with research commentary. |
-| [`mastodon`](mastodon) | Mastodon | Post, post threads, and delete posts. Free, no approval needed, no per-call charge, and because it is a federated network, |
-| [`notion`](notion) | Notion | Reads and writes Notion: search, query tables, create pages, edit content (markdown), comments, files, and can act as an event source — |
-| [`producthunt`](producthunt) | Product Hunt | Reads products, comments and the daily leaderboard; fires a workflow when your product gets a new comment or reply. Launching and replying happen on the site. |
-| [`reddit`](reddit) | Reddit | Search posts, read subreddit and user posts and comments; fires a workflow on new comments under your posts or on a keyword hit. Uses public feeds, no API key; cannot post or reply. |
-| [`redis`](redis) | Redis | Use Redis as shared memory for your workflow: cross-run counters, dedup sets, status flags, queues, leaderboards, |
-| [`submail`](submail) | SUBMAIL SMS | Send domestic and international SMS through SUBMAIL: alert notifications, verification codes, and marketing outreach. |
-| [`synology-upload`](synology-upload) | Synology Upload | Upload files from a workflow into a Synology NAS folder through DSM's FileStation API, so Synology Drive / Cloud Sync sync them as usual. **You deploy the plugin process yourself**, on any machine that can reach DSM. |
-| [`synology`](synology) | Synology NAS | Watches a NAS directory for file changes and triggers a workflow (settle detection is built in). **You must deploy the plugin process yourself**, on a machine that can access this NAS. |
-| [`telegram-bot`](telegram-bot) | Telegram Bot | Connects a Telegram bot into your workflow: trigger on incoming messages, send messages/images/files, download attachments users send, or call any Bot API method directly. |
-| [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. |
-| [`tushare`](tushare) | Tushare Pro | Brokerage research report updates (incremental) + 221 Tushare catalog endpoints. Only responsible for fetching data — no persistence, no deduplication, no processing. |
-| [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's |
-| [`wecom`](wecom) | WeCom | Application messages, configurable H5 buttons, native cards, encrypted callbacks, menus, identity and approvals. |
-| [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. |
-| [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. |
-| [`x-free`](x-free) | X (Free Read/Write) | Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription. |
-| [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. |
-| [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. |
-| [`youtube-transcript`](youtube-transcript) | YouTube transcript | Fetches the transcript of any public YouTube video, producing timestamped segments and the assembled full text. No YouTube account or API … |
-| [`youtube`](youtube) | YouTube | Fetch video information, download video or audio, and extract subtitle text with yt-dlp |
+This source update contains **68 new integrations with 491 operations and 9 events**, pending their first image releases and catalog entries. The table lists all 104 integration sources; it does not mean every integration is already installable from the catalog. Source validation and temporary catalog fixtures are complete; registry publication still requires built image digests and the release workflow.
+
+| Directory | Name | What it does | Release status |
+|---|---|---|---|
+| [`airtable`](airtable) | Airtable tables | Base schemas, record operations and change polling | Pending first release |
+| [`aliyun`](aliyun) | Alibaba Cloud | Bring the Alibaba Cloud control plane into workflows: query SLS logs, check RDS status and slow SQL, update DNS records, manage ACK clusters, and query CloudMonitor metrics. | Existing integration |
+| [`amap`](amap) | AMap | Geocoding, place search, routes, weather and administrative districts. | Pending first release |
+| [`apache-tika`](apache-tika) | Apache Tika | Extract document text, metadata and embedded content with a self-hosted Apache Tika 4.2 service | Pending first release |
+| [`apify`](apify) | Apify | Asynchronous Actor runs and paginated dataset access | Pending first release |
+| [`asana`](asana) | Asana | Browse projects and manage tasks and comments. | Pending first release |
+| [`baserow`](baserow) | Baserow | Discover tables and manage dynamic rows on a self-hosted Baserow service | Pending first release |
+| [`bluesky`](bluesky) | Bluesky | Post, thread, and delete posts. Free, no approval needed, no per-call charges — one of the lowest-cost public social platforms to integrate with. | Existing integration |
+| [`bocha-search`](bocha-search) | Bocha Search | Search the web with freshness filters and optional summaries. | Pending first release |
+| [`bookstack`](bookstack) | BookStack | Read, search and maintain knowledge pages on a self-hosted BookStack instance. | Pending first release |
+| [`box`](box) | Box | Read, search and transfer Box files with explicit pagination | Pending first release |
+| [`brevo`](brevo) | Brevo | Manage contacts and lists and explicitly send transactional email | Pending first release |
+| [`browser-use`](browser-use) | Browser Use Cloud | Run and inspect asynchronous Browser Use V4 agents | Pending first release |
+| [`calendly`](calendly) | Calendly | Read Calendly events and availability and create single-use scheduling links | Pending first release |
+| [`claude-code`](claude-code) | Claude Code | Wires the locally installed Claude Code into the workflow: give it a GitLab project and a task, | Existing integration |
+| [`clickup`](clickup) | ClickUp | Discover workspaces and manage tasks and comments. | Pending first release |
+| [`confluence`](confluence) | Confluence Cloud | Read spaces and publish version-checked Confluence Cloud pages | Pending first release |
+| [`crawl4ai`](crawl4ai) | Crawl4AI | Crawl pages and extract Markdown with a self-hosted Crawl4AI server | Pending first release |
+| [`dingtalk`](dingtalk) | DingTalk | DingTalk | Pending first release |
+| [`discord`](discord) | Discord | Sends messages to a channel. Free, no approval needed — a channel admin can create a webhook in a few clicks. | Existing integration |
+| [`dropbox`](dropbox) | Dropbox | Read, search and transfer Dropbox files with explicit cursors | Pending first release |
+| [`elasticsearch`](elasticsearch) | Elasticsearch | Brings Elasticsearch into workflows: query logs and documents, load data, manage indices. Supports ES 7/8/9 and OpenSearch — | Existing integration |
+| [`exa`](exa) | Exa | Web search, cited answers and asynchronous research | Pending first release |
+| [`feed`](feed) | Feed subscription | Pulls new entries from a source, producing uniformly shaped JSON. Switching sources requires no change to downstream nodes. | Existing integration |
+| [`feishu-webhook`](feishu-webhook) | Feishu group bot | The shortest path to sending a message to a Feishu group: no app to create, no admin to ask — set up in 30 seconds. | Existing integration |
+| [`feishu`](feishu) | Feishu | Bring Feishu into workflows: send messages/cards, trigger on incoming messages, write documents, and read/write Base records. | Existing integration |
+| [`figma`](figma) | Figma | Read design metadata, render images and manage comments | Pending first release |
+| [`firecrawl`](firecrawl) | Firecrawl | Web scraping, crawling and structured extraction | Pending first release |
+| [`gitea`](gitea) | Gitea | Work with repositories, issues, comments and pull requests on a self-hosted Gitea instance. | Pending first release |
+| [`github`](github) | GitHub | GitHub project maintenance automation (github.com / GitHub Enterprise Server): the full issue and PR workflow, repo read/write and branch creation, Actions triggering and failure logs, releases, Projects V2 board transitions, plus a bot-reply surface (writing back commit statuses/check runs/reactions) — auto-triage, stale cleanup, PR review, and ChatOps can all be built from these. Events support both webhook (zero latency) and polling. **Requires self-hosting the plugin process**: after installing, copy the connection command from this page's access group. | Existing integration |
+| [`gitlab`](gitlab) | GitLab | Brings GitLab into workflows: read and write repository files, create/comment on/merge MRs, open issues, check pipelines and failure logs, and trigger builds. | Existing integration |
+| [`gmail`](gmail) | Gmail | Read and write your Gmail: list emails / read emails / send emails, and it can also act as an event source — triggering a workflow when a new email arrives. | Existing integration |
+| [`google-calendar`](google-calendar) | Google Calendar | Manage calendar events, query availability and watch changes | Pending first release |
+| [`google-docs`](google-docs) | Google Docs | Read document tabs and automate text edits | Pending first release |
+| [`google-drive`](google-drive) | Google Drive | Search, transfer and watch Google Drive files | Pending first release |
+| [`google-sheets`](google-sheets) | Google Sheets | Read, write and watch spreadsheet rows | Pending first release |
+| [`gotenberg`](gotenberg) | Gotenberg | Convert HTML and office documents to PDF and merge platform PDF files with a self-hosted Gotenberg service | Pending first release |
+| [`grafana`](grafana) | Grafana | Inspect dashboards and safe data source summaries, and read or create annotations on self-hosted Grafana. | Pending first release |
+| [`hackernews`](hackernews) | Hacker News | Read lists, stories and comments, and search by keyword; trigger a workflow when someone comments on your story or replies to your comment. | Existing integration |
+| [`hubspot`](hubspot) | HubSpot CRM | Read and manage contacts, companies and deals with a private-app token | Pending first release |
+| [`intercom`](intercom) | Intercom | Manage contacts and conversations with regional Intercom API access | Pending first release |
+| [`jina-reader`](jina-reader) | Jina Reader | Convert pages into content and structured metadata | Pending first release |
+| [`jira`](jira) | Jira Cloud | Search and manage Jira Cloud issues, transitions and comments | Pending first release |
+| [`kbstore-es`](kbstore-es) | Knowledge base store (Elasticsearch) | Storage and retrieval backend for knowledge bases: write chunks, vector search, BM25 and hybrid search (RRF fusion). | Existing integration |
+| [`kbstore-pgvector`](kbstore-pgvector) | Knowledge base store (pgvector) | Knowledge base storage engine on Postgres + pgvector; implements the same storage contract as kbstore-es. | Existing integration |
+| [`kubernetes`](kubernetes) | Kubernetes | Operate a Kubernetes cluster from the canvas: inspect pods, view container logs, do rolling restarts, scale replicas, and check events and node health. | Existing integration |
+| [`linear`](linear) | Linear | Query Linear issues and projects and create or update issues | Pending first release |
+| [`linkding`](linkding) | linkding | Search, save and organize bookmarks on a self-hosted linkding service | Pending first release |
+| [`linkedin`](linkedin) | LinkedIn | Post updates as the authorized account's personal profile. Self-service setup with no partner approval needed — good for reaching a professional audience with research commentary. | Existing integration |
+| [`mailchimp`](mailchimp) | Mailchimp | Read audiences, members, tags and campaigns; explicitly upsert contacts | Pending first release |
+| [`mastodon`](mastodon) | Mastodon | Post, post threads, and delete posts. Free, no approval needed, no per-call charge, and because it is a federated network, | Existing integration |
+| [`meilisearch`](meilisearch) | Meilisearch | Index and search documents and inspect asynchronous tasks on a self-hosted Meilisearch service | Pending first release |
+| [`microsoft-excel`](microsoft-excel) | Microsoft Excel 365 | Read and edit business workbooks with explicit sessions, ranges and table rows | Pending first release |
+| [`microsoft-onedrive`](microsoft-onedrive) | Microsoft OneDrive | Browse, search, upload small files and explicitly track drive changes | Pending first release |
+| [`microsoft-outlook`](microsoft-outlook) | Microsoft Outlook | Read and send mail, download attachments and manage calendar events | Pending first release |
+| [`microsoft-sharepoint`](microsoft-sharepoint) | Microsoft SharePoint | Discover sites and lists, inspect columns and read or write list item fields | Pending first release |
+| [`microsoft-teams`](microsoft-teams) | Microsoft Teams | Browse teams and chats and read or send delegated messages | Pending first release |
+| [`mineru`](mineru) | MinerU | Asynchronous document parsing, batches and structured result links | Pending first release |
+| [`miniflux`](miniflux) | Miniflux | Manage subscriptions, stored articles and reading state on a self-hosted Miniflux service | Pending first release |
+| [`monday`](monday) | Monday | Discover Monday boards and manage items, column values and updates with versioned GraphQL | Pending first release |
+| [`nextcloud`](nextcloud) | Nextcloud | Read, upload, download and organize files on a self-hosted Nextcloud service | Pending first release |
+| [`notion`](notion) | Notion | Reads and writes Notion: search, query tables, create pages, edit content (markdown), comments, files, and can act as an event source — | Existing integration |
+| [`ntfy`](ntfy) | ntfy | Publish and poll notifications through your own ntfy server | Pending first release |
+| [`paperless-ngx`](paperless-ngx) | Paperless-ngx | Search, upload and manage documents, ingestion tasks and tags on a self-hosted Paperless-ngx instance. | Pending first release |
+| [`pipedrive`](pipedrive) | Pipedrive | Manage CRM persons, organizations and deals with Pipedrive API v2 | Pending first release |
+| [`pocketbase`](pocketbase) | PocketBase | Read and manage records in a self-hosted PocketBase service | Pending first release |
+| [`producthunt`](producthunt) | Product Hunt | Reads products, comments and the daily leaderboard; fires a workflow when your product gets a new comment or reply. Launching and replying happen on the site. | Existing integration |
+| [`prometheus`](prometheus) | Prometheus | Query metrics, inspect label metadata and read active alerts from a self-hosted Prometheus server. | Pending first release |
+| [`qdrant`](qdrant) | Qdrant | Manage dense-vector collections, points and similarity queries on a self-hosted Qdrant service | Pending first release |
+| [`reddit`](reddit) | Reddit | Search posts, read subreddit and user posts and comments; fires a workflow on new comments under your posts or on a keyword hit. Uses public feeds, no API key; cannot post or reply. | Existing integration |
+| [`redis`](redis) | Redis | Use Redis as shared memory for your workflow: cross-run counters, dedup sets, status flags, queues, leaderboards, | Existing integration |
+| [`resend`](resend) | Resend | Send and inspect transactional email, received mail and domain configuration | Pending first release |
+| [`salesforce`](salesforce) | Salesforce | Query Salesforce metadata and records and create, update or upsert records | Pending first release |
+| [`searxng`](searxng) | SearXNG | Search the web through a self-hosted SearXNG instance | Pending first release |
+| [`shopify`](shopify) | Shopify | Read shop, products, orders and inventory items and update product details | Pending first release |
+| [`slack`](slack) | Slack collaboration | Channel messages, threads, files and new-message polling | Pending first release |
+| [`stripe`](stripe) | Stripe | Read customers, subscriptions and payment intents; verify signed webhook events | Pending first release |
+| [`submail`](submail) | SUBMAIL SMS | Send domestic and international SMS through SUBMAIL: alert notifications, verification codes, and marketing outreach. | Existing integration |
+| [`supabase`](supabase) | Supabase | Query database records, call functions and access storage | Pending first release |
+| [`synology-upload`](synology-upload) | Synology Upload | Upload files from a workflow into a Synology NAS folder through DSM's FileStation API, so Synology Drive / Cloud Sync sync them as usual. **You deploy the plugin process yourself**, on any machine that can reach DSM. | Existing integration |
+| [`synology`](synology) | Synology NAS | Watches a NAS directory for file changes and triggers a workflow (settle detection is built in). **You must deploy the plugin process yourself**, on a machine that can access this NAS. | Existing integration |
+| [`telegram-bot`](telegram-bot) | Telegram Bot | Connects a Telegram bot into your workflow: trigger on incoming messages, send messages/images/files, download attachments users send, or call any Bot API method directly. | Existing integration |
+| [`tencent-docs`](tencent-docs) | Tencent Docs | Tencent Docs | Pending first release |
+| [`threads`](threads) | Threads | Post, and post threads. Free, no per-call charge; one of the largest audiences among these overseas channels. | Existing integration |
+| [`tianyancha`](tianyancha) | Tianyancha | Commercial company information and registration change queries. | Pending first release |
+| [`todoist`](todoist) | Sokel for Todoist | Manage Todoist projects and tasks; not created by, affiliated with, or supported by Todoist | Pending first release |
+| [`trello`](trello) | Trello | Discover Trello boards and manage cards and comments with header authentication | Pending first release |
+| [`tushare`](tushare) | Tushare Pro | Brokerage research report updates (incremental) + 221 Tushare catalog endpoints. Only responsible for fetching data — no persistence, no deduplication, no processing. | Existing integration |
+| [`twilio`](twilio) | Twilio | Send SMS and MMS, inspect delivery state, phone numbers and media metadata | Pending first release |
+| [`typeform`](typeform) | Typeform | Read Typeform workspaces, forms and completed responses with explicit pagination | Pending first release |
+| [`umeng`](umeng) | Umeng push | The Umeng channel for app push notifications: unicast/list-cast by device token, or full broadcast. Same as the "Aliyun" plugin's | Existing integration |
+| [`vikunja`](vikunja) | Vikunja | Manage projects, tasks and comments on a self-hosted Vikunja API v2 service | Pending first release |
+| [`wechat-claw`](wechat-claw) | WeChat ClawBot | Connects WeChat's official ClawBot (iLink Bot API): messaging ClawBot in WeChat triggers a workflow, which can reply with text, images or files. Only the person who bound it by scanning the QR code can chat with it. | Existing integration |
+| [`wechat-mp`](wechat-mp) | WeChat Official Account | Writes articles into the draft box, publishes them, and returns a permanent link. The only domestic channel with a proper API, that allows financial content, and has broad enough reach. | Existing integration |
+| [`wecom`](wecom) | WeCom | Custom app messages, configurable action buttons, native cards, incoming callbacks, menus, workbench, identity, and approval integrations | Existing integration |
+| [`wordpress`](wordpress) | WordPress | Read posts and categories, create drafts, update content and upload media | Pending first release |
+| [`wps`](wps) | WPS365 Cloud Documents | Manage WPS365 cloud file metadata and folders | Pending first release |
+| [`x-free`](x-free) | X (Free Read/Write) | Search and read X posts, view profiles, post, reply, and delete using account cookies, without an official API subscription. | Existing integration |
+| [`x`](x) | X (Twitter) | Post tweets and threads, upload images and video, like and retweet, search and read timelines, send DMs, manage lists, and trigger workflows on mentions / keyword matches. | Existing integration |
+| [`xueqiu`](xueqiu) | Xueqiu (unofficial) | Post (optionally with images) + check credential. | Existing integration |
+| [`youtube-transcript`](youtube-transcript) | YouTube transcript | Fetches the transcript of any public YouTube video, producing timestamped segments and the assembled full text. No YouTube account or API … | Existing integration |
+| [`youtube`](youtube) | YouTube | Fetch video information, download video or audio, and extract subtitle text with yt-dlp | Existing integration |
+| [`zendesk`](zendesk) | Zendesk | Read, search and manage Zendesk Support tickets and comments | Pending first release |
+| [`zoom`](zoom) | Zoom | Read users and schedule or update Zoom meetings | Pending first release |
 
 ## Build
 
@@ -98,10 +170,22 @@ The Release workflow then builds `ghcr.io/sokel-dev/sokel-plugin-discord:1.0.1`,
 pinned by its digest), checks it with the catalog's own admission and version gate, opens the pull request there and
 publishes a GitHub release here. Merging that pull request puts the version on the catalog page. The version must go
 up from the entry's current one. A first release creates its entry from the exported contract, local usage document
-and `locales/en.json`, using the image digest returned by the build. The catalog still requires maintainer review.
+and its locale assets, using the image digest returned by the build. If a schema export omits display or deployment
+metadata, the matching local `manifest.yml` or `sokel.yaml` supplies it; exported fields take precedence. New plugins use English source text
+and `locales/zh-CN.json` for Chinese translations; legacy Chinese-source plugins may still ship `locales/en.json`. The catalog still requires maintainer review.
 
 Push **at most three tags at a time**: GitHub starts no workflow for any of the tags in a push that carries more than
 three, so `git push --tags` after tagging many plugins releases nothing. Push them in groups of three instead.
+
+## Interface language
+
+Use English for new or changed plugin names, operation/field labels, descriptions, credential help,
+runtime errors, README files, and the default user guide. Chinese translations belong in
+`locales/zh-CN.json`, keyed by the exact English source; a translated guide uses the complete English
+markdown as its key. Localized guide files may use `*.zh-CN.md`. Existing unrelated plugins do not
+need to be migrated. Locale files must be valid JSON objects mapping nonempty source strings to
+translation strings; duplicate keys are rejected. First releases accept either the new `zh-CN.json`
+or a legacy `en.json` file.
 
 ## Contributing
 

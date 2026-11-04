@@ -1,0 +1,288 @@
+# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+plugin:
+  org: sokel
+  name: firecrawl
+  label: Firecrawl
+  desc: Web scraping, crawling and structured extraction
+  version: 0.1.0
+  doc: docs/firecrawl.md
+credential:
+  fields:
+  - desc: Create a key in the official service dashboard; do not enter deployment
+      URLs.
+    label: API key
+    name: api_key
+    required: true
+    type: secret
+operations:
+- id: crawl
+  inputs:
+  - label: Page URL
+    name: url
+    required: true
+    type: string
+  - itemType: string
+    label: Include paths
+    name: include_paths
+    type: array
+  - itemType: string
+    label: Exclude paths
+    name: exclude_paths
+    type: array
+  - fields:
+    - goType: int
+      label: Maximum pages
+      name: limit
+      type: number
+    - goType: int
+      label: Discovery depth
+      name: max_discovery_depth
+      type: number
+    goType: CrawlOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Start crawl
+  outputs:
+  - label: Job ID
+    name: id
+    required: true
+    type: string
+  - label: Status URL
+    name: url
+    type: string
+  timeoutSec: 60
+- id: crawl_status
+  inputs:
+  - label: Job ID
+    name: id
+    required: true
+    type: string
+  - fields:
+    - goType: int
+      label: Skip pages
+      name: skip
+      type: number
+    goType: CrawlStatusOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Get crawl status
+  outputs:
+  - label: Job status
+    name: status
+    required: true
+    type: string
+  - goType: int
+    label: Total pages
+    name: total
+    required: true
+    type: number
+  - goType: int
+    label: Completed pages
+    name: completed
+    required: true
+    type: number
+  - goType: int
+    label: Credits used
+    name: credits_used
+    type: number
+  - label: Expires at
+    name: expires_at
+    type: string
+  - label: Next page URL
+    name: next
+    type: string
+  - fields:
+    - label: Markdown content
+      name: markdown
+      type: string
+    - label: HTML content
+      name: html
+      type: string
+    - itemType: string
+      label: Links
+      name: links
+      type: array
+    - fields:
+      - label: Title
+        name: title
+        type: string
+      - label: Description
+        name: description
+        type: string
+      - label: Source URL
+        name: source_url
+        type: string
+      - label: Language
+        name: language
+        type: string
+      - goType: int
+        label: Page status code
+        name: status_code
+        type: number
+      label: Page metadata
+      name: metadata
+      type: json
+    goType: Document
+    label: Documents
+    name: documents
+    type: array
+  timeoutSec: 60
+- id: extract
+  inputs:
+  - itemType: string
+    label: Page URLs
+    name: urls
+    required: true
+    type: array
+  - label: Extraction prompt
+    name: prompt
+    type: text
+  - desc: Caller-defined JSON Schema; its fields depend on the extraction task.
+    label: JSON Schema
+    name: schema
+    opaque: true
+    type: json
+  label: Start extraction
+  outputs:
+  - label: Job ID
+    name: id
+    required: true
+    type: string
+  timeoutSec: 180
+- id: extract_status
+  inputs:
+  - label: Job ID
+    name: id
+    required: true
+    type: string
+  label: Get extraction status
+  outputs:
+  - label: Job status
+    name: status
+    required: true
+    type: string
+  - desc: The result shape is defined by the JSON Schema submitted with the task.
+    label: Extracted data
+    name: data
+    opaque: true
+    type: json
+  - label: Expires at
+    name: expires_at
+    type: string
+  timeoutSec: 60
+- id: health_check
+  label: Check credentials
+  outputs:
+  - label: Usable
+    name: ok
+    required: true
+    type: boolean
+  - label: Check details
+    name: message
+    required: true
+    type: string
+  timeoutSec: 60
+- id: map
+  inputs:
+  - label: Page URL
+    name: url
+    required: true
+    type: string
+  - label: Link search
+    name: search
+    type: string
+  - fields:
+    - goType: int
+      label: Maximum links
+      name: limit
+      type: number
+    - label: Include subdomains
+      name: include_subdomains
+      type: boolean
+    goType: MapOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Map website
+  outputs:
+  - fields:
+    - label: Page URL
+      name: url
+      required: true
+      type: string
+    - label: Title
+      name: title
+      type: string
+    - label: Description
+      name: description
+      type: string
+    goType: MapLinks
+    label: Discovered links
+    name: links
+    required: true
+    type: array
+  timeoutSec: 120
+- id: scrape
+  inputs:
+  - label: Page URL
+    name: url
+    required: true
+    type: string
+  - desc: Supports markdown, html and links; defaults to markdown.
+    itemType: string
+    label: Response formats
+    name: formats
+    type: array
+  - fields:
+    - label: Only main content
+      name: only_main_content
+      type: boolean
+    - goType: int
+      label: Wait milliseconds
+      name: wait_for
+      type: number
+    goType: ScrapeOptions
+    label: Optional parameters
+    name: options
+    type: json
+  label: Scrape page
+  outputs:
+  - fields:
+    - label: Markdown content
+      name: markdown
+      type: string
+    - label: HTML content
+      name: html
+      type: string
+    - itemType: string
+      label: Links
+      name: links
+      type: array
+    - fields:
+      - label: Title
+        name: title
+        type: string
+      - label: Description
+        name: description
+        type: string
+      - label: Source URL
+        name: source_url
+        type: string
+      - label: Language
+        name: language
+        type: string
+      - goType: int
+        label: Page status code
+        name: status_code
+        type: number
+      label: Page metadata
+      name: metadata
+      type: json
+    goType: Document
+    label: Document
+    name: document
+    required: true
+    type: json
+  timeoutSec: 180

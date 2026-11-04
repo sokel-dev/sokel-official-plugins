@@ -1,0 +1,434 @@
+{
+  "plugin": {
+    "name": "pocketbase",
+    "org": "sokel",
+    "label": "PocketBase",
+    "desc": "Read and manage records in a self-hosted PocketBase service",
+    "version": "0.1.0",
+    "doc": "docs/pocketbase.md"
+  },
+  "credential": {
+    "fields": [
+      {
+        "desc": "Preobtained auth record token; replace it outside this plugin when expired. Do not use a superuser token.",
+        "label": "Access token",
+        "name": "access_token",
+        "required": true,
+        "type": "secret"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "id": "create_record",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Field values as a JSON object string",
+          "name": "data_json",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Create record",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Record ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection ID",
+              "name": "collection_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection name",
+              "name": "collection_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete record JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Record",
+          "label": "Created record",
+          "name": "record",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "delete_record",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Record ID",
+          "name": "record_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Delete record",
+      "outputs": [
+        {
+          "label": "Deleted",
+          "name": "deleted",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "find_record",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "PocketBase filter expression",
+          "name": "filter",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Sort fields",
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "label": "Relations to expand",
+          "name": "expand",
+          "type": "string"
+        }
+      ],
+      "label": "Find first matching record",
+      "outputs": [
+        {
+          "label": "Match found",
+          "name": "found",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "fields": [
+            {
+              "label": "Record ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection ID",
+              "name": "collection_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection name",
+              "name": "collection_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete record JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Record",
+          "label": "Matching record; empty when not found",
+          "name": "records",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "get_record",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Record ID",
+          "name": "record_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Relations to expand",
+          "name": "expand",
+          "type": "string"
+        }
+      ],
+      "label": "Get record",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Record ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection ID",
+              "name": "collection_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection name",
+              "name": "collection_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete record JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Record",
+          "label": "Record",
+          "name": "record",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "health_check",
+      "label": "Check service availability",
+      "outputs": [
+        {
+          "label": "Service reachable",
+          "name": "ok",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "label": "Check details",
+          "name": "message",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "list_records",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "fields": [
+            {
+              "goType": "int",
+              "label": "Page number",
+              "name": "page",
+              "type": "number"
+            },
+            {
+              "goType": "int",
+              "label": "Records per page",
+              "name": "per_page",
+              "type": "number"
+            },
+            {
+              "label": "PocketBase filter expression",
+              "name": "filter",
+              "type": "string"
+            },
+            {
+              "label": "Sort fields",
+              "name": "sort",
+              "type": "string"
+            },
+            {
+              "label": "Relations to expand",
+              "name": "expand",
+              "type": "string"
+            }
+          ],
+          "goType": "ListOptions",
+          "label": "List options",
+          "name": "options",
+          "type": "json"
+        }
+      ],
+      "label": "List records",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Record ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection ID",
+              "name": "collection_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection name",
+              "name": "collection_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete record JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Record",
+          "label": "Records",
+          "name": "records",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "label": "Total records",
+          "name": "total",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "goType": "int",
+          "label": "Next page; zero means complete",
+          "name": "next_page",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "label": "More results",
+          "name": "has_more",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "timeoutSec": 60
+    },
+    {
+      "id": "update_record",
+      "inputs": [
+        {
+          "label": "Collection ID or name",
+          "name": "collection",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Record ID",
+          "name": "record_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "label": "Field values as a JSON object string",
+          "name": "data_json",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "label": "Update record",
+      "outputs": [
+        {
+          "fields": [
+            {
+              "label": "Record ID",
+              "name": "id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection ID",
+              "name": "collection_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Collection name",
+              "name": "collection_name",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "label": "Complete record JSON",
+              "name": "json",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "goType": "Record",
+          "label": "Updated record",
+          "name": "record",
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "timeoutSec": 60
+    }
+  ],
+  "deployment": {
+    "targets": [
+      {
+        "kind": "container",
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-pocketbase:0.1.0"
+      }
+    ],
+    "env": [
+      {
+        "name": "SOKEL_POCKETBASE_URL",
+        "desc": "HTTP(S) root URL of your PocketBase service; internal hosts and reverse-proxy prefixes are supported. No public fallback.",
+        "required": true
+      }
+    ]
+  },
+  "codegen": [
+    {
+      "lang": "go"
+    }
+  ]
+}
