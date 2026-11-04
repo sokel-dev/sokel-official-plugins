@@ -41,4 +41,4 @@
 - [会议接口](https://developers.zoom.us/docs/api/meetings/)
 - [用户接口](https://developers.zoom.us/docs/api/users/)
 
-参考文档核对日期为 2026-11-04。独立运行的 Go 插件通过 `SetDoc` 上传英文指南，但 SDK v0.7.7 不会上传语言字典。完整中文翻译位于 `locales/zh-CN.json`，通过注册表安装时一同打包；仓库中的独立中文指南也可直接阅读。
+参考文档核对日期为 2026-11-04。独立运行的 Go 插件通过 `SetDoc` 上传英文指南，但 SDK v0.7.8 不会上传语言字典。完整中文翻译位于 `locales/zh-CN.json`，通过注册表安装时一同打包；仓库中的独立中文指南也可直接阅读。

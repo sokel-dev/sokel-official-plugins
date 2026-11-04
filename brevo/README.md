@@ -14,6 +14,6 @@ GOWORK=off go build -o /tmp/sokel-plugin-brevo .
 sokel-gen check .
 ```
 
-Use the module-pinned SDK v0.7.7 generator, for example `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .`. Runtime and manifest version are 0.1.0, with no local replace directives.
+Use the module-pinned SDK v0.7.8 generator, for example `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .`. Runtime and manifest version are 0.1.1, with no local replace directives.
 
 A generated, compilable stub first failed behavioral tests for contact creation, the official send receipt, and explicit false updates with `not implemented`. Tests then went green and cover generated dispatch, request bytes, exact IDs, pagination, invalid input/receipts, redirects, sanitized 429/errors, and no write replay. [Fixture provenance](testdata/README.md) separates official documentation examples from synthetic boundaries. No real credential was read, no account was called, and no email was sent. Publication and live delivery acceptance are separate work.

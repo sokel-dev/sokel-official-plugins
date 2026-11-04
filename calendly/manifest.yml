@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: calendly
   label: Calendly
   desc: Read Calendly events and availability and create single-use scheduling links
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/calendly.md
 credential:
   fields:

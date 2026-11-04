@@ -2,7 +2,7 @@
 
 Browse projects and manage tasks and comments.
 
-Version 0.1.0; public Sokel SDK v0.7.7. Default interface and guide language is English; complete Chinese translations are in `locales/zh-CN.json`.
+Version 0.1.1; public Sokel SDK v0.7.8. Default interface and guide language is English; complete Chinese translations are in `locales/zh-CN.json`.
 
 Read the [user guide](docs/asana.md) or [Chinese guide](docs/asana.zh-CN.md) for credentials, operations, limits and protocol references.
 

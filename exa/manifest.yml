@@ -1,10 +1,11 @@
-# Exported from schema/ with SDK v0.7.7; plugin metadata is maintained here.
+# Exported from schema/ with SDK v0.7.8; plugin metadata is maintained here.
 plugin:
+  icon: icon.svg
   org: sokel
   name: exa
   label: Exa
   desc: Web search, cited answers and asynchronous research
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/exa.md
 credential:
   fields:

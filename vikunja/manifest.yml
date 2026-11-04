@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Vikunja",
     "desc": "Manage projects, tasks and comments on a self-hosted Vikunja API v2 service",
-    "version": "0.1.0",
-    "doc": "docs/vikunja.md"
+    "version": "0.1.1",
+    "doc": "docs/vikunja.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -660,7 +661,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-vikunja:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-vikunja:0.1.1"
       }
     ],
     "env": [

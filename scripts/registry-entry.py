@@ -9,6 +9,9 @@ A first release creates its entry from the export, <plugin>/docs and <plugin>/lo
 from the export when present, otherwise from the local manifest.yml or sokel.yaml (Go exports may omit them).
 The released image replaces the first container target; other targets, environment variables and placement
 notes are retained.
+Local icon files and their optional same-name .license sidecars are copied with the entry. For an existing
+entry, a nonempty icon choice stays catalog-owned; source files at that same relative path refresh its assets.
+An entry without an icon inherits the exported icon or its matching local manifest's icon and assets.
 An existing entry (plugins/sokel/<plugin>/manifest.yml in the catalog) becomes: the contract as `sokel-gen export yaml`
 emits it from the plugin's code (credential, operations, events...), the entry's own plugin section (org, label,
 desc, doc, icon) with the new version, and its deployment section with the container target pointing at the
@@ -33,10 +36,22 @@ import yaml
 
 
 def semver(v):
-    m = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", v.strip())
+    """Return SemVer precedence, ignoring build metadata and sorting releases above prereleases."""
+    core = r"(0|[1-9][0-9]*)"
+    identifiers = r"[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*"
+    m = re.fullmatch(rf"v?{core}\.{core}\.{core}(?:-({identifiers}))?(?:\+{identifiers})?", v.strip())
     if not m:
-        sys.exit(f"not a version: {v!r} (want vX.Y.Z)")
-    return tuple(int(x) for x in m.groups())
+        sys.exit(f"not a version: {v!r} (want vMAJOR.MINOR.PATCH[-PRERELEASE][+BUILD])")
+    prerelease = m.group(4)
+    parts = []
+    for identifier in prerelease.split(".") if prerelease is not None else []:
+        if identifier.isdigit():
+            if len(identifier) > 1 and identifier.startswith("0"):
+                sys.exit(f"not a version: {v!r} (numeric prerelease identifiers cannot have leading zeroes)")
+            parts.append((0, int(identifier)))
+        else:
+            parts.append((1, identifier))
+    return (*(int(m.group(i)) for i in (1, 2, 3)), prerelease is None, tuple(parts))
 
 
 def by_id(ops):
@@ -163,6 +178,42 @@ def local_metadata(source, plugin_name):
     return {}, None
 
 
+def local_icon_assets(source, target, icon, required=False):
+    """Plan local icon copies before catalog writes; SDK validation owns image formats and size limits."""
+    if icon is None:
+        return []
+    if not isinstance(icon, str):
+        sys.exit("local icon must be a relative file path or a brand mark")
+    icon = icon.strip()
+    if not icon or icon.startswith("brand:"):
+        return []
+    relative = Path(icon)
+    if relative.is_absolute() or ".." in relative.parts or ":" in icon or "\\" in icon or "\x00" in icon:
+        sys.exit("local icon must be a path inside the plugin directory, not a URL")
+
+    assets = []
+    for name, must_exist in ((icon, required), (icon + ".license", False)):
+        candidate = source / name
+        destination = target / name
+        try:
+            origin = candidate.resolve()
+            resolved_target = destination.resolve()
+        except (OSError, RuntimeError, ValueError):
+            sys.exit(f"local icon asset {name!r} has an invalid path or symlink")
+        if not origin.is_relative_to(source) or not resolved_target.is_relative_to(target):
+            sys.exit(f"local icon asset {name!r} must stay inside its plugin directory")
+        if not candidate.exists():
+            if must_exist or candidate.is_symlink():
+                sys.exit(f"local icon asset {name!r} must be an existing file inside the plugin directory")
+            continue
+        if not origin.is_file():
+            sys.exit(f"local icon asset {name!r} must be a file inside the plugin directory")
+        if resolved_target.exists() and not resolved_target.is_file():
+            sys.exit(f"local icon asset {name!r} destination must be a file")
+        assets.append((origin, resolved_target))
+    return assets
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True)
@@ -219,8 +270,20 @@ def main():
     plugin = dict(entry["plugin"])
     plugin["name"] = a.plugin
     plugin["version"] = a.version
+    inherited_icon = False
+    catalog_icon = plugin.get("icon")
+    if not first_release and (catalog_icon is None or isinstance(catalog_icon, str) and not catalog_icon.strip()):
+        metadata, _ = local_metadata(Path(a.plugin).resolve(), a.plugin)
+        icon = export["plugin"].get("icon")
+        if icon is None or isinstance(icon, str) and not icon.strip():
+            icon = metadata.get("icon")
+        if icon is not None:
+            plugin["icon"] = icon
+            inherited_icon = True
     old_strings = display_strings(entry)
     target_root = Path(path).parent.resolve()
+    icon_assets = local_icon_assets(Path(a.plugin).resolve(), target_root, plugin.get("icon"),
+                                   required=first_release or inherited_icon)
     target_doc = (target_root / plugin.get("doc", "README.md")).resolve()
     local_doc = target_doc.is_relative_to(target_root) and "://" not in plugin.get("doc", "")
     if local_doc and target_doc.is_file():
@@ -276,6 +339,9 @@ def main():
             for key in retired:
                 merged.pop(key, None)
             dest.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for origin, destination in icon_assets:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(origin, destination)
     Path(path).write_text(text, encoding="utf-8")
     print(json.dumps({"previous": previous, "version": a.version, "contract_refreshed": refreshed, "contract_changed": changed,
                       "unlisted_inputs": unlisted}))

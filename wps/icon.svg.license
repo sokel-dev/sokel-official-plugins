@@ -1,0 +1,14 @@
+wps plugin icon
+
+Source: https://qn.cache.wpscdn.cn/kdocs/wpsOfficial/logo/logo-wps-office.svg
+upstreamSource: https://www.wps.cn/
+
+The artwork identifies the upstream product. Brand names and marks remain the
+property of their respective owners. Collection licenses do not grant trademark
+rights or imply endorsement of Sokel by the upstream product.
+
+Modifications: Extracted the first self-contained nested SVG emblem, preserving its four path d strings, original fills, and all four gradient definitions. Replaced the root with a 128x128 canvas and viewBox -2 -6.9 32 32 to add uniform padding without distorting the artwork. Added an accessible title. No paths were redrawn. Removed trailing whitespace.
+SHA256: 0ef63ae2e6d74d1583a020643ea9fc407678f70a2c0e5b2c0cf2796bcc547ee5
+
+No separate artwork license was stated in the retrieved website asset.
+This file records the official source; it does not relicense the brand mark.

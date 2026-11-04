@@ -46,4 +46,4 @@
 - [用户接口](https://developers.figma.com/docs/rest-api/users-endpoints/)
 - [官方 OpenAPI 规范](https://github.com/figma/rest-api-spec/blob/main/openapi/openapi.yaml)
 
-参考文档核对日期为 2026-11-04。SDK v0.7.7 运行时通过 `SetDoc` 上传英文指南，不会上传语言字典。通过注册表安装时，会打包 `locales/zh-CN.json` 中以完整英文指南为精确键的中文翻译；仓库同时提供独立中文指南供阅读。
+参考文档核对日期为 2026-11-04。SDK v0.7.8 运行时通过 `SetDoc` 上传英文指南，不会上传语言字典。通过注册表安装时，会打包 `locales/zh-CN.json` 中以完整英文指南为精确键的中文翻译；仓库同时提供独立中文指南供阅读。

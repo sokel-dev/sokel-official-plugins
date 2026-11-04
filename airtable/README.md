@@ -1,6 +1,6 @@
 # Airtable plugin
 
-Independent Go module using only the public Sokel SDK v0.7.7 and Go's standard library directly. The default contract and user guide are English; Chinese translations are in `locales/zh-CN.json`. `manifest.yml` is the source for generated types and registration code.
+Independent Go module using only the public Sokel SDK v0.7.8 and Go's standard library directly. The default contract and user guide are English; Chinese translations are in `locales/zh-CN.json`. `manifest.yml` is the source for generated types and registration code.
 
 ## Development
 
@@ -12,7 +12,7 @@ go build ./...
 go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
 ```
 
-The module has no `replace` directives or platform-internal imports. Runtime version is `0.1.0`. The health operation returns `ok` and `message`, including `ok=false` on failure.
+The module has no `replace` directives or platform-internal imports. Runtime version is `0.1.1`. The health operation returns `ok` and `message`, including `ok=false` on failure.
 
 ## Contract and upstream details
 

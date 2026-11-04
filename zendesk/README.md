@@ -1,6 +1,6 @@
 # Zendesk plugin
 
-Source implementation for Sokel using the public Go SDK v0.7.7.
+Source implementation for Sokel using the public Go SDK v0.7.8.
 
 - [User guide](docs/zendesk.md)
 - [中文使用说明](docs/zendesk.zh-CN.md)
@@ -11,7 +11,7 @@ The schema package is the contract source. Generate wrappers with the pinned SDK
 
 ```sh
 GOWORK=off go generate ./...
-GOWORK=off go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 GOWORK=off go test -race ./...
 GOWORK=off go vet ./...
 GOWORK=off go build -o /tmp/sokel-plugin-zendesk .

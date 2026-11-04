@@ -4,7 +4,7 @@ Independent Sokel module with eight typed operations for a self-hosted Baserow O
 
 ## Contract and compatibility
 
-`schema/schema.go` is authoritative, and public SDK `v0.7.7` generates `zz_*.go`; never edit generated files. `manifest.yml` is an actual schema export with release and deployment metadata. The module has no local replacements or private dependencies. Runtime, manifest and `plugin.version` use `0.1.0`. The container reference is the intended version tag, not a claim that an image has been published.
+`schema/schema.go` is authoritative, and public SDK `v0.7.8` generates `zz_*.go`; never edit generated files. `manifest.yml` is an actual schema export with release and deployment metadata. The module has no local replacements or private dependencies. Runtime, manifest and `plugin.version` use `0.1.1`. The container reference is the intended version tag, not a claim that an image has been published.
 
 Set required deployment variable `SOKEL_BASEROW_URL` to the server root before `/api`. Internal HTTP and reverse-proxy path prefixes work; there is no public fallback. Container `localhost` identifies the plugin container, not a separate Baserow container. Credentials hold only the required database token.
 

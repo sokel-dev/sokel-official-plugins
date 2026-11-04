@@ -46,4 +46,4 @@ Fixtures are synthetic adaptations of the official REST documentation and OpenAP
 - [User endpoints](https://developers.figma.com/docs/rest-api/users-endpoints/)
 - [Official OpenAPI specification](https://github.com/figma/rest-api-spec/blob/main/openapi/openapi.yaml)
 
-References were checked on 2026-11-04. SDK v0.7.7 runtime `SetDoc` uploads the English guide without locale dictionaries. Registry installation packages the exact full-guide Chinese translation from `locales/zh-CN.json`; a separate Chinese guide is included for repository readers.
+References were checked on 2026-11-04. SDK v0.7.8 runtime `SetDoc` uploads the English guide without locale dictionaries. Registry installation packages the exact full-guide Chinese translation from `locales/zh-CN.json`; a separate Chinese guide is included for repository readers.

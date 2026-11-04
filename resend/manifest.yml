@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: resend
   label: Resend
   desc: Send and inspect transactional email, received mail and domain configuration
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/resend.md
 credential:
   fields:
@@ -599,4 +600,4 @@ operations:
 deployment:
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-resend:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-resend:0.1.1

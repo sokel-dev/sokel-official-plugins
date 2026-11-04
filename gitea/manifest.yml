@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Gitea",
     "desc": "Work with repositories, issues, comments and pull requests on a self-hosted Gitea instance.",
-    "version": "0.1.0",
-    "doc": "docs/gitea.md"
+    "version": "0.1.1",
+    "doc": "docs/gitea.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -769,7 +770,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-gitea:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-gitea:0.1.1"
       }
     ],
     "env": [

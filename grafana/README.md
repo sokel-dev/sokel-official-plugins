@@ -6,7 +6,7 @@ The first version intentionally uses legacy `/api` routes, which Grafana 13 depr
 
 Dashboard plugin-specific models are preserved as JSON strings using json.RawMessage, avoiding float conversion of large integers. Typed annotations and input IDs/times use exact decimal strings; request encoding uses int64. There is no generic data-source proxy/query input, arbitrary URL fetch, dashboard write, alert runner or account/permission administration.
 
-`schema/` precedes implementation and generates the unedited `zz_*.go` using public SDK v0.7.7. No local replace/private module is used. Runtime/manifest version is 0.1.0; the tagged container is an intended build target, not publication evidence. English defaults and full zh-CN UI/guide translations are included; the entire English guide is the document translation key.
+`schema/` precedes implementation and generates the unedited `zz_*.go` using public SDK v0.7.8. No local replace/private module is used. Runtime/manifest version is 0.1.1; the tagged container is an intended build target, not publication evidence. English defaults and full zh-CN UI/guide translations are included; the entire English guide is the document translation key.
 
 ```sh
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .

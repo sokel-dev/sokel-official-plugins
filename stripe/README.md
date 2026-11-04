@@ -42,13 +42,13 @@ The handler verifies HMAC-SHA256 against the exact raw request bytes before pars
 
 Each emitted event includes `event_id`, `event_type`, `created`, `livemode`, `account_id`, and the corresponding typed customer, subscription or PaymentIntent projection. `account_id` is an empty string when no connected-account field is present. `event_id` is passed as the platform idempotency key so retries use a stable identity. Consumers should deduplicate by that ID and tolerate events arriving out of order.
 
-An HTTP 200 response means the SDK accepted local publication, not that a workflow completed or an event was durably committed. SDK v0.7.7 publishes without a durable acknowledgement, so delivery is best effort; failures or restarts can cause losses or replay. The handler does not claim exactly-once delivery. A local publication error returns HTTP 503. Webhook bodies are limited to 2 MiB; the base64 envelope fallback is bounded at 3 MiB.
+An HTTP 200 response means the SDK accepted local publication, not that a workflow completed or an event was durably committed. SDK v0.7.8 publishes without a durable acknowledgement, so delivery is best effort; failures or restarts can cause losses or replay. The handler does not claim exactly-once delivery. A local publication error returns HTTP 503. Webhook bodies are limited to 2 MiB; the base64 envelope fallback is bounded at 3 MiB.
 
 ## Errors and validation
 
 Outbound requests time out after 45 seconds and JSON responses are limited to 4 MiB. There are no automatic retries. A 429 error reports `Retry-After` or a 60-second fallback. Error bodies, API keys, signing secrets and transport URLs are never included in errors.
 
-Run `go generate ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, and `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .`. The only direct dependency is public Sokel Plugin SDK v0.7.7. Synthetic HTTP and signed-event fixtures cover exact queries, pinned versions, generated output binding, pagination, secret projection, signature rotation, tampering, clock tolerance, mode and event identity, replay keys and local publication failures. These checks are not live Stripe acceptance, billing activity or registry publication.
+Run `go generate ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, and `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .`. The only direct dependency is public Sokel Plugin SDK v0.7.8. Synthetic HTTP and signed-event fixtures cover exact queries, pinned versions, generated output binding, pagination, secret projection, signature rotation, tampering, clock tolerance, mode and event identity, replay keys and local publication failures. These checks are not live Stripe acceptance, billing activity or registry publication.
 
 ## Official references
 

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Advance locally after all event and checkpoint publications succeed. SDK v0.7.7
+// Advance locally after all event and checkpoint publications succeed. SDK v0.7.8
 // does not acknowledge platform delivery or durable credential storage.
 func sourceStep(ctx plugin.SourceCtx, a *api, cursor string) (string, error) {
 	cred := sokel.SourceCredentialAs[Cred](ctx)

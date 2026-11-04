@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: supabase
   label: Supabase
   desc: Query database records, call functions and access storage
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/supabase.md
 credential:
   fields:
@@ -256,4 +257,4 @@ deployment:
     required: true
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-supabase:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-supabase:0.1.1

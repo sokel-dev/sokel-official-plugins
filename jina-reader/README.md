@@ -27,7 +27,7 @@ API key is optional. Anonymous `read` requests omit Authorization entirely. Anon
 
 `schema/schema.go` is the authoritative Go contract. `manifest.yml` is the exported distribution contract with plugin identity/version/document metadata. Optional numeric and boolean request fields live in named `options` structs as pointers so omitted values differ from explicit `false` or `0`. The generated registration uses SDK `contract.BindInput`, including nested `sokel` tags.
 
-The standalone module depends only on the public SDK v0.7.7 and its public transitive dependencies. `zz_*.go` files come from the real SDK generator; never hand-edit them. English is the default contract/document language. `locales/zh-CN.json` maps source strings, including the complete usage document, to Chinese.
+The standalone module depends only on the public SDK v0.7.8 and its public transitive dependencies. `zz_*.go` files come from the real SDK generator; never hand-edit them. English is the default contract/document language. `locales/zh-CN.json` maps source strings, including the complete usage document, to Chinese.
 
 ```sh
 go mod tidy
@@ -38,7 +38,7 @@ go vet ./...
 go build ./...
 ```
 
-After editing `schema/`, export using `sokel-gen export yaml .` and retain `plugin.org`, `name`, `label`, `desc`, `version` and `doc` metadata in `manifest.yml`. Update translations when source strings change. Runtime registration sets version `0.1.0`; platform connection uses SDK `ENDPOINT`, `TOKEN` or supported `DEPLOY_KEY` handling.
+After editing `schema/`, export using `sokel-gen export yaml .` and retain `plugin.org`, `name`, `label`, `desc`, `version` and `doc` metadata in `manifest.yml`. Update translations when source strings change. Runtime registration sets version `0.1.1`; platform connection uses SDK `ENDPOINT`, `TOKEN` or supported `DEPLOY_KEY` handling.
 
 ## Transport boundaries
 

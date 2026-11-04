@@ -2,7 +2,7 @@
 
 Four typed operations connect platform files to a self-hosted Gotenberg 8 service: health, HTML conversion, office conversion and ordered PDF merging. Configure `SOKEL_GOTENBERG_URL`; no hosted API or API subscription is required. Read [the user guide](docs/gotenberg.md) or [中文指南](docs/gotenberg.zh-CN.md).
 
-The module uses the public Sokel SDK v0.7.7 with no replacement. `schema/schema.go` is the declaration; generate the `zz_*.go` files with the pinned generator. The manifest comes from real SDK export plus publication-independent metadata and the required deployment URL. English is the default. The Chinese locale includes every supported UI string and the exact complete English guide as its document key. SDK 0.7.7 does not localize deployment-environment descriptions; the full bilingual guide covers configuration.
+The module uses the public Sokel SDK v0.7.8 with no replacement. `schema/schema.go` is the declaration; generate the `zz_*.go` files with the pinned generator. The manifest comes from real SDK export plus publication-independent metadata and the required deployment URL. English is the default. The Chinese locale includes every supported UI string and the exact complete English guide as its document key. SDK 0.7.7 does not localize deployment-environment descriptions; the full bilingual guide covers configuration.
 
 Design points:
 

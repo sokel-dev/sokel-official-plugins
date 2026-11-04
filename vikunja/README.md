@@ -4,7 +4,7 @@ Independent Sokel module with nine typed operations for a self-hosted Vikunja se
 
 ## Contract and compatibility
 
-`schema/schema.go` is authoritative, with actual code generation from public SDK `v0.7.7`. Never hand-edit `zz_*.go`. `manifest.yml` is the schema export plus release/deployment metadata. Runtime, manifest and `plugin.version` are `0.1.0`; there are no local replacements or private module dependencies. The container reference is an intended version tag, not evidence of image publication.
+`schema/schema.go` is authoritative, with actual code generation from public SDK `v0.7.8`. Never hand-edit `zz_*.go`. `manifest.yml` is the schema export plus release/deployment metadata. Runtime, manifest and `plugin.version` are `0.1.1`; there are no local replacements or private module dependencies. The container reference is an intended version tag, not evidence of image publication.
 
 Set required deployment variable `SOKEL_VIKUNJA_URL` to the server root before `/api/v2`. Internal HTTP, container service names and reverse-proxy prefixes are supported without a public fallback. Container `localhost` points to that container. Credentials contain only the bearer token; scoped API tokens are recommended and rotation is external.
 
@@ -23,8 +23,8 @@ The transport uses only the deployment origin, forbids credential-bearing redire
 Run from this directory; SDK generation, export and check must be sequential within a plugin.
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-vikunja .

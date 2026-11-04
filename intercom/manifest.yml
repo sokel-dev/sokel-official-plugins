@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: intercom
   label: Intercom
   desc: Manage contacts and conversations with regional Intercom API access
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/intercom.md
 credential:
   fields:

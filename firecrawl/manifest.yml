@@ -1,10 +1,11 @@
-# Exported from schema/ with sokel-gen v0.7.7; distribution metadata is maintained here.
+# Exported from schema/ with sokel-gen v0.7.8; distribution metadata is maintained here.
 plugin:
+  icon: icon.svg
   org: sokel
   name: firecrawl
   label: Firecrawl
   desc: Web scraping, crawling and structured extraction
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/firecrawl.md
 credential:
   fields:

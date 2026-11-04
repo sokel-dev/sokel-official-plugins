@@ -21,18 +21,18 @@ The source contract deliberately caps page size at 200, page number at 1000000, 
 
 ## Development and validation
 
-The contract lives in `schema/schema.go`. Run real SDK code generation before changing handlers; never edit `zz_*.go`. The independent module pins the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.7` without local replacements. Runtime and manifest versions are both `0.1.0`. The manifest's container reference is the intended release tag, not evidence that an image has been published.
+The contract lives in `schema/schema.go`. Run real SDK code generation before changing handlers; never edit `zz_*.go`. The independent module pins the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.8` without local replacements. Runtime and manifest versions are both `0.1.1`. The manifest's container reference is the intended release tag, not evidence that an image has been published.
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-pocketbase .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 ```
 
 `TestDocumentedWireRequests` invokes the actual generated dispatch and checks the HTTP method, path prefix, query, exact JSON body, authentication header and disabled mutation-body replay. These tests were first run against compiling unimplemented handlers and failed for every operation, then passed after implementation. Fixtures are synthetic adaptations of official documentation/source, **not captured live responses**. No real account, production service or browser workload was used. Full provenance is in `testdata/README.md`.
 
 Further tests exercise application-level malformed responses, explicit false/zero values, canceled contexts, timeouts, oversized messages, content types, redirect rejection, HTTP errors and credential redaction. The plugin does not retry writes. Runtime errors do not reflect upstream bodies or request URLs. Service endpoints are deployment configuration rather than per-operation input or identity data.
 
-User documentation is in `docs/pocketbase.md` and `docs/pocketbase.zh-CN.md`. `locales/zh-CN.json` translates all exposed UI text and maps the exact complete English guide to the complete Chinese guide. Update both guide files and that exact translation key together. The deployment environment description is English manifest metadata; SDK 0.7.7 does not localize that field, and the bilingual guides explain it fully.
+User documentation is in `docs/pocketbase.md` and `docs/pocketbase.zh-CN.md`. `locales/zh-CN.json` translates all exposed UI text and maps the exact complete English guide to the complete Chinese guide. Update both guide files and that exact translation key together. The deployment environment description is English manifest metadata; SDK 0.7.8 does not localize that field, and the bilingual guides explain it fully.

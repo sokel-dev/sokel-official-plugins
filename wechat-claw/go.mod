@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/importcjj/wechat-clawbot-client-go v0.0.0-20260928095613-efec9b47ce5c
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+	github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 )
 
 require (

@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Nextcloud",
     "desc": "Read, upload, download and organize files on a self-hosted Nextcloud service",
-    "version": "0.1.0",
-    "doc": "docs/nextcloud.md"
+    "version": "0.1.1",
+    "doc": "docs/nextcloud.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -348,7 +349,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-nextcloud:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-nextcloud:0.1.1"
       }
     ],
     "env": [

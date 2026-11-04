@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "HubSpot CRM",
     "desc": "Read and manage contacts, companies and deals with a private-app token",
-    "version": "0.1.0",
-    "doc": "docs/hubspot.md"
+    "version": "0.1.1",
+    "doc": "docs/hubspot.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

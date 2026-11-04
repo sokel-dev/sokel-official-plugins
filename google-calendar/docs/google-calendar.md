@@ -26,7 +26,7 @@ Incremental polling does not expand recurring series and is not an event-start r
 
 Scopes are calendar.events and calendar.freebusy; calendar sharing permissions still control writes.
 
-SDK v0.7.7 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
+SDK v0.7.8 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
 
 ## Setup and runtime
 

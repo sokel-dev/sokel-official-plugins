@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "BookStack",
     "desc": "Read, search and maintain knowledge pages on a self-hosted BookStack instance.",
-    "version": "0.1.0",
-    "doc": "docs/bookstack.md"
+    "version": "0.1.1",
+    "doc": "docs/bookstack.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -1001,7 +1002,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-bookstack:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-bookstack:0.1.1"
       }
     ],
     "env": [

@@ -975,7 +975,7 @@ CONTRACT: Dict[str, Any] = {
         },
     ],
     "org": "sokel",
-    "version": "0.2.1",
+    "version": "0.2.2",
 }
 
 

@@ -46,4 +46,4 @@ Fixtures are synthetic adaptations of official API schemas/examples, not capture
 
 - [Todoist API v1: project, task, user, pagination and migration reference](https://developer.todoist.com/api/v1/)
 
-The reference was checked on 2026-11-04. SDK v0.7.7 runtime `SetDoc` uploads the English guide without locale dictionaries. Registry installation packages the full Chinese translation from `locales/zh-CN.json`; a separate Chinese guide is available in this repository.
+The reference was checked on 2026-11-04. SDK v0.7.8 runtime `SetDoc` uploads the English guide without locale dictionaries. Registry installation packages the full Chinese translation from `locales/zh-CN.json`; a separate Chinese guide is available in this repository.

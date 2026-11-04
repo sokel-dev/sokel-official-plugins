@@ -22,7 +22,7 @@ Set watch_changes to true to poll file_changed every 60 seconds. Initial setup c
 
 All changes.list pages and event publications must complete before the plugin publishes newStartPageToken as its checkpoint. A round supports at most 1000 pages; larger backlogs fail visibly and retain the previous cursor. Replay uses stable event IDs. HTTP 410 never silently skips to the present: inspect the error before clearing poll_cursor to rebaseline; changes during the gap may be unavailable.
 
-SDK v0.7.7 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
+SDK v0.7.8 event and credential updates are fire-and-forget: a successful call only confirms local publish acceptance, not platform receipt or durable storage. Delivery is best-effort; disconnects may lose events or replay them. Stable event IDs support platform deduplication, but this is not an exactly-once guarantee. End-to-end delivery and persistence still need live platform acceptance. The managed next_poll_at field keeps source restarts from bypassing the 60-second interval; do not edit it.
 
 ## Setup and runtime
 

@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+	github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 )
 
 require (

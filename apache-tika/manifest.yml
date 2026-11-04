@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.png
   name: apache-tika
   org: sokel
   label: Apache Tika
   desc: Extract document text, metadata and embedded content with a self-hosted Apache Tika 4.2 service
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/apache-tika.md
 credential:
   fields:
@@ -120,6 +121,6 @@ deployment:
     required: true
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-apache-tika:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-apache-tika:0.1.1
 codegen:
 - lang: go

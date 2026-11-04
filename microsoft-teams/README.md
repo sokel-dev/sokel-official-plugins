@@ -9,7 +9,7 @@ Joined teams, channels and chats; channel messages, replies and chat messages; n
 
 ## Architecture
 
-`manifest.yml` is the authoritative declaration, including metadata and version. The public SDK v0.7.7 generates `zz_*.go`; never hand-edit generated files. All operations are registered through generated handlers and `contract.BindInput`. English is the default language. `locales/zh-CN.json` translates every interface string and the complete user guide.
+`manifest.yml` is the authoritative declaration, including metadata and version. The public SDK v0.7.8 generates `zz_*.go`; never hand-edit generated files. All operations are registered through generated handlers and `contract.BindInput`. English is the default language. `locales/zh-CN.json` translates every interface string and the complete user guide.
 
 Every invocation performs a readonly `/me?$select=id` check with `User.Read` before using the delegated user context. This prevents app-only writes and obtains the real user ID for canonical user-scoped list paths. The additional identity call is intentional. Resource IDs are escaped as path segments and cannot inject another path.
 
@@ -23,11 +23,11 @@ This independent Go module uses only the public SDK with no local `replace` or p
 
 ```sh
 go generate ./...
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 go test -race -coverprofile=coverage.out ./...
 go vet ./...
 go build ./...
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen export yaml .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 export yaml .
 ```
 
 The platform connection uses `ENDPOINT` with `TOKEN` or `DEPLOY_KEY`. Service credentials belong in Sokel credentials. No tenant endpoint is accepted from workflow inputs.

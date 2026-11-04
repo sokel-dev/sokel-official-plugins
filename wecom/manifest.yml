@@ -4,7 +4,7 @@ plugin:
   name: wecom
   label: 企业微信
   desc: 自建应用消息、自定义交互按钮、原生卡片、接收回调、菜单、工作台、身份与审批集成
-  version: 0.3.0
+  version: 0.3.2
   doc: docs/wecom.md
 credential:
   fields:

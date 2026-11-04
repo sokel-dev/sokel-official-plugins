@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Airtable tables",
     "desc": "Base schemas, record operations and change polling",
-    "version": "0.1.0",
-    "doc": "docs/airtable.md"
+    "version": "0.1.1",
+    "doc": "docs/airtable.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

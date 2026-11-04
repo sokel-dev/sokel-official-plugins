@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "WordPress",
     "desc": "Read posts and categories, create drafts, update content and upload media",
-    "version": "0.1.0",
-    "doc": "docs/wordpress.md"
+    "version": "0.1.1",
+    "doc": "docs/wordpress.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

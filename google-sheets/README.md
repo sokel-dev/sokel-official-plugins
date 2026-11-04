@@ -1,6 +1,6 @@
 # google-sheets
 
-First-party Google connector for Sokel. The contract lives in `schema/`; `manifest.yml` is a real schema export plus distribution metadata for catalog releases. Generated `zz_*.go` files must not be edited. The module depends only on the public Sokel SDK v0.7.7 and uses platform-managed Google OAuth. No platform changes are required.
+First-party Google connector for Sokel. The contract lives in `schema/`; `manifest.yml` is a real schema export plus distribution metadata for catalog releases. Generated `zz_*.go` files must not be edited. The module depends only on the public Sokel SDK v0.7.8 and uses platform-managed Google OAuth. No platform changes are required.
 
 See [English usage](docs/google-sheets.md) and [Chinese usage](docs/google-sheets.zh-CN.md) for scopes, polling semantics and operation limits. API origins are fixed; redirects and automatic retries are disabled. API error bodies are intentionally omitted to prevent credential leakage.
 

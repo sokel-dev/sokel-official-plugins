@@ -10,7 +10,7 @@ Official API documentation and release information were checked on 2026-11-04. T
 
 Set deployment variable `SOKEL_QDRANT_URL`, for example `http://qdrant:6333`. There is no default or public fallback. Internal HTTP and reverse-proxy path prefixes are supported. In a container, `localhost` identifies that container, not another service. The optional credential contains only the API key, sent in the `api-key` header. Health reads collections and does not mutate data. The plugin does not install or manage the server.
 
-`schema/schema.go` is authoritative. Generated `zz_*.go` files come from public SDK `v0.7.7`; do not hand-edit them. `manifest.yml` is a real schema export plus release/deployment metadata. Runtime, manifest and `plugin.version` use `0.1.0`. The module has no local replacements or private dependencies.
+`schema/schema.go` is authoritative. Generated `zz_*.go` files come from public SDK `v0.7.8`; do not hand-edit them. `manifest.yml` is a real schema export plus release/deployment metadata. Runtime, manifest and `plugin.version` use `0.1.1`. The module has no local replacements or private dependencies.
 
 ## Implementation decisions
 
@@ -25,8 +25,8 @@ The HTTP client fixes the deployment origin, rejects redirects, removes mutation
 Run from this directory. SDK generation/export/check must be sequential within a plugin:
 
 ```sh
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .
-GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go test -race ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-qdrant .

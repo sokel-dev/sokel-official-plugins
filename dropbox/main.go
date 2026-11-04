@@ -12,7 +12,7 @@ import (
 var docs embed.FS
 
 func register(p *sokel.Plugin) {
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	b, _ := docs.ReadFile("docs/dropbox.md")
 	p.SetDoc(string(b), "")

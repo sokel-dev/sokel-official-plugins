@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Stripe",
     "desc": "Read customers, subscriptions and payment intents; verify signed webhook events",
-    "version": "0.1.0",
-    "doc": "docs/stripe.md"
+    "version": "0.1.1",
+    "doc": "docs/stripe.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

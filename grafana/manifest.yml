@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Grafana",
     "desc": "Inspect dashboards and safe data source summaries, and read or create annotations on self-hosted Grafana.",
-    "version": "0.1.0",
-    "doc": "docs/grafana.md"
+    "version": "0.1.1",
+    "doc": "docs/grafana.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -450,7 +451,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-grafana:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-grafana:0.1.1"
       }
     ],
     "env": [

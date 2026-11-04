@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Miniflux",
     "desc": "Manage subscriptions, stored articles and reading state on a self-hosted Miniflux service",
-    "version": "0.1.0",
-    "doc": "docs/miniflux.md"
+    "version": "0.1.1",
+    "doc": "docs/miniflux.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -475,7 +476,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-miniflux:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-miniflux:0.1.1"
       }
     ],
     "env": [

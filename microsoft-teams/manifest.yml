@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.svg
   org: sokel
   name: microsoft-teams
   label: Microsoft Teams
   desc: Browse teams and chats and read or send delegated messages
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/microsoft-teams.md
 credential:
   fields:

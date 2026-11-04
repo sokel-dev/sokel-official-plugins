@@ -4,7 +4,7 @@ Eight operations cover transactional sending, scheduled-email cancellation, sent
 
 ## Implementation
 
-The Go `schema/` package is authoritative for typed operations and credentials; `manifest.yml` carries exported fields plus release metadata. SDK v0.7.7 generates `zz_*.go`; never edit those files. Nested pointer fields preserve null responses and an explicitly empty plain-text body. Pagination is forward-only through UUID cursors, capped at 100 records per request. No provider URL is followed and redirects are disabled.
+The Go `schema/` package is authoritative for typed operations and credentials; `manifest.yml` carries exported fields plus release metadata. SDK v0.7.8 generates `zz_*.go`; never edit those files. Nested pointer fields preserve null responses and an explicitly empty plain-text body. Pagination is forward-only through UUID cursors, capped at 100 records per request. No provider URL is followed and redirects are disabled.
 
 Writes are never automatically retried. The sender-provided idempotency key is transmitted in a header, preserving Resend's 24-hour deduplication behavior. Reads return typed delivery events rather than claiming that acceptance is delivery. The connector does not make a send-only credential look invalid by automatically requiring domain-list permissions. It registers no credential probe or webhook source.
 
@@ -13,8 +13,8 @@ Request bodies are bounded at 1 MiB and responses at 8 MiB. Received-mail querie
 ## Validation
 
 ```sh
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 generate .
-go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 check .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
+go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 check .
 go test -race ./...
 go vet ./...
 go build -o /tmp/sokel-plugin-resend .

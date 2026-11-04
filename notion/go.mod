@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/notion
 
 go 1.25.0
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 
 require (
 	github.com/klauspost/compress v1.18.5 // indirect

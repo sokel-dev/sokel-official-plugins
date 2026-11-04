@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Baserow",
     "desc": "Discover tables and manage dynamic rows on a self-hosted Baserow service",
-    "version": "0.1.0",
-    "doc": "docs/baserow.md"
+    "version": "0.1.1",
+    "doc": "docs/baserow.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -400,7 +401,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-baserow:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-baserow:0.1.1"
       }
     ],
     "env": [

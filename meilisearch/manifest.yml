@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Meilisearch",
     "desc": "Index and search documents and inspect asynchronous tasks on a self-hosted Meilisearch service",
-    "version": "0.1.0",
-    "doc": "docs/meilisearch.md"
+    "version": "0.1.1",
+    "doc": "docs/meilisearch.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -557,7 +558,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-meilisearch:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-meilisearch:0.1.1"
       }
     ],
     "env": [

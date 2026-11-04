@@ -8,7 +8,7 @@ import (
 
 func main() {
 	p := sokel.New(sokel.Config{Endpoint: sokel.EnvOr("ENDPOINT", "http://localhost:8088"), Token: sokel.Env("TOKEN"), Name: "figma"})
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	p.SetDoc(usageDoc, "")
 	RegisterCredential(p)
 	registerOperations(p, func(ctx plugin.Ctx) *api { return newAPI(sokel.CredentialAs[Cred](ctx)) })

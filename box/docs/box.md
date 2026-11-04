@@ -1,6 +1,6 @@
 # Box
 
-Read files and folders, search content, create folders, and transfer files through the Box API. This plugin uses the standard `/2.0` endpoints and the public Sokel SDK v0.7.7.
+Read files and folders, search content, create folders, and transfer files through the Box API. This plugin uses the standard `/2.0` endpoints and the public Sokel SDK v0.7.8.
 
 ## Credentials and deployment
 

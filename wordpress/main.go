@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate -lang go .
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate -lang go .
 import (
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
 	"github.com/sokel-dev/sokel-plugin-sdk/sokel"
@@ -9,7 +9,7 @@ import (
 
 func clientFor(ctx plugin.Ctx) *client { return newClient(sokel.CredentialAs[Cred](ctx)) }
 func register(p *sokel.Plugin) {
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	RegisterDoc(p)
 	registerOperations(p)

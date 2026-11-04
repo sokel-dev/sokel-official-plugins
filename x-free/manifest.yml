@@ -1,10 +1,10 @@
-# Contract source; regenerate with sokel-gen v0.7.7 generate .
+# Contract source; regenerate with sokel-gen v0.7.8 generate .
 plugin:
   name: x-free
   org: sokel
   label: X（免费读写）
   desc: 使用账号 Cookie 读写 X 推文、查看用户资料、获取 Lists 与管理成员，无需官方 API 套餐。
-  version: 0.2.1
+  version: 0.2.2
   icon: brand:x
   doc: docs/x-free.md
 

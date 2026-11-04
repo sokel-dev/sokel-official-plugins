@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Qdrant",
     "desc": "Manage dense-vector collections, points and similarity queries on a self-hosted Qdrant service",
-    "version": "0.1.0",
-    "doc": "docs/qdrant.md"
+    "version": "0.1.1",
+    "doc": "docs/qdrant.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -478,7 +479,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-qdrant:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-qdrant:0.1.1"
       }
     ],
     "env": [

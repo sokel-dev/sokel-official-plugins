@@ -24,7 +24,7 @@ Task acceptance, task completion and individual page success are separate signal
 
 ## Development and validation
 
-The contract lives in `schema/schema.go`. Run real SDK code generation before changing handlers; never edit `zz_*.go`. The independent module pins the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.7` without local replacements. Runtime and manifest versions are both `0.1.0`. The manifest's container reference is the intended release tag, not evidence that an image has been published.
+The contract lives in `schema/schema.go`. Run real SDK code generation before changing handlers; never edit `zz_*.go`. The independent module pins the public `github.com/sokel-dev/sokel-plugin-sdk v0.7.8` without local replacements. Runtime and manifest versions are both `0.1.1`. The manifest's container reference is the intended release tag, not evidence that an image has been published.
 
 ```sh
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen generate .

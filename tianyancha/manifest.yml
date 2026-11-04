@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.png
   org: sokel
   name: tianyancha
   label: Tianyancha
   desc: Commercial company information and registration change queries.
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/tianyancha.md
 credential:
   fields:

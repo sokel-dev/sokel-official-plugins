@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "linkding",
     "desc": "Search, save and organize bookmarks on a self-hosted linkding service",
-    "version": "0.1.0",
-    "doc": "docs/linkding.md"
+    "version": "0.1.1",
+    "doc": "docs/linkding.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [
@@ -709,7 +710,7 @@
     "targets": [
       {
         "kind": "container",
-        "ref": "ghcr.io/sokel-dev/sokel-plugin-linkding:0.1.0"
+        "ref": "ghcr.io/sokel-dev/sokel-plugin-linkding:0.1.1"
       }
     ],
     "env": [

@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.png
   org: sokel
   name: amap
   label: AMap
   desc: Geocoding, place search, routes, weather and administrative districts.
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/amap.md
 credential:
   fields:

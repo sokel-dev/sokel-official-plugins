@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.7 generate .
+//go:generate go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen@v0.7.8 generate .
 import (
 	_ "embed"
 	"github.com/sokel-dev/sokel-plugin-sdk/plugin"
@@ -25,7 +25,7 @@ func registerWithClient(h plugin.Host, makeClient func(Cred) *client) {
 }
 func main() {
 	p := sokel.New(sokel.Config{Name: "ntfy", Endpoint: sokel.EnvOr("ENDPOINT", "http://localhost:8088"), Token: sokel.Env("TOKEN")})
-	p.SetVersion("0.1.0")
+	p.SetVersion("0.1.1")
 	RegisterCredential(p)
 	p.SetDoc(usageDoc, "")
 	registerOperations(p)

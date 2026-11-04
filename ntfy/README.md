@@ -1,6 +1,6 @@
 # ntfy plugin
 
-Independent Go module using the public Sokel SDK v0.7.7. Read [the usage guide](docs/ntfy.md) or [简体中文](docs/ntfy.zh-CN.md) for deployment and operation semantics.
+Independent Go module using the public Sokel SDK v0.7.8. Read [the usage guide](docs/ntfy.md) or [简体中文](docs/ntfy.zh-CN.md) for deployment and operation semantics.
 
 ## Scope and design
 
@@ -22,7 +22,7 @@ GOWORK=off go build -o /tmp/sokel-plugin-ntfy .
 sokel-gen check .
 ```
 
-Never edit generated `zz_*.go`. Update schema, regenerate with v0.7.7, implement the typed handler, and keep the source manifest aligned with the real SDK export. English is the source language. `locales/zh-CN.json` includes every supported UI string and the exact full English guide mapped to the full Chinese guide. SDK v0.7.7 does not extract deployment environment descriptions as translation keys; the same configuration is explained in both guides.
+Never edit generated `zz_*.go`. Update schema, regenerate with v0.7.8, implement the typed handler, and keep the source manifest aligned with the real SDK export. English is the source language. `locales/zh-CN.json` includes every supported UI string and the exact full English guide mapped to the full Chinese guide. SDK v0.7.8 does not extract deployment environment descriptions as translation keys; the same configuration is explained in both guides.
 
 `SOKEL_TEST_NTFY_URL=http://127.0.0.1:18081 go test -run TestLocalServiceAcceptance -v .` opts into a disposable local server test and writes synthetic topics there. Leave it unset for ordinary unit tests. Real raw response fixtures came from an isolated official 2.37.1 container; see [fixture provenance](testdata/README.md). There was no connection to a production account or platform installation.
 

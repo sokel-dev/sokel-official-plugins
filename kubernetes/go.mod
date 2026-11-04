@@ -2,7 +2,7 @@ module github.com/sokel-dev/sokel-official-plugins/kubernetes
 
 go 1.25.0
 
-require github.com/sokel-dev/sokel-plugin-sdk v0.7.0
+require github.com/sokel-dev/sokel-plugin-sdk v0.7.8
 
 require (
 	k8s.io/client-go v0.34.1

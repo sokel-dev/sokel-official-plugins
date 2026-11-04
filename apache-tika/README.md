@@ -2,7 +2,7 @@
 
 Four typed operations extract text, container metadata and recursive content, or detect media type, through a self-hosted Apache Tika Server. Configure `SOKEL_TIKA_URL`. The contract explicitly targets **Tika 4.2.0**, including `/detect`, `/tika/json/text` and `tk:*` metadata. Tika 3.x compatibility is not claimed. Read [the user guide](docs/apache-tika.md) or [中文指南](docs/apache-tika.zh-CN.md).
 
-This standalone module depends only on public Sokel SDK v0.7.7 and its indirect dependencies. `schema/schema.go` declares all fields before code generation. Keep generated files untouched. The real-export manifest includes the required deployment URL; English defaults and complete Chinese UI/full-guide translations are provided. SDK 0.7.7 excludes deployment descriptions from translation keys, so the bilingual guide provides the translated configuration instructions.
+This standalone module depends only on public Sokel SDK v0.7.8 and its indirect dependencies. `schema/schema.go` declares all fields before code generation. Keep generated files untouched. The real-export manifest includes the required deployment URL; English defaults and complete Chinese UI/full-guide translations are provided. SDK 0.7.7 excludes deployment descriptions from translation keys, so the bilingual guide provides the translated configuration instructions.
 
 Protocol and boundary decisions:
 

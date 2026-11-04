@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Microsoft OneDrive",
     "desc": "Browse, search, upload small files and explicitly track drive changes",
-    "version": "0.1.0",
-    "doc": "docs/microsoft-onedrive.md"
+    "version": "0.1.1",
+    "doc": "docs/microsoft-onedrive.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

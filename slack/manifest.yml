@@ -4,8 +4,9 @@
     "org": "sokel",
     "label": "Slack collaboration",
     "desc": "Channel messages, threads, files and new-message polling",
-    "version": "0.1.0",
-    "doc": "docs/slack.md"
+    "version": "0.1.1",
+    "doc": "docs/slack.md",
+    "icon": "icon.svg"
   },
   "credential": {
     "fields": [

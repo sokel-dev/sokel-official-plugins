@@ -1,9 +1,10 @@
 plugin:
+  icon: icon.png
   name: gotenberg
   org: sokel
   label: Gotenberg
   desc: Convert HTML and office documents to PDF and merge platform PDF files with a self-hosted Gotenberg service
-  version: 0.1.0
+  version: 0.1.1
   doc: docs/gotenberg.md
 credential:
   fields:
@@ -101,6 +102,6 @@ deployment:
     required: true
   targets:
   - kind: container
-    ref: ghcr.io/sokel-dev/sokel-plugin-gotenberg:0.1.0
+    ref: ghcr.io/sokel-dev/sokel-plugin-gotenberg:0.1.1
 codegen:
 - lang: go
