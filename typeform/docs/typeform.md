@@ -43,7 +43,7 @@ Optional `since` and `until` take RFC3339 timestamps with whole-second precision
 
 HTTP requests time out after 45 seconds; normal operations have 60-second platform timeouts and health has 30 seconds. JSON requests are limited to 1 MiB and responses to 8 MiB. Credentials are sent only in the Authorization header to the fixed origin. Redirects and automatic retries are disabled. A 429 reports `Retry-After` or a 60-second fallback. Errors omit upstream bodies, tokens and transport URLs. Invalid business payloads and missing collections fail instead of returning success.
 
-Tests use synthetic fixtures based on official documentation, not live account captures. They verify request bytes, generated binding, pagination, numeric precision, false/empty answer values, time filters, invalid payloads, size limits and cancellation. Live account acceptance and publication have not been performed.
+Tests use synthetic fixtures based on official documentation, not live account captures. They verify request bytes, generated binding, pagination, numeric precision, false/empty answer values, time filters, invalid payloads, size limits and cancellation. Live account acceptance has not been performed.
 
 ## Official references
 

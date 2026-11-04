@@ -1,6 +1,6 @@
 # Linear
 
-Connect a Linear workspace with a personal API key. This source implementation is not yet released to the marketplace.
+Connect a Linear workspace with a personal API key.
 
 ## Credential and permissions
 

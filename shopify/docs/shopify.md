@@ -28,7 +28,7 @@ Keep query and operation unchanged when passing `next_cursor` into the next requ
 
 Every operation has a 60-second platform timeout and a 55-second HTTP timeout. Requests and responses are bounded to 8 MiB. Calls only go to the configured shop's official HTTPS Admin API endpoint; redirects are rejected. GraphQL errors, mutation userErrors, missing resources and malformed success responses fail explicitly. Upstream error text is not echoed because it can contain sensitive input. An unexpected API-version response header fails explicitly instead of silently accepting version fallback.
 
-After a timeout or invalid write receipt, read the product before retrying. No live shop call or marketplace publication was performed during development. Tests use clearly labeled synthetic protocol fixtures. No triggers, webhooks, bulk jobs or inventory writes are included.
+After a timeout or invalid write receipt, read the product before retrying. No live shop call was performed during development. Tests use clearly labeled synthetic protocol fixtures. No triggers, webhooks, bulk jobs or inventory writes are included.
 
 ## Official references
 

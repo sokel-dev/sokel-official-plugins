@@ -1,6 +1,6 @@
 # Microsoft Outlook
 
-Read and send mail, download file attachments and work with calendar occurrences through Microsoft Graph v1.0. Version 0.1.0 is source only and has not been released to the marketplace.
+Read and send mail, download file attachments and work with calendar occurrences through Microsoft Graph v1.0.
 
 ## Credentials and permissions
 

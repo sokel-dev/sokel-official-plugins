@@ -44,7 +44,7 @@ Invitees include identity, event URI, name, email, status, timezone, creation ti
 
 HTTP requests time out after 45 seconds; operation timeouts are 60 seconds, except health at 30 seconds. JSON request bodies are limited to 1 MiB and responses to 8 MiB. A 429 reports `Retry-After` or a 60-second fallback. No request retries automatically. Errors exclude upstream response bodies, tokens and transport URLs; missing collections and invalid business receipts fail explicitly.
 
-Tests use synthetic official API shapes, not live captures. They check serialized requests, scopes/resource paths, optional false values, page-token handling, 31-day bounds, invalid receipts, redirects, size limits and cancellation/timeouts. No real meeting booking, live account write or publication has occurred.
+Tests use synthetic official API shapes, not live captures. They check serialized requests, scopes/resource paths, optional false values, page-token handling, 31-day bounds, invalid receipts, redirects, size limits and cancellation/timeouts. No real meeting booking or live account write has occurred.
 
 ## Official references
 

@@ -14,4 +14,4 @@ GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-plugin-bookstack .
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
 ```
 
-`TestREDListOffset` and `TestREDUpdateZeroAndEmptyTags` first failed on compiling generated stubs, then passed with implementation. Tests cover official stable API examples, generated dispatch and actual request bytes plus synthetic malformed/hostile responses. [Fixture provenance](testdata/README.md) distinguishes official examples from synthetic cases. **No live BookStack stack was run**; this is protocol validation, not live or production acceptance. No image or plugin was published.
+`TestREDListOffset` and `TestREDUpdateZeroAndEmptyTags` first failed on compiling generated stubs, then passed with implementation. Tests cover official stable API examples, generated dispatch and actual request bytes plus synthetic malformed/hostile responses. [Fixture provenance](testdata/README.md) distinguishes official examples from synthetic cases. **No live BookStack stack was run**; this is protocol validation, not live or production acceptance.

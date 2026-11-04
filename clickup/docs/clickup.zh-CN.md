@@ -26,6 +26,6 @@
 
 不自动重试或跟随重定向，JSON 上限 8 MiB，错误不直接回显上游正文或凭据。写入超时或回执异常后，应先查看任务再重试；新建任务和评论不是幂等操作。限流应由工作流延迟后续调用。本插件没有触发器或 webhook。
 
-测试采用构造的公开协议数据，并覆盖生成代码的输入输出绑定，不是真实账户流量。真实账户验收和发布尚未进行。
+测试采用构造的公开协议数据，并覆盖生成代码的输入输出绑定，不是真实账户流量。真实账户验收尚未进行。
 
 参考：[鉴权](https://developer.clickup.com/docs/authentication)、[任务列表](https://developer.clickup.com/reference/gettasks)、[更新任务](https://developer.clickup.com/reference/updatetask)、[添加评论](https://developer.clickup.com/reference/createtaskcomment)、[官方 OpenAPI](https://developer.clickup.com/openapi/clickup-api-v2-reference.json)。

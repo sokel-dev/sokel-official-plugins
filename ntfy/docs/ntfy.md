@@ -40,4 +40,4 @@ For an entirely local setup, also leave ntfy server-side upstream forwarding and
 
 ## Validation
 
-Protocol and generated-dispatch tests cover authentication, Unicode input, explicit `cache=false`, HTTP errors, response bounds, polling and cursor handling. Health, publication, same-second deduplication and continuation were also exercised against an isolated ntfy 2.37.1 container using synthetic topics. This does not establish platform installation or production device delivery. The plugin has not been published.
+Protocol and generated-dispatch tests cover authentication, Unicode input, explicit `cache=false`, HTTP errors, response bounds, polling and cursor handling. Health, publication, same-second deduplication and continuation were also exercised against an isolated ntfy 2.37.1 container using synthetic topics. This does not establish platform installation or production device delivery.

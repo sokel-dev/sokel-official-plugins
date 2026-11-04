@@ -30,6 +30,6 @@
 
 JSON 请求和响应上限 8 MiB，使用固定域名，不跟随重定向，不自动重试写操作。HTTP 和限流错误不回显敏感的上游正文。写入结果不确定时，应先检查任务和评论，再决定是否重试，避免重复。成功响应结构或分页令牌异常会明确报错。
 
-测试覆盖构造的请求响应数据、字段清除、分页和平台生成绑定，并非真实账户验收。市场发布尚未进行。
+测试覆盖构造的请求响应数据、字段清除、分页和平台生成绑定，并非真实账户验收。
 
 参考：[个人访问令牌](https://developers.asana.com/docs/personal-access-token)、[任务列表](https://developers.asana.com/reference/gettasks)、[任务更新](https://developers.asana.com/reference/updatetask)、[评论](https://developers.asana.com/reference/createstoryfortask)。

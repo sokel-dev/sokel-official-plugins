@@ -1,6 +1,6 @@
 # Jira Cloud
 
-Read and modify Jira Cloud issues with an Atlassian account email and API token. This source implementation is not yet released to the marketplace. Jira Server and Data Center are not supported.
+Read and modify Jira Cloud issues with an Atlassian account email and API token. Jira Server and Data Center are not supported.
 
 ## Credential and routing
 

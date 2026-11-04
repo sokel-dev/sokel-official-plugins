@@ -46,6 +46,6 @@ JSON 响应上限为 8 MiB，操作超时为 60 秒。插件不下载仓库文�
 
 ## 验证与参考
 
-本集成已在隔离的 Gitea 28.3.0 服务中使用合成仓库、议题、评论和拉取请求完成验证，包括议题的两页读取。离线测试还覆盖真实捕获响应、生成的分发代码、Unicode 名称、精确 ID、可选 false、异常分页、拒绝重定向和错误脱敏。这属于本地服务验收，不代表已部署或发布到生产平台。
+本集成已在隔离的 Gitea 28.3.0 服务中使用合成仓库、议题、评论和拉取请求完成验证，包括议题的两页读取。离线测试还覆盖真实捕获响应、生成的分发代码、Unicode 名称、精确 ID、可选 false、异常分页、拒绝重定向和错误脱敏。这属于本地服务验收，不代表已部署到生产平台。
 
 官方来源：[Gitea 28.3.0 发布](https://github.com/go-gitea/gitea/releases/tag/v28.3.0)、[固定版本 API 定义](https://github.com/go-gitea/gitea/blob/v28.3.0/templates/swagger/v1-swagger.generated.json)、[API 鉴权与分页](https://docs.gitea.com/development/api-usage/)及 [MIT 许可证](https://github.com/go-gitea/gitea/blob/v28.3.0/LICENSE)。

@@ -24,7 +24,6 @@ Never edit generated `zz_*.go`. Update schema, regenerate with v0.7.7, implement
 
 Fixtures are documentation/source-derived, not live captures; see [fixture provenance](testdata/README.md). No live SearXNG or search engine acceptance has been performed. This is distinct from a passing mocked HTTP suite.
 
-The source image reference is release intent only. No image, catalog entry or marketplace release has been published.
 
 ## Protocol sources
 

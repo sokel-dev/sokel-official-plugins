@@ -25,6 +25,6 @@ Results expose `id`, `name`, `url`, `snippet`, `summary`, `site_name` and `publi
 
 JSON requests and responses are bounded to 8 MiB. Authentication, permission, rate-limit and provider business-code failures are surfaced without echoing upstream response bodies. A timeout can leave billing status uncertain; inspect account usage before repeating a search. Empty result arrays are valid. An explicit provider success code of 200 also permits absent/null data or web pages, matching the official provider. Without a result collection or explicit success code, the response fails validation.
 
-Request fixtures and generated dispatch tests cover the public protocol; they are synthetic, not live account acceptance. No live search or marketplace publication was performed during development. This plugin has no triggers or webhooks.
+Request fixtures and generated dispatch tests cover the public protocol; they are synthetic, not live account acceptance. No live search was performed during development. This plugin has no triggers or webhooks.
 
 References: [official Bocha provider](https://github.com/bocha-ai/dsh-web-search-bocha), [Bocha console and API example](https://open.bochaai.com/).

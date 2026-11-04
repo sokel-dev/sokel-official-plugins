@@ -56,6 +56,6 @@
 
 ## 验证与来源
 
-全部七项操作已在隔离的 Grafana OSS 13.3.0 上通过启用竞态检测的验收，使用合成 Editor 服务账户、仪表盘、无凭据数据源和注释。离线测试使用脱敏后的真实捕获响应及合成边界变体，覆盖精确整数、显式 false 和零、生成的分发代码、省略数据源配置、异常成功回执、错误和重定向拒绝。这属于本地服务验收，不代表已部署或发布到生产平台。
+全部七项操作已在隔离的 Grafana OSS 13.3.0 上通过启用竞态检测的验收，使用合成 Editor 服务账户、仪表盘、无凭据数据源和注释。离线测试使用脱敏后的真实捕获响应及合成边界变体，覆盖精确整数、显式 false 和零、生成的分发代码、省略数据源配置、异常成功回执、错误和重定向拒绝。这属于本地服务验收，不代表已部署到生产平台。
 
 官方来源：[13.3.0 发布](https://github.com/grafana/grafana/releases/tag/v13.3.0)、[旧版 API 状态](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/)、[固定版本数据源 API](https://github.com/grafana/grafana/blob/v13.3.0/docs/sources/developer-resources/api-reference/http-api/api-legacy/data_source.md)、[仪表盘搜索 API](https://github.com/grafana/grafana/blob/v13.3.0/docs/sources/developer-resources/api-reference/http-api/api-legacy/folder_dashboard_search.md)、[注释 API](https://github.com/grafana/grafana/blob/v13.3.0/docs/sources/developer-resources/api-reference/http-api/api-legacy/annotations.md)、[仪表盘处理器](https://github.com/grafana/grafana/blob/v13.3.0/pkg/api/dashboard.go)及 [AGPLv3 许可证](https://github.com/grafana/grafana/blob/v13.3.0/LICENSE)。

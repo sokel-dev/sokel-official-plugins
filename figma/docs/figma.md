@@ -36,7 +36,7 @@ For a comment, provide `file_key` and `message` (1–10,000 characters, a plugin
 
 Operations allow 60 seconds; HTTP timeout is 50 seconds, request limit 1 MiB, response limit 8 MiB. Large files or comment lists can exceed the limit. Redirects and automatic retries are disabled. Errors omit raw response bodies and token values. A timed-out comment may already exist: check the file before posting again. API rate limits vary by endpoint tier, token owner, plan and seat.
 
-This source is unreleased. Fixtures are synthetic adaptations of the official REST documentation and OpenAPI specification, including null nodes and render failures. No real Figma account, file or comment was accessed during development. Verify actual token scopes, team visibility, rendering and a controlled comment before production.
+Fixtures are synthetic adaptations of the official REST documentation and OpenAPI specification, including null nodes and render failures. No real Figma account, file or comment was accessed during development. Verify actual token scopes, team visibility, rendering and a controlled comment before production.
 
 ## Official references
 

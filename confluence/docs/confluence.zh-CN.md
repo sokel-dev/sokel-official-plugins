@@ -1,6 +1,6 @@
 # Confluence Cloud
 
-使用 Confluence Cloud v2 API 读取空间、创建和更新已发布页面。凭据检查使用 v1 当前用户接口。当前为源码实现，尚未在市场发布。不支持 Server 或 Data Center。
+使用 Confluence Cloud v2 API 读取空间、创建和更新已发布页面。凭据检查使用 v1 当前用户接口。不支持 Server 或 Data Center。
 
 ## 凭据与权限
 

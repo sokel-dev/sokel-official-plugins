@@ -56,6 +56,6 @@ JSON 响应上限为 8 MiB。上传与下载的平台操作超时为 300 秒，H
 
 ## 验证与参考
 
-测试覆盖请求字节、API 10 任务状态、multipart 元数据及中文文件名、精确 ID、空标签替换、可选 false、平台文件失败、分页、生成的分发代码、HTTP 错误和重定向拒绝。这些是依据稳定版本源码编写的合成响应协议测试；**本次实现未使用真实运行的 Paperless 服务**。不声称已部署或发布到生产环境。
+测试覆盖请求字节、API 10 任务状态、multipart 元数据及中文文件名、精确 ID、空标签替换、可选 false、平台文件失败、分页、生成的分发代码、HTTP 错误和重定向拒绝。这些是依据稳定版本源码编写的合成响应协议测试；**本次实现未使用真实运行的 Paperless 服务**。不声称已部署到生产环境。
 
 官方来源：[Paperless-ngx 3.4.1 发布](https://github.com/paperless-ngx/paperless-ngx/releases/tag/v3.4.1)、[稳定版 API 指南](https://github.com/paperless-ngx/paperless-ngx/blob/v3.4.1/docs/api.md)、[API 视图](https://github.com/paperless-ngx/paperless-ngx/blob/v3.4.1/src/documents/views.py)、[序列化器](https://github.com/paperless-ngx/paperless-ngx/blob/v3.4.1/src/documents/serialisers.py)、[任务状态定义](https://github.com/paperless-ngx/paperless-ngx/blob/v3.4.1/src/documents/models.py)及 [GPLv3 许可证](https://github.com/paperless-ngx/paperless-ngx/blob/v3.4.1/LICENSE)。

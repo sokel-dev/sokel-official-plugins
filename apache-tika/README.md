@@ -22,6 +22,6 @@ GOWORK=off go build -o /tmp/sokel-apache-tika .
 GOWORK=off go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
 ```
 
-Three behavior tests against a compiling generated shell first failed with `not implemented`. Implemented tests verify raw request bytes, filename headers, optional auth, redirects, exact integer metadata, legacy/partial response rejection, recursive children and generated dispatch. The fixtures are synthetic adaptations of official endpoint and serializer contracts, not captured service responses; [provenance](testdata/README.md) distinguishes them. Real container acceptance is reported separately. No public deployment or registry publication is claimed.
+Three behavior tests against a compiling generated shell first failed with `not implemented`. Implemented tests verify raw request bytes, filename headers, optional auth, redirects, exact integer metadata, legacy/partial response rejection, recursive children and generated dispatch. The fixtures are synthetic adaptations of official endpoint and serializer contracts, not captured service responses; [provenance](testdata/README.md) distinguishes them. Real container acceptance is reported separately. No public deployment is claimed.
 
 Apache Tika is Apache-2.0 licensed; its [LICENSE](https://github.com/apache/tika/blob/4.2.0/LICENSE.txt) and NOTICE cover bundled components. This plugin does not bundle the Tika server or require a commercial service.

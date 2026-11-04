@@ -46,6 +46,6 @@ JSON responses are limited to 8 MiB and operation timeouts are 60 seconds. The p
 
 ## Validation and references
 
-The integration was exercised against an isolated Gitea 28.3.0 service with synthetic repositories, issues, comments and a pull request, including two-page issue reads. Offline tests also cover captured responses, generated dispatch, Unicode names, precise IDs, optional false, bad pagination, redirect refusal and error redaction. This is local service acceptance, not a deployment or publication to a production platform.
+The integration was exercised against an isolated Gitea 28.3.0 service with synthetic repositories, issues, comments and a pull request, including two-page issue reads. Offline tests also cover captured responses, generated dispatch, Unicode names, precise IDs, optional false, bad pagination, redirect refusal and error redaction. This is local service acceptance, not a deployment to a production platform.
 
 Official sources: [Gitea 28.3.0 release](https://github.com/go-gitea/gitea/releases/tag/v28.3.0), [pinned API specification](https://github.com/go-gitea/gitea/blob/v28.3.0/templates/swagger/v1-swagger.generated.json), [API authentication and pagination](https://docs.gitea.com/development/api-usage/), and [MIT license](https://github.com/go-gitea/gitea/blob/v28.3.0/LICENSE).

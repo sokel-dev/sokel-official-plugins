@@ -38,4 +38,4 @@ health_check validates Google identity authorization only, not service enablemen
 
 ## Validation status
 
-Tests use synthetic protocol examples based on official documentation to verify wire requests, pagination, failures and polling checkpoints. They are not live account captures. No live Google credentials were available, so OAuth consent, real resource operations and deployment acceptance remain unverified. Complete those checks with a test account before release.
+Tests use synthetic protocol examples based on official documentation to verify wire requests, pagination, failures and polling checkpoints. They are not live account captures. No live Google credentials were available, so OAuth consent, real resource operations and deployment acceptance remain unverified. Complete those checks with a test account before production use.

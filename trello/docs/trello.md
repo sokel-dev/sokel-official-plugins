@@ -44,7 +44,7 @@ Writes require HTTP 200 and a valid resource/action receipt. No operation retrie
 
 HTTP requests time out after 45 seconds; normal operations have a 60-second platform timeout and health has 30 seconds. JSON request bodies are limited to 1 MiB and responses to 8 MiB. A 429 reports `Retry-After` or a 60-second fallback. Errors omit upstream bodies, credentials and transport URLs. Oversized or incomplete responses fail explicitly.
 
-Tests use synthetic fixtures based on official API shapes. They check serialized headers, paths and bodies, false and null values, pagination, invalid receipts, redirects, timeout/cancellation and size limits. They are not live account captures. No live writes or publication have been performed.
+Tests use synthetic fixtures based on official API shapes. They check serialized headers, paths and bodies, false and null values, pagination, invalid receipts, redirects, timeout/cancellation and size limits. They are not live account captures. No live writes have been performed.
 
 ## Official references
 

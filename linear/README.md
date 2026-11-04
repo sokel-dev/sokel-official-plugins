@@ -2,8 +2,6 @@
 
 Seven operations cover credential checking, paginated team/issue/project reads and issue creation/update. Personal API keys use the fixed Linear GraphQL endpoint. Explicit GraphQL variables preserve user text and avoid query interpolation.
 
-Version 0.1.0 source is available locally. No image, registry entry or marketplace release has been published as part of this work.
-
 - [User guide](docs/linear.md)
 - [中文使用文档](docs/linear.zh-CN.md)
 
@@ -30,7 +28,7 @@ A compilable stub first failed the readonly health and operation wire-contract a
 
 Tests exercise each operation with a real HTTP client and an in-memory transport, inspect outgoing JSON bytes, verify generated input binding, reject redirects, sanitize status/transport errors, enforce payload/response limits, and check cancellation and timeout propagation. Service-specific coverage includes GraphQL HTTP-200 errors, missing connections and nodes, mutation confirmation, zero/empty/omitted updates, cursor continuation and strict date validation.
 
-The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before releasing, validate the intended token scopes and representative reads/writes in a dedicated account.
+The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before production use, validate the intended token scopes and representative reads/writes in a dedicated account.
 
 ## Official API references
 

@@ -18,4 +18,4 @@ sokel-gen check .
 
 Run with `ENDPOINT` and a platform deployment `TOKEN` (or SDK-supported `SOKEL_DEPLOY_KEY`). Configure the service credential in the platform, not in source files.
 
-Tests use synthetic fixtures and do not call live services. Initial marketplace release and live account acceptance remain pending; no registry digest is included here.
+Tests use synthetic fixtures and do not call live services. Live account acceptance remains pending.
