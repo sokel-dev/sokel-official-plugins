@@ -26,6 +26,6 @@ Update requires at least one changed field. Omitted fields remain unchanged. Sup
 
 No automatic retries or redirects. JSON is bounded to 8 MiB. Errors do not echo upstream bodies or credentials. After a write timeout or invalid receipt, inspect the task before retrying; task creation and comments are not idempotent. Rate limits must be handled by delaying subsequent workflow calls. No triggers or webhooks are registered.
 
-Tests use synthetic public-protocol fixtures and generated input/output binding, not live account traffic. Real account acceptance and publication remain pending.
+Tests use synthetic public-protocol fixtures and generated input/output binding, not live account traffic. Real account acceptance remains pending.
 
 References: [authentication](https://developer.clickup.com/docs/authentication), [list tasks](https://developer.clickup.com/reference/gettasks), [update task](https://developer.clickup.com/reference/updatetask), [create comment](https://developer.clickup.com/reference/createtaskcomment), [official OpenAPI](https://developer.clickup.com/openapi/clickup-api-v2-reference.json).

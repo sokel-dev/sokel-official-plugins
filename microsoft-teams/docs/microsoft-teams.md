@@ -1,6 +1,6 @@
 # Microsoft Teams
 
-Browse teams, channels and existing chats; read messages and replies; send channel messages, channel replies and chat messages through Microsoft Graph v1.0. Version 0.1.0 is source only and has not been released to the marketplace.
+Browse teams, channels and existing chats; read messages and replies; send channel messages, channel replies and chat messages through Microsoft Graph v1.0.
 
 ## Delegated credential and tenant consent
 

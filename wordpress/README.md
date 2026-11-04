@@ -41,7 +41,7 @@ Requests time out after 45 seconds, responses are bounded at 4 MiB, and redirect
 
 The public Sokel Plugin SDK v0.7.7 is the only direct module dependency. Run `go generate ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, and `go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .` from this directory.
 
-Synthetic HTTP fixtures verify Basic authentication, pagination headers, generated input/output binding, draft status, explicit empty values, multipart bytes, safe errors and redirect rejection. These checks do not constitute live WordPress acceptance or publication.
+Synthetic HTTP fixtures verify Basic authentication, pagination headers, generated input/output binding, draft status, explicit empty values, multipart bytes, safe errors and redirect rejection. These checks do not constitute live WordPress acceptance.
 
 ## Official references
 

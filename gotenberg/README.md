@@ -22,6 +22,6 @@ GOWORK=off go build -o /tmp/sokel-gotenberg .
 GOWORK=off go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
 ```
 
-The contract and generated shell preceded implementation. Three compilable behavior tests initially failed with `not implemented`, then passed after implementation. Tests inspect multipart bytes, Chinese/quoted filenames, explicit false values, input ordering, platform dispatch, auth, redirects, limits and storage failures. Synthetic `%PDF` test data tests transport validation only and is not a real rendered PDF. See [fixture provenance](testdata/README.md). Real container acceptance is reported separately; fixture tests do not establish live rendering quality, and no registry publication is claimed.
+The contract and generated shell preceded implementation. Three compilable behavior tests initially failed with `not implemented`, then passed after implementation. Tests inspect multipart bytes, Chinese/quoted filenames, explicit false values, input ordering, platform dispatch, auth, redirects, limits and storage failures. Synthetic `%PDF` test data tests transport validation only and is not a real rendered PDF. See [fixture provenance](testdata/README.md). Real container acceptance is reported separately; fixture tests do not establish live rendering quality.
 
 Upstream reference: [Gotenberg v8.39.0](https://github.com/gotenberg/gotenberg/releases/tag/v8.39.0), MIT license for Gotenberg code. Chromium, LibreOffice and other packaged engines retain their respective licenses. The plugin does not bundle or deploy those engines.

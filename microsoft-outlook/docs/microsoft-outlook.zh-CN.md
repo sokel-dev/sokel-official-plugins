@@ -1,6 +1,6 @@
 # Microsoft Outlook
 
-通过 Microsoft Graph v1.0 读取和发送邮件、下载文件附件、查询日历实例并创建日程。0.1.0 当前仅为源码，尚未发布到市场。
+通过 Microsoft Graph v1.0 读取和发送邮件、下载文件附件、查询日历实例并创建日程。
 
 ## 凭据与权限
 

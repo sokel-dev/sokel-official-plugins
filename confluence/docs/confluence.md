@@ -1,6 +1,6 @@
 # Confluence Cloud
 
-Read spaces and create or update published pages with the Confluence Cloud v2 API. The credential check uses the current-user endpoint in v1. This source implementation is not yet released to the marketplace. Server and Data Center are not supported.
+Read spaces and create or update published pages with the Confluence Cloud v2 API. The credential check uses the current-user endpoint in v1. Server and Data Center are not supported.
 
 ## Credential and permissions
 

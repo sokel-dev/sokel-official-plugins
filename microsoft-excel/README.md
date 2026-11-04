@@ -14,6 +14,6 @@ go build ./...
 go run github.com/sokel-dev/sokel-plugin-sdk/cmd/sokel-gen check .
 ```
 
-The tests began with compilable failing handler stubs. They assert actual HTTP method/path/query/header/body bytes, generated input/output binding, explicit zero/false/null values, page boundaries, response limits, redirect rejection, safe errors and no write retries. Fixtures are synthetic cases based on the official references in the user guide, not captured live responses. Review API evolution against those sources before changing projections. No real Microsoft tenant acceptance, registry publication or image publication is claimed.
+The tests began with compilable failing handler stubs. They assert actual HTTP method/path/query/header/body bytes, generated input/output binding, explicit zero/false/null values, page boundaries, response limits, redirect rejection, safe errors and no write retries. Fixtures are synthetic cases based on the official references in the user guide, not captured live responses. Review API evolution against those sources before changing projections. No real Microsoft tenant acceptance is claimed.
 
 Default interface and documentation text is English. `locales/zh-CN.json` translates every display string and the entire exact user guide. Regenerate and validate after changing either the manifest or guide. Keep this module independent; do not edit generated files directly.

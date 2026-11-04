@@ -40,7 +40,7 @@ Order values use signed 32-bit integers. Content is limited to 10,000 characters
 
 Operations allow 60 seconds; HTTP timeout is 50 seconds, request limit 1 MiB, response limit 8 MiB. The plugin blocks redirects, validates cursors, sanitizes errors, and never retries automatically. Creation is not made idempotent by this plugin. A timeout may occur after a write was applied: inspect the account before retrying. Todoist quotas and plan restrictions remain in force.
 
-This source is unreleased. Fixtures are synthetic adaptations of official API schemas/examples, not captured account responses. No real Todoist account was accessed and no task was created or completed during development. Production acceptance should check actual token permissions, pagination, priority mapping and controlled create/update/complete behavior.
+Fixtures are synthetic adaptations of official API schemas/examples, not captured account responses. No real Todoist account was accessed and no task was created or completed during development. Production acceptance should check actual token permissions, pagination, priority mapping and controlled create/update/complete behavior.
 
 ## Official reference
 

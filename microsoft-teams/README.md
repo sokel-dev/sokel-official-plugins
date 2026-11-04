@@ -1,6 +1,6 @@
 # Microsoft Teams plugin
 
-9 typed Microsoft Graph v1.0 operations with a manual delegated access-token credential. Version 0.1.0 is source only: no image, registry entry or marketplace release has been published in this work.
+9 typed Microsoft Graph v1.0 operations with a manual delegated access-token credential.
 
 Joined teams, channels and chats; channel messages, replies and chat messages; new channel messages, channel replies and chat sends. No unsupported $top is sent to joinedTeams/channels. Chat send uses ChatMessage.Send, as documented by the dedicated chat-post-messages endpoint; channel send uses ChannelMessage.Send. This is not an app-only migration/import client. No chat creation, mentions, cards, attachments, edits, deletes or subscriptions.
 
@@ -34,6 +34,6 @@ The platform connection uses `ENDPOINT` with `TOKEN` or `DEPLOY_KEY`. Service cr
 
 The first compilable stub failed `TestReadOnlyHealth` and `TestTeamsProtocol` with `not implemented`; the same acceptance tests then passed after implementation. Tests use a real HTTP client with an in-memory recording transport, inspect outbound request bytes, and exercise every generated dispatcher. Additional cases cover origin/path isolation, immutable nextLink queries, malformed collections, no-progress pages, redirects, token/status/transport sanitization, payload limits, deadline propagation and cancellation. App-only preflight failure prevents POST; channel replies and chat sends use distinct verified paths, and unconfirmed creation responses are rejected.
 
-Fixtures are synthetic examples based on the official API documentation, not captures from a real account. No live-account acceptance and no real mail, invitation or Teams message sending has occurred. Before release, verify the intended delegated permissions and representative operations in a dedicated test tenant. The release owner validates the real export and locale metadata in a temporary catalog; no temporary fixture establishes publication.
+Fixtures are synthetic examples based on the official API documentation, not captures from a real account. No live-account acceptance and no real mail, invitation or Teams message sending has occurred. Before production use, verify the intended delegated permissions and representative operations in a dedicated test tenant. The release owner validates the real export and locale metadata in a temporary catalog; no temporary fixture establishes publication.
 
 The user guide links the official endpoint and permission references used for implementation.

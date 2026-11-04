@@ -34,7 +34,7 @@ Opaque record fields are necessary because custom schemas and SOQL projections v
 
 Each operation has a 60-second platform timeout and 55-second HTTP timeout. JSON requests/responses are bounded to 8 MiB. Requests remain on the validated Salesforce HTTPS origin, and redirects are rejected. Errors omit sensitive response bodies. There are no automatic retries, including writes. After an uncertain create/update/upsert result, read or query the record before retrying. Upsert requires a stable, preferably unique external ID and does not promise exactly-once execution of Salesforce automations. Writes can trigger flows, validation rules and other organization automation. Updates do not include a concurrency guard.
 
-No live account calls or marketplace publication were performed. Synthetic protocol and generated-binding tests are clearly labeled. Bulk APIs, Composite API, deletes, file transfer, triggers, Change Data Capture and subscriptions are outside this version.
+No live account calls were performed. Synthetic protocol and generated-binding tests are clearly labeled. Bulk APIs, Composite API, deletes, file transfer, triggers, Change Data Capture and subscriptions are outside this version.
 
 ## Official references
 

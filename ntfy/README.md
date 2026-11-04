@@ -26,7 +26,6 @@ Never edit generated `zz_*.go`. Update schema, regenerate with v0.7.7, implement
 
 `SOKEL_TEST_NTFY_URL=http://127.0.0.1:18081 go test -run TestLocalServiceAcceptance -v .` opts into a disposable local server test and writes synthetic topics there. Leave it unset for ordinary unit tests. Real raw response fixtures came from an isolated official 2.37.1 container; see [fixture provenance](testdata/README.md). There was no connection to a production account or platform installation.
 
-The source image reference is release intent only. No image, catalog entry or marketplace release has been published.
 
 ## Protocol sources
 

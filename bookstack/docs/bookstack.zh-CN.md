@@ -56,6 +56,6 @@ HTML 与 Markdown 只能提供一种。省略的更新字段保持不变；明�
 
 ## 验证与来源
 
-测试使用稳定版本的官方 API 请求和响应示例，以及明确标注的合成边界变体，覆盖生成的凭据、输入和输出分发代码、书籍嵌套内容、偏移量与搜索分页区别、精确 ID、空标签和空内容、零优先级、异常成功响应、脱敏与重定向拒绝。**本次实现未运行真实 BookStack 实例**，不声称已进行生产部署或发布。
+测试使用稳定版本的官方 API 请求和响应示例，以及明确标注的合成边界变体，覆盖生成的凭据、输入和输出分发代码、书籍嵌套内容、偏移量与搜索分页区别、精确 ID、空标签和空内容、零优先级、异常成功响应、脱敏与重定向拒绝。**本次实现未运行真实 BookStack 实例**，不声称已进行生产部署。
 
 官方来源：[26.09.2 发布](https://github.com/BookStackApp/BookStack/releases/tag/v26.09.2)、[API 文档](https://demo.bookstackapp.com/api/docs)、[固定版本 API 示例](https://github.com/BookStackApp/BookStack/tree/v26.09.2/dev/api)、[页面 API 控制器](https://github.com/BookStackApp/BookStack/blob/v26.09.2/app/Entities/Controllers/PageApiController.php)、[搜索 API 控制器](https://github.com/BookStackApp/BookStack/blob/v26.09.2/app/Search/SearchApiController.php)及 [MIT 许可证](https://github.com/BookStackApp/BookStack/blob/v26.09.2/LICENSE)。

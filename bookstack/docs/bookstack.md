@@ -56,6 +56,6 @@ There is no automatic retry loop for failed HTTP responses, and mutation bodies 
 
 ## Validation and sources
 
-Tests use the stable release's official API request/response examples plus explicitly synthetic boundary variants. They cover generated credential/input/output dispatch, nested book contents, offset versus search pagination, precise IDs, empty tags/content, zero priority, malformed success responses, redaction and redirect refusal. **No live BookStack instance was run for this implementation.** No production deployment or publication is claimed.
+Tests use the stable release's official API request/response examples plus explicitly synthetic boundary variants. They cover generated credential/input/output dispatch, nested book contents, offset versus search pagination, precise IDs, empty tags/content, zero priority, malformed success responses, redaction and redirect refusal. **No live BookStack instance was run for this implementation.** No production deployment is claimed.
 
 Official sources: [26.09.2 release](https://github.com/BookStackApp/BookStack/releases/tag/v26.09.2), [API documentation](https://demo.bookstackapp.com/api/docs), [pinned API examples](https://github.com/BookStackApp/BookStack/tree/v26.09.2/dev/api), [page API controller](https://github.com/BookStackApp/BookStack/blob/v26.09.2/app/Entities/Controllers/PageApiController.php), [search API controller](https://github.com/BookStackApp/BookStack/blob/v26.09.2/app/Search/SearchApiController.php), and [MIT license](https://github.com/BookStackApp/BookStack/blob/v26.09.2/LICENSE).

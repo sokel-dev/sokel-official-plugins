@@ -30,7 +30,7 @@ Both update and add-comment operations accept `updated_stamp`, the exact RFC3339
 
 Every operation has a 60-second platform timeout and a 55-second HTTP timeout. JSON requests/responses are limited to 8 MiB. Requests stay on the configured account's HTTPS `.zendesk.com` origin, reject redirects and never automatically retry writes. HTTP errors and invalid receipts fail without echoing sensitive upstream bodies. After an uncertain create or comment result, inspect the ticket before retrying to avoid duplicate records or messages. Pagination is not a transactional snapshot.
 
-No live account writes or marketplace publication were performed. Tests use synthetic protocol fixtures, not captured live traffic. This version has no triggers, webhooks, custom-field editing, uploads, bulk jobs or incremental export.
+No live account writes were performed. Tests use synthetic protocol fixtures, not captured live traffic. This version has no triggers, webhooks, custom-field editing, uploads, bulk jobs or incremental export.
 
 ## Official references
 

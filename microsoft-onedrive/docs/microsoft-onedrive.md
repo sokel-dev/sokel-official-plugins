@@ -36,7 +36,7 @@ Enter a delegated Microsoft Graph access token issued for the global Microsoft G
 
 The origin is fixed to `https://graph.microsoft.com/v1.0`. Sovereign clouds and deployment URL overrides are not supported. IDs cannot contain URL paths or query strings. Continuation URLs are preserved without re-encoding and must remain on the same Graph origin and resource; credentials are never forwarded through redirects. Each list operation reads one page. Empty `next_link` means no continuation was returned. Account changes during pagination can cause records to move between pages.
 
-Requests time out after 45 seconds. JSON request bodies are limited to 1 MiB and responses to 4 MiB. A 429 error reports the `Retry-After` delay or a 60-second fallback. No request is automatically retried, including writes. After a timeout, 5xx response or invalid write receipt, inspect the target resource before retrying. Errors omit upstream bodies, access tokens and transport URLs. Tests use documented API shapes and synthetic HTTP fixtures, not live account captures. Live acceptance and publication have not been performed.
+Requests time out after 45 seconds. JSON request bodies are limited to 1 MiB and responses to 4 MiB. A 429 error reports the `Retry-After` delay or a 60-second fallback. No request is automatically retried, including writes. After a timeout, 5xx response or invalid write receipt, inspect the target resource before retrying. Errors omit upstream bodies, access tokens and transport URLs. Tests use documented API shapes and synthetic HTTP fixtures, not live account captures. Live acceptance has not been performed.
 
 ## Official references
 

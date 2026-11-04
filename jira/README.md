@@ -2,8 +2,6 @@
 
 Nine operations cover credential checking, enhanced JQL search, issue get/create/update, transitions and comments. Cloud API v3 only; Server/Data Center are excluded. API-token credentials support both the tenant origin and the required scoped-token gateway.
 
-Version 0.1.0 source is available locally. No image, registry entry or marketplace release has been published as part of this work.
-
 - [User guide](docs/jira.md)
 - [中文使用文档](docs/jira.zh-CN.md)
 
@@ -30,7 +28,7 @@ A compilable stub first failed the readonly health and operation wire-contract a
 
 Tests exercise each operation with a real HTTP client and an in-memory transport, inspect outgoing JSON bytes, verify generated input binding, reject redirects, sanitize status/transport errors, enforce payload/response limits, and check cancellation and timeout propagation. Service-specific coverage includes POST /search/jql pagination, Basic-auth origin boundaries, scoped-token routing, ADF paragraph conversion, empty/omitted updates, dynamic custom-field constraints and transition request bytes. Dynamic custom/transition objects use SDK float64 binding; large integer identifiers must be strings.
 
-The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before releasing, validate the intended token scopes and representative reads/writes in a dedicated account.
+The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before production use, validate the intended token scopes and representative reads/writes in a dedicated account.
 
 ## Official API references
 

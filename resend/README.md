@@ -20,7 +20,7 @@ go vet ./...
 go build -o /tmp/sokel-plugin-resend .
 ```
 
-Tests use official documentation examples identified in [testdata/README.md](testdata/README.md), with synthetic failures and boundary variants kept in test code. Requests are recorded through an in-memory HTTP transport; no API key, account or actual message is used. This does not establish live delivery or account entitlements. Source image metadata names an intended release artifact; no image or marketplace version has been published in this batch.
+Tests use official documentation examples identified in [testdata/README.md](testdata/README.md), with synthetic failures and boundary variants kept in test code. Requests are recorded through an in-memory HTTP transport; no API key, account or actual message is used. This does not establish live delivery or account entitlements.
 
 ## References
 

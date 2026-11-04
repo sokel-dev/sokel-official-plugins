@@ -47,7 +47,7 @@ This version has no delete, move, overwrite, event source, automatic checkpoint,
 
 ## Validation
 
-Tests use synthetic fixtures based on official documentation, not captured live account responses. They verify serialized request bytes, generated input/output binding, pagination, multipart ordering and filenames, redirect allowlists, absence of credentials on content requests, empty files, size/checksum validation, cancellation/timeouts and secret-safe errors. No live writes or release publication were performed.
+Tests use synthetic fixtures based on official documentation, not captured live account responses. They verify serialized request bytes, generated input/output binding, pagination, multipart ordering and filenames, redirect allowlists, absence of credentials on content requests, empty files, size/checksum validation, cancellation/timeouts and secret-safe errors. No live writes were performed.
 
 ## Official references
 

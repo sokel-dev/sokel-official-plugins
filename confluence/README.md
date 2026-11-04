@@ -2,8 +2,6 @@
 
 Seven operations cover credential checking, paginated space/page reads and published-page creation/update. Data operations use v2; identity checking uses the maintained v1 current-user endpoint. Updates compare the expected published version, then write exactly the next version without automatic retries.
 
-Version 0.1.0 source is available locally. No image, registry entry or marketplace release has been published as part of this work.
-
 - [User guide](docs/confluence.md)
 - [中文使用文档](docs/confluence.zh-CN.md)
 
@@ -30,7 +28,7 @@ A compilable stub first failed the readonly health and operation wire-contract a
 
 Tests exercise each operation with a real HTTP client and an in-memory transport, inspect outgoing JSON bytes, verify generated input binding, reject redirects, sanitize status/transport errors, enforce payload/response limits, and check cancellation and timeout propagation. Service-specific coverage includes v2 request bodies, storage/ADF format validation, numeric IDs, encoded cursors, cross-origin pagination rejection, stale-version prevention and an API 409 after a successful pre-read. Published-page version checks do not protect existing drafts from Atlassian reconciliation.
 
-The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before releasing, validate the intended token scopes and representative reads/writes in a dedicated account.
+The final local gates are race tests, vet, build, real generation/check, schema export and temporary first-release catalog validation with the SDK. Temporary release fixtures are validation-only and are not published artifact evidence. No live service credentials were supplied, and no external write or live-account acceptance has occurred. Before production use, validate the intended token scopes and representative reads/writes in a dedicated account.
 
 ## Official API references
 

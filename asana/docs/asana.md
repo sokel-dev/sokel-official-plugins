@@ -30,6 +30,6 @@ All resource GIDs are strings of digits. `get_task` reads one task. Task output 
 
 JSON requests and responses are bounded to 8 MiB. Requests use a fixed origin and never follow redirects or automatically retry writes. HTTP/rate-limit errors omit sensitive upstream bodies. After uncertain write results, inspect the task/comments before retrying to avoid duplicates. Malformed success responses or pagination tokens fail explicitly.
 
-Tests cover synthetic request/response fixtures, clearing fields, pagination and generated platform binding. They are not live account acceptance. Marketplace publication remains pending.
+Tests cover synthetic request/response fixtures, clearing fields, pagination and generated platform binding. They are not live account acceptance.
 
 References: [personal access tokens](https://developers.asana.com/docs/personal-access-token), [task listing](https://developers.asana.com/reference/gettasks), [task updates](https://developers.asana.com/reference/updatetask), [comments](https://developers.asana.com/reference/createstoryfortask).

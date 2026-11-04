@@ -1,6 +1,6 @@
 # Jira Cloud
 
-使用 Atlassian 账号邮箱和 API 令牌读取、修改 Jira Cloud issue。当前为源码实现，尚未在市场发布。不支持 Jira Server 或 Data Center。
+使用 Atlassian 账号邮箱和 API 令牌读取、修改 Jira Cloud issue。不支持 Jira Server 或 Data Center。
 
 ## 凭据与路由
 

@@ -18,7 +18,7 @@ GOWORK=off GOCACHE=/tmp/sokel-go-cache go vet ./...
 GOWORK=off GOCACHE=/tmp/sokel-go-cache go build -o /tmp/sokel-monday .
 ```
 
-The initial contract and generated code were exercised with compilable handlers returning `not implemented`: `go test -run TestDocumentedWireRequests -count=1 ./...` failed for each operation before implementation, then passed after implementation. These are synthetic, documentation-derived fixtures, not live service recordings. Tests inspect actual HTTP request bytes and generated input binding, then cover invalid business receipts, credentials, pagination, timeouts, redirects and size bounds. No real account writes, container publication or registry release were performed. Root-level release-fixture checks are managed separately.
+The initial contract and generated code were exercised with compilable handlers returning `not implemented`: `go test -run TestDocumentedWireRequests -count=1 ./...` failed for each operation before implementation, then passed after implementation. These are synthetic, documentation-derived fixtures, not live service recordings. Tests inspect actual HTTP request bytes and generated input binding, then cover invalid business receipts, credentials, pagination, timeouts, redirects and size bounds. No real account writes were performed. Root-level release-fixture checks are managed separately.
 
 ## Upstream fixture basis
 

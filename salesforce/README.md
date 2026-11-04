@@ -1,6 +1,6 @@
 # Salesforce plugin
 
-Source implementation for Sokel using the public Go SDK v0.7.7. Version 0.1.0 is not released to the marketplace.
+Source implementation for Sokel using the public Go SDK v0.7.7.
 
 - [User guide](docs/salesforce.md)
 - [中文使用说明](docs/salesforce.zh-CN.md)
@@ -21,6 +21,6 @@ Run with platform `ENDPOINT` and `TOKEN` or deployment credentials supported by 
 
 ## Validation and boundaries
 
-Behavioral tests were first run against compilable stubs and failed because no upstream request occurred. The implementation then passed protocol and generated-dispatch tests. Fixtures are synthetic examples checked against linked official API documentation, not captured live traffic. No real account credentials, live acceptance, external writes, commits or publication were performed.
+Behavioral tests were first run against compilable stubs and failed because no upstream request occurred. The implementation then passed protocol and generated-dispatch tests. Fixtures are synthetic examples checked against linked official API documentation, not captured live traffic. No real account credentials were used, and no live acceptance or external writes were performed.
 
-Tests assert outgoing methods, URLs, authentication, payloads, pagination, false/null handling, malformed success responses, error redaction, bounded payloads and redirect rejection. HTTP calls have a 55-second timeout, operations declare 60 seconds, and writes are never automatically retried. Read the user guide for provider-specific limits and scopes. Manual live acceptance remains required before release.
+Tests assert outgoing methods, URLs, authentication, payloads, pagination, false/null handling, malformed success responses, error redaction, bounded payloads and redirect rejection. HTTP calls have a 55-second timeout, operations declare 60 seconds, and writes are never automatically retried. Read the user guide for provider-specific limits and scopes. Manual live acceptance remains required before production use.

@@ -43,7 +43,7 @@ RPC requests time out after 45 seconds and file requests after 120 seconds; oper
 
 ## Validation
 
-Tests use synthetic fixtures based on the official API schema, not captured live account responses. They verify actual serialized requests, generated input binding, pagination, metadata unions, Unicode headers, empty files, size limits, cancellation/timeouts, redirects and secret-safe errors. No live account writes, image publication or registry release were performed.
+Tests use synthetic fixtures based on the official API schema, not captured live account responses. They verify actual serialized requests, generated input binding, pagination, metadata unions, Unicode headers, empty files, size limits, cancellation/timeouts, redirects and secret-safe errors. No live account writes were performed.
 
 ## Official references
 

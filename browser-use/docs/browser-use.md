@@ -44,4 +44,4 @@ Requests use only the fixed global API origin; redirects are rejected. No return
 - [Status](https://docs.browser-use.com/cloud/api-v4/runs/get-run-status), [events](https://docs.browser-use.com/cloud/api-v4/runs/get-run-events), [cancel](https://docs.browser-use.com/cloud/api-v4/runs/cancel-run)
 - [Structured output](https://docs.browser-use.com/cloud/agent/structured-output), [sessions](https://docs.browser-use.com/cloud/agent/sessions)
 
-Validation uses synthetic HTTP fixtures derived from these public contracts. No real paid run, live service acceptance or publication is claimed. Any first-release catalog fixture is temporary test input only, not a published image or verified registry digest.
+Validation uses synthetic HTTP fixtures derived from these public contracts. No real paid run or live service acceptance is claimed. Any first-release catalog fixture is temporary test input only, not a published image or verified registry digest.

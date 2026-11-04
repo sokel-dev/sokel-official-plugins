@@ -35,6 +35,6 @@ Example change query:
 
 Requests stay on the fixed HTTPS origin, redirects are disabled and requests are not automatically retried, including paid reads. Responses are limited to 8 MiB. UI labels, instructions and errors default to English; Chinese translations are included.
 
-Tests use synthetic fixtures based on official API examples. They verify raw-token authentication, exact IDs and timestamps, page parameters, empty results, business failures, generated platform output, secret redaction and response bounds. No paid request or live account acceptance was performed as part of these fixture tests. Before release, validate both API entitlements and representative responses with an authorized account.
+Tests use synthetic fixtures based on official API examples. They verify raw-token authentication, exact IDs and timestamps, page parameters, empty results, business failures, generated platform output, secret redaction and response bounds. No paid request or live account acceptance was performed as part of these fixture tests. Before production use, validate both API entitlements and representative responses with an authorized account.
 
 Official references: [API 365: company basic information](https://open.tianyancha.com/open/365) and [API 822: registration changes](https://open.tianyancha.com/open/822).

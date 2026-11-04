@@ -34,7 +34,7 @@ Outputs contain typed meeting summaries, including the attendee `join_url`. Trea
 
 Operations allow 60 seconds, with a 50-second HTTP timeout, 1 MiB request and 8 MiB response limits. Redirects are blocked. Errors do not echo token or upstream response bodies. No request is retried automatically, including writes. A timeout can leave the result uncertain; check Zoom before repeating a creation. Zoom quotas and account-plan restrictions apply; creation currently has a documented per-host daily limit.
 
-This source is unreleased. Tests use synthetic, reduced fixtures adapted from official documentation; no real Zoom account has been tested and no meeting has been created during development. Before production, verify scopes, account policies, pagination and a controlled test meeting in your own account.
+Tests use synthetic, reduced fixtures adapted from official documentation; no real Zoom account has been tested and no meeting has been created during development. Before production, verify scopes, account policies, pagination and a controlled test meeting in your own account.
 
 ## Official references
 

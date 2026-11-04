@@ -1,6 +1,6 @@
 # Sokel for Todoist plugin
 
-Independent Go module exposing 9 typed operations. Source available; version 0.1.0 has not been published or tested against a live account.
+Independent Go module exposing 9 typed operations. Version 0.1.0 has not been tested against a live account.
 
 - [English usage guide](docs/todoist.md)
 - [中文使用指南](docs/todoist.zh-CN.md)
